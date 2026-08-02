@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Mfaktor Moliya{% endblock %}</title>
+<style>
+:root{
+  --bg:#0d1117; --bg2:#161b22; --card:rgba(255,255,255,.045);
+  --border:rgba(255,255,255,.09); --txt:#e6edf3; --mut:#8b949e;
+  --gold:#f2b544; --green:#3fb970; --red:#f85149; --blue:#58a6ff;
+}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,Segoe UI,sans-serif;min-height:100vh}
+a{color:var(--blue);text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px 48px}
+nav{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:14px 16px;
+    background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+nav .logo{font-weight:800;font-size:16px;color:var(--gold);margin-right:14px}
+nav a.item{color:var(--mut);padding:6px 12px;border-radius:8px;font-weight:600}
+nav a.item.on,nav a.item:hover{color:var(--txt);background:var(--card)}
+h1{font-size:22px;margin:24px 0 4px}
+h2{font-size:16px;margin:22px 0 10px;color:var(--gold)}
+.sub{color:var(--mut);margin-bottom:18px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;
+      padding:16px;backdrop-filter:blur(6px)}
+.kpi .v{font-size:22px;font-weight:800;margin-top:2px}
+.kpi .l{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.kpi .h{font-size:12px;color:var(--mut);margin-top:4px}
+.pos{color:var(--green)}.neg{color:var(--red)}.gold{color:var(--gold)}
+table{width:100%;border-collapse:collapse}
+th{color:var(--mut);text-align:left;font-size:12px;text-transform:uppercase;
+   letter-spacing:.03em;padding:8px 10px;border-bottom:1px solid var(--border)}
+td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+tr:hover td{background:rgba(255,255,255,.02)}
+.r{text-align:right}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700}
+.b-green{background:rgba(63,185,112,.15);color:var(--green)}
+.b-red{background:rgba(248,81,73,.15);color:var(--red)}
+.b-gold{background:rgba(242,181,68,.15);color:var(--gold)}
+.b-gray{background:rgba(139,148,158,.15);color:var(--mut)}
+input,select,textarea{background:var(--bg2);border:1px solid var(--border);color:var(--txt);
+  border-radius:8px;padding:8px 10px;font:inherit;width:100%}
+label{font-size:12px;color:var(--mut);display:block;margin:8px 0 3px}
+button,.btn{background:var(--gold);color:#1a1205;border:0;border-radius:8px;
+  padding:9px 16px;font-weight:700;cursor:pointer;font:inherit}
+button.ghost{background:transparent;color:var(--mut);border:1px solid var(--border)}
+button.danger{background:transparent;color:var(--red);border:1px solid rgba(248,81,73,.4);padding:4px 10px}
+.flash{padding:10px 14px;border-radius:10px;margin:14px 0}
+.flash.ok{background:rgba(63,185,112,.12);color:var(--green)}
+.flash.error{background:rgba(248,81,73,.12);color:var(--red)}
+form.inline{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));align-items:end}
+.bar{height:8px;background:rgba(255,255,255,.07);border-radius:6px;overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;background:var(--gold)}
+.scroll{overflow-x:auto}
+.monthnav{display:flex;gap:8px;align-items:center;margin:10px 0}
+</style>
+</head>
+<body>
+<nav>
+  <span class="logo">◆ MFAKTOR MOLIYA</span>
+  {% set p = request.path %}
+  <a class="item {{ 'on' if p=='/' }}" href="/">Dashboard</a>
+  <a class="item {{ 'on' if p.startswith('/transactions') }}" href="/transactions">Kassa</a>
+  <a class="item {{ 'on' if p.startswith('/contracts') }}" href="/contracts">Shartnomalar</a>
+  <a class="item {{ 'on' if p.startswith('/cohorts') }}" href="/cohorts">Oqimlar</a>
+  <a class="item {{ 'on' if p.startswith('/debtors') }}" href="/debtors">Qarzdorlik</a>
+  <a class="item {{ 'on' if p.startswith('/reports') }}" href="/reports">Hisobotlar</a>
+  <a class="item {{ 'on' if p.startswith('/settings') }}" href="/settings">Sozlamalar</a>
+</nav>
+<div class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+</div>
+</body>
+</html>

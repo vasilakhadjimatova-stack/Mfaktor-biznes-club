@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Qarzdorlik nazorati</h1>
+<p class="sub">Bo'lib to'lash grafigi bo'yicha kechikkan va yaqinlashayotgan to'lovlar</p>
+
+<div class="grid g2">
+  <div class="card">
+    <h2 style="margin-top:0">Muddati o'tgan (aging)</h2>
+    <table>
+      <tr><th>O'quvchi</th><th>Muddat</th><th class="r">Qoldiq</th><th>Kechikish</th></tr>
+      {% for r in overdue %}
+      <tr>
+        <td><a href="/contracts/{{ r.contract.id }}">{{ r.contract.student.name }}</a>
+            <div style="color:var(--mut);font-size:12px">{{ r.contract.student.phone }}</div></td>
+        <td>{{ r.line.due_date|dmy }}</td>
+        <td class="r neg">{{ r.rest|grp }}</td>
+        <td><span class="badge {{ 'b-red' if r.days > 7 else 'b-gold' }}">{{ r.bucket }}</span></td>
+      </tr>
+      {% else %}<tr><td colspan="4" class="sub">Kechikkan to'lov yo'q 🎉</td></tr>{% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Yaqin 14 kunda kutilmoqda</h2>
+    <table>
+      <tr><th>O'quvchi</th><th>Muddat</th><th class="r">Summa</th></tr>
+      {% for r in upcoming %}
+      <tr>
+        <td><a href="/contracts/{{ r.contract.id }}">{{ r.contract.student.name }}</a></td>
+        <td>{{ r.line.due_date|dmy }}</td>
+        <td class="r">{{ r.rest|grp }}</td>
+      </tr>
+      {% else %}<tr><td colspan="3" class="sub">Yaqin kunlarda to'lov yo'q</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <p class="sub" style="margin:0">💡 Keyingi bosqich (roadmap): bu ro'yxat asosida avtomatik SMS/Telegram eslatmalari yuboriladi (Impulse <code>core/sms.py</code> + <code>reminders.py</code> andozasi).</p>
+</div>
+{% endblock %}

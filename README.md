@@ -19,6 +19,13 @@ Mfaktor o'quv-ta'lim loyihasining barcha jarayonlariga — marketing, sotuv, o'q
 | [docs/02-dunyo-tajribasi.md](docs/02-dunyo-tajribasi.md) | Dunyodagi yetakchi ta'lim loyihalarining AI tajribalari (benchmark) |
 | [docs/03-ai-strategiya-roadmap.md](docs/03-ai-strategiya-roadmap.md) | AI integratsiya strategiyasi va bosqichma-bosqich yo'l xaritasi |
 | [docs/04-impulse-andozalar.md](docs/04-impulse-andozalar.md) | Impulse ERP va Impulse Moliya loyihalari texnik auditi — Mfaktor uchun tayyor andozalar |
+| [docs/05-moliya-dastur.md](docs/05-moliya-dastur.md) | Mfaktor Moliya dasturi loyihalash hujjati (kod: `moliya/`) |
+
+## Dastur
+
+| Papka | Tavsif |
+|---|---|
+| [moliya/](moliya/) | **Mfaktor Moliya** — ishlaydigan dastur: kassa (DDS), shartnomalar + to'lov grafigi, revenue recognition, unit-ekonomika (CAC/LTV/BEP), qarzdorlik nazorati |
 
 ## Ish tartibi
 

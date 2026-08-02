@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Shartnomalar</h1>
+<p class="sub">O'quvchi bilan kelishuv → avtomatik bo'lib to'lash grafigi</p>
+
+<div class="card">
+  <h2 style="margin-top:0">Yangi shartnoma</h2>
+  <form class="inline" method="post" action="/contracts/add">
+    <div><label>O'quvchi F.I.Sh</label><input name="student_name" required></div>
+    <div><label>Telefon</label><input name="phone"></div>
+    <div><label>Qayerdan keldi</label>
+      <select name="source">{% for c in CHANNELS %}<option>{{ c }}</option>{% endfor %}</select></div>
+    <div><label>Oqim</label>
+      <select name="cohort_id" required>
+        {% for ch in cohorts %}<option value="{{ ch.id }}">{{ ch.course.name }} — {{ ch.name }}</option>{% endfor %}
+      </select></div>
+    <div><label>Narx</label><input name="price" type="number" step="any" required></div>
+    <div><label>Chegirma/Grant</label><input name="discount" type="number" step="any" value="0"></div>
+    <div><label>Imzo sanasi</label><input type="date" name="signed_date" value="{{ today.isoformat() }}"></div>
+    <div><label>Necha qismga bo'linadi</label>
+      <select name="installments">{% for n in [1,2,3,4,6] %}<option value="{{n}}">{{n}} qism</option>{% endfor %}</select></div>
+    <div><button>Shartnoma yaratish</button></div>
+  </form>
+</div>
+
+<div class="monthnav" style="margin-top:16px">
+  {% for s, label in [('active','Faol'), ('completed','Tugatgan'), ('refunded','Qaytarilgan'), ('all','Hammasi')] %}
+    <a class="badge {{ 'b-gold' if status==s else 'b-gray' }}" href="?status={{ s }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="card scroll">
+  <table>
+    <tr><th>O'quvchi</th><th>Oqim</th><th class="r">Net narx</th>
+        <th class="r">To'langan</th><th class="r">Qoldiq</th><th>Holat</th><th>Imzo</th></tr>
+    {% for c in rows %}
+    <tr>
+      <td><a href="/contracts/{{ c.id }}">{{ c.student.name }}</a>
+          <div style="color:var(--mut);font-size:12px">{{ c.student.phone }}</div></td>
+      <td>{{ c.cohort.course.name }} · {{ c.cohort.name }}</td>
+      <td class="r">{{ c.net_price|grp }}</td>
+      <td class="r pos">{{ c.paid_total()|grp }}</td>
+      <td class="r {{ 'neg' if c.due_total() }}">{{ c.due_total()|grp }}</td>
+      <td>{% set b = {'active':'b-green','completed':'b-gray','refunded':'b-red','cancelled':'b-red'} %}
+          <span class="badge {{ b.get(c.status, 'b-gray') }}">{{ STATUSES.get(c.status, c.status) }}</span></td>
+      <td>{{ c.signed_date|dmy }}</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="sub">Shartnoma yo'q</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}
