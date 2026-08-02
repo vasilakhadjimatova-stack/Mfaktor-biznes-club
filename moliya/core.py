@@ -139,7 +139,7 @@ def upcoming_lines(days=7, today=None):
 #  UNIT-EKONOMIKA — CAC / ARPU / LTV / marja / fill rate
 # ══════════════════════════════════════════════════════════════════
 def marketing_spend_by_channel(year=None, month=None):
-    q = Transaction.query.filter(Transaction.category == "Marketing/Reklama",
+    q = Transaction.query.filter(Transaction.category == "Таргет (реклама)",
                                  Transaction.is_transfer.is_(False))
     if year:
         q = q.filter(func.extract("year", Transaction.tdate) == year)
@@ -197,13 +197,17 @@ def cohort_report():
         active = [c for c in contracts if c.status != "cancelled"]
         revenue = sum(c.net_price - c.refund_amount for c in active)
         paid = sum(c.paid_total() for c in active)
-        # oqimga bog'liq to'g'ridan-to'g'ri xarajat: shu davrga tushgan
-        # spiker gonorari + kontent (sodda taqsimot — davr bo'yicha)
+        # oqimga bog'liq to'g'ridan-to'g'ri xarajat: yo'nalish jamoasi
+        # ish haqi + kofe-breyk + bitiruv (davr bo'yicha sodda taqsimot)
+        from models import salary_cat_for_course
+        direct_cats = ["Кофе-брейк", "Выпускные расходы"]
+        sal = salary_cat_for_course(ch.course.name)
+        if sal:
+            direct_cats.append(sal)
         direct = (Transaction.query
                   .filter(Transaction.is_transfer.is_(False),
                           Transaction.operation == "chiqim",
-                          Transaction.category.in_(
-                              ["Spiker gonorari", "Kontent ishlab chiqarish"]),
+                          Transaction.category.in_(direct_cats),
                           Transaction.tdate >= ch.start_date,
                           Transaction.tdate <= ch.end_date)
                   .with_entities(func.coalesce(func.sum(Transaction.amount), 0.0))
@@ -226,17 +230,19 @@ def cohort_report():
 def break_even(year, month):
     """Oyiga nechta o'quvchi kerak: doimiy xarajat ÷ (o'rtacha chek marjasi)."""
     cf = month_cashflow(year, month)
-    fixed_cats = ["Ish haqi (admin)", "Ijara", "Texnik platforma/IT",
-                  "Xo'jalik xarajatlari"]
+    fixed_cats = ["Зарплата МФМ", "Аренда", "Коммунальные услуги",
+                  "CRM OnlinePBX", "Интернет/IP-телефония",
+                  "Абонентские подписки", "Обед сотрудников"]
     fixed = sum(cf["expense"].get(c, 0.0) for c in fixed_cats)
     # takrorlanuvchi to'lovlar rejasi ham doimiy hisoblanadi (fakt bo'lmasa)
     rec = sum(r.amount for r in RecurringPayment.query.filter_by(is_active=True))
     fixed = max(fixed, rec)
     ue = unit_economics(year, month)
     avg = ue["avg_check"]
-    # o'zgaruvchan ulush: spiker gonorari + komissiya taxminan tushumga nisbatan
-    var_cats = ["Spiker gonorari", "Bank/to'lov komissiyasi",
-                "Kontent ishlab chiqarish"]
+    # o'zgaruvchan ulush: yo'nalish jamoalari ish haqi + premiya + komissiya +
+    # kofe-breyk — tushumga bog'liq o'sadigan xarajatlar
+    var_cats = ["Зарплата СМК", "Зарплата РОП", "Зарплата ТВВ", "Премия",
+                "Комиссия банка", "Кофе-брейк", "Выпускные расходы"]
     var = sum(cf["expense"].get(c, 0.0) for c in var_cats)
     inc = cf["income_total"]
     var_ratio = var / inc if inc else 0.3
@@ -244,6 +250,72 @@ def break_even(year, month):
     need = (fixed / contribution) if contribution > 0 else None
     return {"fixed": fixed, "avg_check": avg, "var_ratio": var_ratio,
             "contribution": contribution, "students_needed": need}
+
+
+# ══════════════════════════════════════════════════════════════════
+#  YILLIK ДДС MATRITSASI — Mfaktor Sheets formati bilan 1:1
+# ══════════════════════════════════════════════════════════════════
+def dds_matrix(year):
+    """Yillik ДДС: statya × 12 oy, oy boshi/oxiri qoldiqlari, % ulushi.
+
+    Mfaktor jamoasi ko'nikkan «Отчет о движении денежных средств»
+    formatini beradi: ustunlar — oylar, qatorlar — statyalar.
+    """
+    from models import INCOME_CATS, EXPENSE_CATS
+
+    inc = {c: [0.0] * 12 for c in INCOME_CATS}
+    exp = {c: [0.0] * 12 for c in EXPENSE_CATS}
+    other_inc, other_exp = [0.0] * 12, [0.0] * 12
+
+    year_txs = (Transaction.query
+                .filter(Transaction.is_transfer.is_(False))
+                .filter(func.extract("year", Transaction.tdate) == year).all())
+    for t in year_txs:
+        i = t.tdate.month - 1
+        if t.operation == "kirim":
+            if t.category in inc:
+                inc[t.category][i] += t.amount
+            else:
+                other_inc[i] += t.amount
+        else:
+            if t.category in exp:
+                exp[t.category][i] += t.amount
+            else:
+                other_exp[i] += t.amount
+
+    inc_tot = [sum(inc[c][i] for c in inc) + other_inc[i] for i in range(12)]
+    exp_tot = [sum(exp[c][i] for c in exp) + other_exp[i] for i in range(12)]
+    net = [inc_tot[i] - exp_tot[i] for i in range(12)]
+
+    # yil boshigacha bo'lgan qoldiq: hamyon ochilishlari + avvalgi harakat
+    opening_total = sum(w.opening for w in Wallet.query.all())
+    prior = 0.0
+    for t in Transaction.query.filter(Transaction.is_transfer.is_(False)) \
+            .filter(Transaction.tdate < date(year, 1, 1)).all():
+        prior += t.amount if t.operation == "kirim" else -t.amount
+    start = opening_total + prior
+    opens, closes = [], []
+    bal = start
+    for i in range(12):
+        opens.append(bal)
+        bal += net[i]
+        closes.append(bal)
+
+    inc_year_total = sum(inc_tot) or 1.0
+    rows_inc = [{"cat": c, "vals": inc[c], "total": sum(inc[c]),
+                 "pct": sum(inc[c]) / inc_year_total * 100}
+                for c in INCOME_CATS if any(inc[c])]
+    rows_exp = [{"cat": c, "vals": exp[c], "total": sum(exp[c]),
+                 "pct": sum(exp[c]) / inc_year_total * 100}
+                for c in EXPENSE_CATS if any(exp[c])]
+    return {
+        "year": year, "opens": opens, "closes": closes,
+        "rows_inc": rows_inc, "rows_exp": rows_exp,
+        "other_inc": other_inc, "other_exp": other_exp,
+        "inc_tot": inc_tot, "exp_tot": exp_tot, "net": net,
+        "inc_year": sum(inc_tot), "exp_year": sum(exp_tot),
+        "net_year": sum(net),
+    }
 
 
 # ══════════════════════════════════════════════════════════════════

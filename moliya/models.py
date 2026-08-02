@@ -15,16 +15,69 @@ from datetime import date, datetime
 
 from database import db
 
-# ── Lug'atlar ────────────────────────────────────────────────────
+# ── Lug'atlar — Mfaktor ДДС jadvali bilan 1:1 mos ────────────────
+# (real Google Sheets'dagi statya nomlari saqlangan; Sheets import shunga tayanadi)
 INCOME_CATS = [
-    "Kurs to'lovi", "Korporativ xizmat", "Tadbir/Event", "Prodyusserlik",
-    "Grant/Homiylik", "Boshqa kirim",
+    "Поступление от клиента РОП",
+    "Поступление от клиента СМК",
+    "Поступление от клиента ТВВ",
+    "Поступление Б2Б",
+    "Мфактор поступления",
+    "Доход — долг",
+    "Прочие поступления",
 ]
 EXPENSE_CATS = [
-    "Spiker gonorari", "Marketing/Reklama", "Ish haqi (admin)", "Ijara",
-    "Soliqlar", "Texnik platforma/IT", "Kontent ishlab chiqarish",
-    "Bank/to'lov komissiyasi", "Xo'jalik xarajatlari", "Dividend", "Boshqa chiqim",
+    "Возврат клиенту",
+    "Зарплата МФМ", "Зарплата СМК", "Зарплата РОП", "Зарплата ТВВ",
+    "Премия",
+    "Аренда",
+    "Налог/дивиденд",
+    "Обед сотрудников",
+    "Комиссия банка",
+    "Коммунальные услуги",
+    "Ремонт",
+    "Таргет (реклама)",
+    "Закуп хоз. товаров",
+    "Выпускные расходы",
+    "Кофе-брейк",
+    "CRM OnlinePBX",
+    "Такси",
+    "Интернет/IP-телефония",
+    "Абонентские подписки",
+    "Хайринг",
+    "Корпоративный расход",
+    "Прочие расходы",
+    "Расход — долг",
 ]
+
+# Kurs yo'nalishi → kirim statyasi (kurs nomidan aniqlanadi)
+DIRECTION_INCOME = {
+    "РОП": "Поступление от клиента РОП",
+    "ROP": "Поступление от клиента РОП",
+    "СМК": "Поступление от клиента СМК",
+    "ТВВ": "Поступление от клиента ТВВ",
+}
+# Kurs yo'nalishi → shu yo'nalish jamoasining ish haqi statyasi
+DIRECTION_SALARY = {
+    "РОП": "Зарплата РОП", "ROP": "Зарплата РОП",
+    "СМК": "Зарплата СМК", "ТВВ": "Зарплата ТВВ",
+}
+
+
+def income_cat_for_course(course_name):
+    up = (course_name or "").upper()
+    for key, cat in DIRECTION_INCOME.items():
+        if key in up:
+            return cat
+    return "Мфактор поступления"
+
+
+def salary_cat_for_course(course_name):
+    up = (course_name or "").upper()
+    for key, cat in DIRECTION_SALARY.items():
+        if key in up:
+            return cat
+    return None
 MARKETING_CHANNELS = [
     "Instagram", "Telegram", "YouTube", "Facebook", "Google",
     "Tavsiya", "Offline/Event", "Boshqa",

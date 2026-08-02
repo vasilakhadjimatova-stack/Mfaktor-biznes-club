@@ -16,7 +16,7 @@ from database import db, init_db
 from models import (Budget, Cohort, Contract, Course, EXPENSE_CATS,
                     INCOME_CATS, InstallmentLine, MARKETING_CHANNELS,
                     RecurringPayment, Student, Transaction, Wallet,
-                    CONTRACT_STATUSES)
+                    CONTRACT_STATUSES, income_cat_for_course)
 
 
 def create_app():
@@ -215,7 +215,7 @@ def register_routes(app):
             tdate=_parse_date(f.get("tdate")),
             wallet_code=f.get("wallet_code", ""),
             operation="kirim", amount=amount,
-            category="Kurs to'lovi",
+            category=income_cat_for_course(c.cohort.course.name),
             counterparty=c.student.name,
             contract_id=c.id,
             comment=f.get("comment", "")))
@@ -246,7 +246,7 @@ def register_routes(app):
                     db.session.add(Transaction(
                         tdate=date.today(), wallet_code=wallet,
                         operation="chiqim", amount=refund,
-                        category="Boshqa chiqim",
+                        category="Возврат клиенту",
                         counterparty=c.student.name,
                         contract_id=c.id,
                         comment="Pul qaytarish (kafolat)"))
@@ -260,6 +260,15 @@ def register_routes(app):
         return render_template("debtors.html",
                                overdue=core.overdue_lines(),
                                upcoming=core.upcoming_lines(14))
+
+    # ── Yillik ДДС (Sheets formati) ─────────────────────────────
+    @app.route("/dds")
+    def dds():
+        try:
+            year = int(request.args.get("year", date.today().year))
+        except ValueError:
+            year = date.today().year
+        return render_template("dds.html", d=core.dds_matrix(year))
 
     # ── Hisobotlar ───────────────────────────────────────────────
     @app.route("/reports")
