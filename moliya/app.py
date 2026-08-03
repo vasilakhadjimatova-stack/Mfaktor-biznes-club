@@ -72,6 +72,15 @@ def _ym():
 
 def register_routes(app):
 
+    # ── PWA: service worker root scope'da bo'lishi shart ────────
+    @app.route("/sw.js")
+    def sw():
+        from flask import send_from_directory
+        resp = send_from_directory(app.static_folder, "sw.js",
+                                   mimetype="application/javascript")
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
     # ── Dashboard ────────────────────────────────────────────────
     @app.route("/")
     def dashboard():
