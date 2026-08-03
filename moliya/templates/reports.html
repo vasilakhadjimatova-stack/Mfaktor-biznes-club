@@ -1,96 +1,121 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>Hisobotlar</h1>
-<p class="sub">{{ '%02d'|format(m) }}.{{ y }} — DDS, unit-ekonomika, BEP, plan-fakt</p>
+<h1>Tahlillar</h1>
+<p class="sub">{{ '%02d'|format(m) }}.{{ y }} oyi bo'yicha</p>
 
 <div class="monthnav">
   {% set py, pm = (y-1, 12) if m == 1 else (y, m-1) %}
   {% set ny, nm = (y+1, 1) if m == 12 else (y, m+1) %}
   <a class="chip" href="?y={{py}}&m={{pm}}">← {{ '%02d'|format(pm) }}.{{ py }}</a>
+  <span class="chip on">{{ '%02d'|format(m) }}.{{ y }}</span>
   <a class="chip" href="?y={{ny}}&m={{nm}}">{{ '%02d'|format(nm) }}.{{ ny }} →</a>
 </div>
 
 <div class="grid g2">
   <div class="card">
-    <h2 style="margin-top:0">DDS — kirim statyalari</h2>
+    <h2>Pul qayerdan keldi</h2>
+    <div class="tablewrap">
     <table>
       {% for cat, v in cf.income.items() %}
       <tr><td>{{ cat }}</td><td class="r pos">{{ v|grp }}</td></tr>
-      {% else %}<tr><td class="sub">Kirim yo'q</td></tr>{% endfor %}
-      <tr><td><b>Jami</b></td><td class="r pos"><b>{{ cf.income_total|grp }}</b></td></tr>
+      {% else %}<tr><td colspan="2"><div class="empty">Bu oyda kirim yo'q</div></td></tr>{% endfor %}
+      <tr><td><b>Jami kirdi</b></td><td class="r pos"><b>{{ cf.income_total|grp }}</b></td></tr>
     </table>
+    </div>
   </div>
   <div class="card">
-    <h2 style="margin-top:0">DDS — chiqim statyalari</h2>
+    <h2>Pul qayerga ketdi</h2>
+    <div class="tablewrap">
     <table>
       {% for cat, v in cf.expense.items() %}
       <tr><td>{{ cat }}</td><td class="r neg">{{ v|grp }}</td></tr>
-      {% else %}<tr><td class="sub">Chiqim yo'q</td></tr>{% endfor %}
-      <tr><td><b>Jami</b></td><td class="r neg"><b>{{ cf.expense_total|grp }}</b></td></tr>
+      {% else %}<tr><td colspan="2"><div class="empty">Bu oyda chiqim yo'q</div></td></tr>{% endfor %}
+      <tr><td><b>Jami chiqdi</b></td><td class="r neg"><b>{{ cf.expense_total|grp }}</b></td></tr>
     </table>
+    </div>
   </div>
 </div>
 
 <div class="grid g2" style="margin-top:14px">
   <div class="card">
-    <h2 style="margin-top:0">Unit-ekonomika</h2>
+    <h2>Reklama samarasi</h2>
+    <div class="tablewrap">
     <table>
-      <tr><td>Yangi o'quvchilar</td><td class="r">{{ ue.new_students }}</td></tr>
-      <tr><td>Marketing xarajati</td><td class="r">{{ ue.marketing_spend|grp }}</td></tr>
-      <tr><td>CAC (1 o'quvchi jalb qilish narxi)</td><td class="r">{{ ue.cac|grp }}</td></tr>
-      <tr><td>O'rtacha chek</td><td class="r">{{ ue.avg_check|grp }}</td></tr>
-      <tr><td>LTV (umrbod qiymat)</td><td class="r">{{ ue.ltv|grp }}</td></tr>
-      <tr><td><b>LTV / CAC</b> <span class="sub">(standart ≥ 3)</span></td>
-          <td class="r"><b class="{{ 'pos' if ue.ltv_cac and ue.ltv_cac >= 3 else 'neg' }}">
-            {{ '%.1f'|format(ue.ltv_cac) if ue.ltv_cac else '—' }}</b></td></tr>
+      <tr><td>Bu oy yangi o'quvchilar</td><td class="r">{{ ue.new_students }}</td></tr>
+      <tr><td>Reklamaga sarflandi</td><td class="r">{{ ue.marketing_spend|grp }}</td></tr>
+      <tr><td><b>1 o'quvchini jalb qilish narxi</b></td><td class="r"><b>{{ ue.cac|grp }}</b></td></tr>
+      <tr><td>1 o'quvchi o'rtacha to'laydigan summa</td><td class="r">{{ ue.avg_check|grp }}</td></tr>
+      <tr><td>1 o'quvchi umri davomida keltiradigan pul</td><td class="r">{{ ue.ltv|grp }}</td></tr>
     </table>
-    <h2>CAC kanal kesimida</h2>
+    </div>
+    <p class="hint" style="margin-top:12px">
+      {% if ue.ltv_cac %}O'quvchi keltiradigan pul jalb qilish narxidan
+      <b>{{ '%.1f'|format(ue.ltv_cac) }} barobar</b> ko'p.
+      {{ "Bu yaxshi ko'rsatkich (3 dan yuqori bo'lishi kerak)." if ue.ltv_cac >= 3 else "Bu past — 3 dan yuqori bo'lishi kerak." }}
+      {% else %}Bu oyda hisoblash uchun yangi o'quvchi kam.{% endif %}
+    </p>
+    {% if ue.cac_by_channel %}
+    <h2>Qaysi kanal qancha o'quvchi berdi</h2>
+    <div class="tablewrap">
     <table>
-      <tr><th>Kanal</th><th class="r">Xarajat</th><th class="r">O'quvchi</th><th class="r">CAC</th></tr>
+      <tr><th>Kanal</th><th class="r">Sarflandi</th><th class="r">O'quvchi</th><th class="r">1 o'quvchi narxi</th></tr>
       {% for ch, r in ue.cac_by_channel.items() %}
       <tr><td>{{ ch }}</td><td class="r">{{ r.spend|grp }}</td>
           <td class="r">{{ r.students }}</td>
           <td class="r">{{ r.cac|grp if r.cac else '—' }}</td></tr>
-      {% else %}<tr><td colspan="4" class="sub">Marketing chiqimida kanal belgilang</td></tr>{% endfor %}
+      {% endfor %}
     </table>
+    </div>
+    {% endif %}
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0">BEP — zararsizlik nuqtasi</h2>
+    <h2>Zararsizlik — oyiga nechta o'quvchi kerak</h2>
+    <div class="tablewrap">
     <table>
-      <tr><td>Doimiy xarajatlar (oy)</td><td class="r">{{ bep.fixed|grp }}</td></tr>
-      <tr><td>O'rtacha chek</td><td class="r">{{ bep.avg_check|grp }}</td></tr>
-      <tr><td>O'zgaruvchan xarajat ulushi</td><td class="r">{{ '%.0f'|format(bep.var_ratio*100) }}%</td></tr>
-      <tr><td>1 o'quvchi hissasi (contribution)</td><td class="r">{{ bep.contribution|grp }}</td></tr>
-      <tr><td><b>Zararsizlik uchun oyiga kerak</b></td>
-          <td class="r"><b class="gold">{{ '%.1f'|format(bep.students_needed) if bep.students_needed else '—' }} o'quvchi</b></td></tr>
+      <tr><td>Doimiy xarajatlar (ijara, oyliklar...)</td><td class="r">{{ bep.fixed|grp }}</td></tr>
+      <tr><td>O'rtacha kurs narxi</td><td class="r">{{ bep.avg_check|grp }}</td></tr>
+      <tr><td>1 o'quvchidan qoladigan sof pul</td><td class="r">{{ bep.contribution|grp }}</td></tr>
+      <tr><td><b>Zarar ko'rmaslik uchun oyiga kerak</b></td>
+          <td class="r"><b class="gold">{{ '%.0f'|format(bep.students_needed) if bep.students_needed else '—' }} o'quvchi</b></td></tr>
     </table>
+    </div>
+    <p class="hint" style="margin-top:12px">Yangi kurs rejalashtirsangiz: <a href="/planner">Launch-hisob</a> — u yerda har kurs alohida hisoblanadi.</p>
 
-    <h2>Hisoblash qatlami (accrual)</h2>
+    <h2>Oldindan olingan pullar</h2>
+    <div class="tablewrap">
     <table>
-      <tr><td>Imzolangan shartnomalar (booked)</td><td class="r">{{ acc.booked|grp }}</td></tr>
-      <tr><td>Tan olingan daromad</td><td class="r pos">{{ acc.recognized|grp }}</td></tr>
-      <tr><td>Deferred revenue (majburiyat)</td><td class="r">{{ acc.deferred|grp }}</td></tr>
-      <tr><td>Debitorka</td><td class="r {{ 'neg' if acc.receivable }}">{{ acc.receivable|grp }}</td></tr>
+      <tr><td>Shartnomalarda kelishilgan jami</td><td class="r">{{ acc.booked|grp }}</td></tr>
+      <tr><td>Shundan "ishlab bo'lingan" qismi</td><td class="r pos">{{ acc.recognized|grp }}</td></tr>
+      <tr><td><b>Hali "ishlanmagan" avans</b></td><td class="r"><b>{{ acc.deferred|grp }}</b></td></tr>
+      <tr><td>O'quvchilardan kutilayotgan qarz</td><td class="r {{ 'neg' if acc.receivable }}">{{ acc.receivable|grp }}</td></tr>
     </table>
+    </div>
+    <p class="hint" style="margin-top:12px">Muhim tamoyil: o'quvchi to'lagan pul kurs tugagunicha to'liq "bizniki" emas — kurs davomida asta "ishlanadi". «Hali ishlanmagan avans» — bu kelajakdagi majburiyatimiz: shu pulga hali dars berishimiz kerak.</p>
   </div>
 </div>
 
 <div class="card" style="margin-top:14px">
-  <h2 style="margin-top:0">Byudjet plan-fakt</h2>
-  <form class="inline" method="post" action="/budget/add">
-    <input type="hidden" name="year" value="{{ y }}"><input type="hidden" name="month" value="{{ m }}">
-    <div><label>Turi</label><select name="btype"><option value="income">Kirim</option><option value="expense">Chiqim</option></select></div>
-    <div><label>Statya</label>
-      <select name="category">
-        <optgroup label="Kirim">{% for c in INCOME_CATS %}<option>{{ c }}</option>{% endfor %}</optgroup>
-        <optgroup label="Chiqim">{% for c in EXPENSE_CATS %}<option>{{ c }}</option>{% endfor %}</optgroup>
-      </select></div>
-    <div><label>Reja summasi</label><input name="planned" type="number" step="any" required></div>
-    <div><button class="ghost">Reja qo'yish</button></div>
-  </form>
-  <table style="margin-top:12px">
-    <tr><th>Statya</th><th>Turi</th><th class="r">Reja</th><th class="r">Fakt</th><th class="r">Bajarilish</th><th class="r">Farq</th></tr>
+  <h2>Reja va amal (plan-fakt)</h2>
+  <details class="adder" style="margin:0 0 12px">
+    <summary>Yangi reja qo'yish</summary>
+    <div class="body">
+    <form class="inline" method="post" action="/budget/add">
+      <input type="hidden" name="year" value="{{ y }}"><input type="hidden" name="month" value="{{ m }}">
+      <div><label>Turi</label><select name="btype"><option value="income">Kirim</option><option value="expense">Chiqim</option></select></div>
+      <div><label>Statya</label>
+        <select name="category">
+          <optgroup label="Kirim">{% for c in INCOME_CATS %}<option>{{ c }}</option>{% endfor %}</optgroup>
+          <optgroup label="Chiqim">{% for c in EXPENSE_CATS %}<option>{{ c }}</option>{% endfor %}</optgroup>
+        </select></div>
+      <div><label>Reja summasi</label><input name="planned" type="number" step="any" required></div>
+      <div><button class="ghost">Saqlash</button></div>
+    </form>
+    </div>
+  </details>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Statya</th><th>Turi</th><th class="r">Reja</th><th class="r">Amalda</th><th class="r">Bajarildi</th></tr>
     {% for r in planfact %}
     <tr>
       <td>{{ r.plan.category }}</td>
@@ -98,9 +123,9 @@
       <td class="r">{{ r.plan.planned|grp }}</td>
       <td class="r">{{ r.fact|grp }}</td>
       <td class="r">{{ '%.0f'|format(r.pct) ~ '%' if r.pct is not none else '—' }}</td>
-      <td class="r {{ 'pos' if (r.plan.btype=='income' and r.diff>=0) or (r.plan.btype=='expense' and r.diff<=0) else 'neg' }}">{{ r.diff|grp }}</td>
     </tr>
-    {% else %}<tr><td colspan="6" class="sub">Bu oyga reja qo'yilmagan</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="5"><div class="empty">Bu oyga reja qo'yilmagan</div></td></tr>{% endfor %}
   </table>
+  </div>
 </div>
 {% endblock %}

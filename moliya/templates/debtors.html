@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>Qarzdorlik nazorati</h1>
-<p class="sub">Bo'lib to'lash grafigi bo'yicha kechikkan va yaqinlashayotgan to'lovlar</p>
+<h1>Qarzdorlik</h1>
+<p class="sub">Kim kechiktirdi va kimdan qachon to'lov kutilmoqda</p>
 
 <div class="grid g2">
   <div class="card">
-    <h2 style="margin-top:0">Muddati o'tgan (aging)</h2>
+    <h2 style="margin-top:0">Kechikkanlar</h2>
     <table>
       <tr><th>O'quvchi</th><th>Muddat</th><th class="r">Qoldiq</th><th>Kechikish</th></tr>
       {% for r in overdue %}

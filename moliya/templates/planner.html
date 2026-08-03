@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Launch-kalkulyator</h1>
-<p class="sub">Yangi kurs/oqim ochishdan oldin — marja va zararsizlik real tarixiy ma'lumotlar asosida</p>
+<p class="sub">Yangi kurs ochishdan oldin: qancha o'quvchi kerak va qancha foyda bo'ladi — real raqamlar asosida</p>
 
 <div class="card">
   <form class="inline" method="get" action="/planner">
@@ -22,17 +22,17 @@
 {% set m = r.main %}
 <div class="grid g4" style="margin-top:14px">
   <div class="card kpi">
-    <div class="l">Zararsizlik (BEP)</div>
+    <div class="l">Zarar ko'rmaslik chegarasi</div>
     <div class="v gold">{{ '%.1f'|format(m.bep_full) if m.bep_full is not none else '∞' }}</div>
-    <div class="h">o'quvchi — doimiy xarajat ulushi bilan</div>
+    <div class="h">o'quvchi yig'ilishi shart</div>
   </div>
   <div class="card kpi">
     <div class="l">1 o'quvchi hissasi</div>
     <div class="v {{ 'pos' if m.contribution_after_cac > 0 else 'neg' }}">{{ m.contribution_after_cac|grp }}</div>
-    <div class="h">narx − o'zgaruvchan − qaytarish − CAC</div>
+    <div class="h">narx − xarajatlar − qaytarish − reklama</div>
   </div>
   <div class="card kpi">
-    <div class="l">To'liq guruh marjasi</div>
+    <div class="l">To'liq guruhda foyda</div>
     {% set full = m.fills[-1] %}
     <div class="v {{ 'pos' if full.margin_full > 0 else 'neg' }}">{{ full.margin_full|grp }}</div>
     <div class="h">{{ full.students }} o'quvchida · {{ '%.0f'|format(full.margin_full_pct) }}% marja</div>
@@ -42,7 +42,7 @@
     {% if m.bep_full is not none and m.bep_full > 0 %}
     {% set safety = (r.capacity - m.bep_full) / r.capacity * 100 %}
     <div class="v {{ 'pos' if safety > 30 else ('gold' if safety > 0 else 'neg') }}">{{ '%.0f'|format(safety) }}%</div>
-    <div class="h">sig'im BEPdan qancha yuqori</div>
+    <div class="h">o'rinlar chegaradan qancha yuqori</div>
     {% else %}<div class="v neg">—</div><div class="h">hissa musbat emas!</div>{% endif %}
   </div>
 </div>

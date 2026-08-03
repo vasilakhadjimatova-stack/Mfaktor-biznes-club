@@ -1,34 +1,57 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Boshqaruv paneli</h1>
-<p class="sub">{{ d.today|dmy }} holatiga — kassa, majburiyat va unit-ekonomika bir qarashda</p>
+<p class="sub">{{ d.today|dmy }} — bugungi holat bir qarashda</p>
 
 <div class="grid g4">
   <div class="card kpi">
-    <div class="l">Jami pul (hamyonlar)</div>
+    <div class="l">Kassadagi jami pul</div>
     <div class="v gold">{{ d.total_balance|grp }}</div>
-    <div class="h">{{ d.balances|length }} ta hamyon</div>
+    <div class="h">{{ d.balances|length }} ta hisob bo'yicha</div>
   </div>
   <div class="card kpi">
-    <div class="l">Bu oy sof oqim</div>
+    <div class="l">Bu oy kirdi</div>
+    <div class="v pos">{{ d.cashflow.income_total|grp }}</div>
+    <div class="h">barcha tushumlar</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Bu oy chiqdi</div>
+    <div class="v neg">{{ d.cashflow.expense_total|grp }}</div>
+    <div class="h">barcha xarajatlar</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Bu oy natija</div>
     <div class="v {{ 'pos' if d.cashflow.net >= 0 else 'neg' }}">{{ d.cashflow.net|grp }}</div>
-    <div class="h">Kirim {{ d.cashflow.income_total|grp }} · Chiqim {{ d.cashflow.expense_total|grp }}</div>
+    <div class="h">{{ "foyda ko'rinmoqda" if d.cashflow.net >= 0 else "chiqim kirimdan ko'p" }}</div>
   </div>
+</div>
+
+<div class="grid g4" style="margin-top:14px">
   <div class="card kpi {{ 'alert' if d.overdue_total }}">
-    <div class="l">Muddati o'tgan qarz</div>
+    <div class="l">Kechikkan to'lovlar</div>
     <div class="v {{ 'neg' if d.overdue_total else 'pos' }}">{{ d.overdue_total|grp }}</div>
-    <div class="h">{{ d.overdue|length }} ta grafik qatori</div>
+    <div class="h">{{ d.overdue|length }} ta o'quvchidan kutilmoqda · <a href="/debtors">ro'yxat</a></div>
   </div>
   <div class="card kpi">
-    <div class="l">7 kunda kutilmoqda</div>
-    <div class="v pos">{{ d.upcoming_total|grp }}</div>
-    <div class="h">{{ d.upcoming|length }} ta to'lov · <a href="/debtors">ro'yxat →</a></div>
+    <div class="l">Shu hafta kelishi kerak</div>
+    <div class="v">{{ d.upcoming_total|grp }}</div>
+    <div class="h">{{ d.upcoming|length }} ta rejali to'lov</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">O'qiyotgan o'quvchilar</div>
+    <div class="v">{{ d.active_contracts }}</div>
+    <div class="h">faol shartnomalar</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Bu oy yangi o'quvchi</div>
+    <div class="v">{{ d.ue.new_students }}</div>
+    <div class="h"><a href="/reports">marketing tahlili →</a></div>
   </div>
 </div>
 
 <div class="grid g2" style="margin-top:14px">
   <div class="card">
-    <h2>Oylik oqim — {{ d.today.year }}</h2>
+    <h2>Oylar bo'yicha kirim va chiqim</h2>
     <div class="chart">
       {% for r in d.series %}
       <div class="grp" title="{{ r.m }}-oy: kirim {{ r.inc|grp }}, chiqim {{ r.exp|grp }}">
@@ -38,7 +61,7 @@
       {% endfor %}
     </div>
     <div class="chart-x">
-      {% for r in d.series %}<span>{{ r.m }}</span>{% endfor %}
+      {% for r in d.series %}<span>{{ r.m }}-oy</span>{% endfor %}
     </div>
     <div class="legend">
       <span><i style="background:var(--green)"></i>Kirim</span>
@@ -47,60 +70,36 @@
   </div>
 
   <div class="card">
-    <h2>Hamyonlar</h2>
+    <h2>Hisoblar bo'yicha pul</h2>
     <div class="tablewrap">
     <table>
-      <tr><th>Hamyon</th><th class="r">Qoldiq</th></tr>
+      <tr><th>Hisob</th><th class="r">Qoldiq</th></tr>
       {% for r in d.balances %}
       <tr><td>{{ r.wallet.name }}</td>
           <td class="r {{ 'neg' if r.balance < 0 }}">{{ r.balance|grp }}</td></tr>
       {% endfor %}
+      <tr><td><b>Jami</b></td><td class="r"><b>{{ d.total_balance|grp }}</b></td></tr>
     </table>
     </div>
   </div>
 </div>
 
-<div class="grid g2" style="margin-top:14px">
-  <div class="card">
-    <h2>Muddati o'tganlar (eng og'irlari)</h2>
-    {% if d.overdue %}
-    <div class="tablewrap">
-    <table>
-      <tr><th>O'quvchi</th><th class="r">Qoldiq</th><th class="r">Kechikish</th></tr>
-      {% for r in d.overdue[:8] %}
-      <tr>
-        <td><a href="/contracts/{{ r.contract.id }}">{{ r.contract.student.name }}</a></td>
-        <td class="r neg">{{ r.rest|grp }}</td>
-        <td style="text-align:right"><span class="badge b-red">{{ r.days }} kun</span></td>
-      </tr>
-      {% endfor %}
-    </table>
-    </div>
-    {% else %}<div class="empty">Muddati o'tgan qarz yo'q 🎉</div>{% endif %}
-  </div>
-
-  <div class="card">
-    <h2>Unit-ekonomika (bu oy)</h2>
-    <div class="grid g4" style="gap:10px">
-      <div class="kpi"><div class="l">Faol shartnoma</div><div class="v">{{ d.active_contracts }}</div></div>
-      <div class="kpi"><div class="l">CAC</div><div class="v">{{ d.ue.cac|grp }}</div></div>
-      <div class="kpi"><div class="l">LTV/CAC</div>
-        <div class="v {{ 'pos' if d.ue.ltv_cac and d.ue.ltv_cac >= 3 else '' }}">
-          {{ '%.1f'|format(d.ue.ltv_cac) if d.ue.ltv_cac else '—' }}</div></div>
-      <div class="kpi"><div class="l">Yangi o'quvchi</div><div class="v">{{ d.ue.new_students }}</div></div>
-    </div>
-    <p class="sub" style="margin:12px 0 0;font-size:12px">Marketing {{ d.ue.marketing_spend|grp }} · LTV {{ d.ue.ltv|grp }} · standart: LTV/CAC ≥ 3 · <a href="/reports">to'liq tahlil →</a></p>
-  </div>
-</div>
-
+{% if d.overdue %}
 <div class="card" style="margin-top:14px">
-  <h2>Hisoblash qatlami (accrual)</h2>
-  <div class="grid g4">
-    <div class="kpi"><div class="l">Imzolangan (booked)</div><div class="v">{{ d.accrual.booked|grp }}</div></div>
-    <div class="kpi"><div class="l">Tan olingan daromad</div><div class="v pos">{{ d.accrual.recognized|grp }}</div></div>
-    <div class="kpi"><div class="l">Deferred (majburiyat)</div><div class="v">{{ d.accrual.deferred|grp }}</div></div>
-    <div class="kpi"><div class="l">Debitorka</div><div class="v {{ 'neg' if d.accrual.receivable }}">{{ d.accrual.receivable|grp }}</div></div>
+  <h2>Kim to'lovni kechiktiryapti</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>O'quvchi</th><th class="r">Qancha</th><th class="r">Necha kun</th></tr>
+    {% for r in d.overdue[:8] %}
+    <tr>
+      <td><a href="/contracts/{{ r.contract.id }}">{{ r.contract.student.name }}</a></td>
+      <td class="r neg">{{ r.rest|grp }}</td>
+      <td style="text-align:right"><span class="badge b-red">{{ r.days }} kun</span></td>
+    </tr>
+    {% endfor %}
+  </table>
   </div>
-  <p class="sub" style="margin:12px 0 0;font-size:12px">Kurs to'lovi darhol daromad emas — kurs davomiga taqsimlanadi (IFRS 15). «Olingan pul» va «topilgan pul» farqi shu yerda ko'rinadi.</p>
+  <p class="sub" style="margin:10px 0 0;font-size:12.5px">Eslatma yuborish uchun: <a href="/automation">Avtomatika → Kunni yopish</a></p>
 </div>
+{% endif %}
 {% endblock %}

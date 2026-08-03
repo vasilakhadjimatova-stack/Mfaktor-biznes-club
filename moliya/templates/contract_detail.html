@@ -20,8 +20,8 @@
     {% if c.discount %}<div class="h">Chegirma: {{ c.discount|grp }}</div>{% endif %}</div>
   <div class="card kpi"><div class="l">To'langan</div><div class="v pos">{{ c.paid_total()|grp }}</div></div>
   <div class="card kpi"><div class="l">Qoldiq</div><div class="v {{ 'neg' if c.due_total() }}">{{ c.due_total()|grp }}</div></div>
-  <div class="card kpi"><div class="l">Tan olingan daromad</div><div class="v gold">{{ recognized|grp }}</div>
-    <div class="h">Kurs jarayoniga qarab o'sadi</div></div>
+  <div class="card kpi"><div class="l">Ishlangan qismi</div><div class="v gold">{{ recognized|grp }}</div>
+    <div class="h">kurs o'tilgan sari o'sib boradi</div></div>
 </div>
 
 <div class="grid g2" style="margin-top:14px">
@@ -52,7 +52,7 @@
       <div><label>Izoh</label><input name="comment"></div>
       <div><button>Qabul qilish</button></div>
     </form>
-    <p class="sub" style="margin:8px 0 0">To'lov kassaga yoziladi va grafikning eng eski qatoridan boshlab yopiladi (FIFO).</p>
+    <p class="sub" style="margin:8px 0 0">To'lov kassaga yoziladi va grafikdagi eng eski qarzdan boshlab yopiladi — hammasi avtomatik.</p>
 
     <h2>Holatni o'zgartirish</h2>
     <form class="inline" method="post" action="/contracts/{{ c.id }}/status">
