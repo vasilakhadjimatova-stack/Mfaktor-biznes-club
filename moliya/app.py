@@ -13,6 +13,7 @@ from flask import Flask, flash, redirect, render_template, request, url_for
 
 import automation
 import core
+import planner
 from database import db, init_db
 from models import (Budget, Cohort, Contract, Course, EXPENSE_CATS,
                     INCOME_CATS, InstallmentLine, MARKETING_CHANNELS,
@@ -150,17 +151,55 @@ def register_routes(app):
             db.session.add(c)
             db.session.flush()
             course_id = c.id
-        db.session.add(Cohort(
+        ch = Cohort(
             course_id=int(course_id),
             name=f.get("name", "Yangi oqim"),
             start_date=_parse_date(f.get("start_date")),
             end_date=_parse_date(f.get("end_date"),
                                  date.today() + timedelta(days=60)),
             capacity=int(f.get("capacity") or 30),
-        ))
+        )
+        db.session.add(ch)
+        db.session.flush()
+        # ── ZANJIR: oqim ochildi -> launch tahlili avtomatik ──
+        automation.log_event(
+            "contract", f"Yangi oqim ochildi: {ch.course.name} — {ch.name}",
+            "Oqim yaratildi → launch-tahlil (marja/BEP) tayyorlandi → "
+            "kalkulyatorga yo'naltirildi")
         db.session.commit()
-        flash("Oqim ochildi", "ok")
-        return redirect(url_for("cohorts"))
+        flash("Oqim ochildi — marja va zararsizlik tahlili tayyor", "ok")
+        return redirect(url_for(
+            "launch_planner", course_id=ch.course_id,
+            price=int(ch.course.base_price or 0) or "",
+            capacity=ch.capacity,
+            duration=(ch.end_date - ch.start_date).days))
+
+    # ── Launch-kalkulyator: yangi kurs marja/BEP tahlili ────────
+    @app.route("/planner")
+    def launch_planner():
+        courses = Course.query.filter_by(is_active=True).all()
+        f = request.args
+        result = None
+        sel = {"course_id": f.get("course_id", ""),
+               "price": f.get("price", ""),
+               "capacity": f.get("capacity", "30"),
+               "duration": f.get("duration", "60"),
+               "cac": f.get("cac", "")}
+        if f.get("price"):
+            course = db.session.get(Course, int(f.get("course_id") or 0))
+            cname = course.name if course else f.get("new_name", "Yangi kurs")
+            try:
+                result = planner.launch_plan(
+                    cname,
+                    price=float(f.get("price")),
+                    capacity=int(f.get("capacity") or 30),
+                    duration_days=int(f.get("duration") or 60),
+                    cac=float(f["cac"]) if f.get("cac") else None)
+                result["course_name"] = cname
+            except (ValueError, ZeroDivisionError):
+                flash("Kiritilgan qiymatlarni tekshiring", "error")
+        return render_template("planner.html", courses=courses,
+                               sel=sel, r=result)
 
     # ── Shartnomalar ─────────────────────────────────────────────
     @app.route("/contracts")
