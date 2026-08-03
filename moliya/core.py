@@ -359,6 +359,14 @@ def dashboard_data(today=None):
     dm = dds_matrix(y)
     series = [{"m": i + 1, "inc": dm["inc_tot"][i], "exp": dm["exp_tot"][i]}
               for i in range(m)]
+    # o'tgan oy bilan taqqoslash (KPI kartochkalardagi ▲/▼ uchun)
+    py, pm = (y - 1, 12) if m == 1 else (y, m - 1)
+    prev = month_cashflow(py, pm)
+
+    def delta(cur, old):
+        if not old:
+            return None
+        return (cur - old) / abs(old) * 100
     acc = accrual_summary(today)
     over = overdue_lines(today)
     up = upcoming_lines(7, today)
@@ -369,6 +377,8 @@ def dashboard_data(today=None):
         "overdue": over, "overdue_total": sum(r["rest"] for r in over),
         "upcoming": up, "upcoming_total": sum(r["rest"] for r in up),
         "ue": ue,
+        "delta_inc": delta(cf["income_total"], prev["income_total"]),
+        "delta_exp": delta(cf["expense_total"], prev["expense_total"]),
         "series": series,
         "series_max": max([max(r["inc"], r["exp"]) for r in series] or [1]) or 1,
         "active_contracts": Contract.query.filter_by(status="active").count(),

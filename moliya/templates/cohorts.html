@@ -3,8 +3,9 @@
 <h1>Kurslar va oqimlar</h1>
 <p class="sub">Har oqim bo'yicha: nechta o'quvchi, qancha tushum, qancha foyda</p>
 
-<div class="card">
-  <h2 style="margin-top:0">Yangi oqim ochish</h2>
+<details class="adder">
+  <summary>Yangi oqim ochish</summary>
+  <div class="body">
   <form class="inline" method="post" action="/cohorts/add">
     <div><label>Kurs</label>
       <select name="course_id" onchange="document.getElementById('nc').style.display=this.value=='_new'?'block':'none'">
@@ -12,36 +13,65 @@
         <option value="_new">+ Yangi kurs...</option>
       </select></div>
     <div id="nc" style="display:none"><label>Yangi kurs nomi</label><input name="new_course"></div>
-    <div><label>Oqim nomi</label><input name="name" placeholder="SM-15" required></div>
+    <div><label>Oqim nomi</label><input name="name" placeholder="СМК-15" required></div>
     <div><label>Boshlanish</label><input type="date" name="start_date" required></div>
     <div><label>Tugash</label><input type="date" name="end_date" required></div>
     <div><label>O'rinlar</label><input name="capacity" type="number" value="30"></div>
-    <div><button>Ochish</button></div>
+    <div><button>Ochish + tahlil</button></div>
   </form>
-</div>
-
-<div class="card" style="margin-top:14px">
-  <div class="tablewrap">
-  <table>
-    <tr><th>Oqim</th><th>Davr</th><th class="r">O'quvchi</th><th>To'ldirilish</th>
-        <th class="r">Kelishilgan tushum</th><th class="r">To'langan</th>
-        <th class="r">Oqim xarajati</th><th class="r">Foyda</th></tr>
-    {% for r in rows %}
-    <tr>
-      <td><b>{{ r.cohort.course.name }}</b><div style="color:var(--mut)">{{ r.cohort.name }}</div></td>
-      <td>{{ r.cohort.start_date|dmy }} – {{ r.cohort.end_date|dmy }}</td>
-      <td class="r">{{ r.students }} / {{ r.cohort.capacity }}</td>
-      <td style="min-width:110px">
-        <div class="bar"><i style="width:{{ [r.fill_rate, 100]|min }}%"></i></div>
-        <span style="font-size:12px;color:var(--mut)">{{ '%.0f'|format(r.fill_rate) }}%</span></td>
-      <td class="r">{{ r.revenue|grp }}</td>
-      <td class="r pos">{{ r.paid|grp }}</td>
-      <td class="r neg">{{ r.direct_cost|grp }}</td>
-      <td class="r {{ 'pos' if r.margin >= 0 else 'neg' }}">{{ r.margin|grp }}
-        <div style="font-size:12px;color:var(--mut)">{{ '%.0f'|format(r.margin_pct) }}%</div></td>
-    </tr>
-    {% else %}<tr><td colspan="8"><div class="empty">Oqim yo'q — yuqorida yangisini oching</div></td></tr>{% endfor %}
-  </table>
+  <p class="sub" style="margin:8px 0 0;font-size:12px">Oqim ochilgach, tizim avtomatik marja va zararsizlik tahlilini ko'rsatadi.</p>
   </div>
+</details>
+
+{% if rows %}
+<div class="course-grid">
+  {% for r in rows %}
+  {% set ch = r.cohort %}
+  {% set total_days = (ch.end_date - ch.start_date).days or 1 %}
+  {% set passed = ((today - ch.start_date).days / total_days * 100)|round|int %}
+  {% set progress = [[passed, 0]|max, 100]|min %}
+  {% set state = 'yakunlangan' if today > ch.end_date else ('davom etmoqda' if today >= ch.start_date else 'boshlanmagan') %}
+  <div class="ccard">
+    <div class="chead">
+      <div class="cname">{{ ch.course.name }}
+        <small>{{ ch.name }} · {{ ch.start_date|dmy }} – {{ ch.end_date|dmy }}</small></div>
+      <span class="status-pill {{ 'b-green' if state == 'davom etmoqda' else ('b-gray' if state == 'yakunlangan' else 'b-gold') }}">{{ state }}</span>
+    </div>
+
+    <div class="meter">
+      <div class="mrow"><span>Kurs jarayoni</span><b>{{ progress }}%</b></div>
+      <div class="bar"><i style="width:{{ progress }}%"></i></div>
+    </div>
+
+    <div class="meter">
+      <div class="mrow"><span>O'quvchilar</span><b>{{ r.students }} / {{ ch.capacity }}</b></div>
+      <div class="bar"><i style="width:{{ [r.fill_rate, 100]|min }}%;background:linear-gradient(90deg,var(--green),var(--green))"></i></div>
+    </div>
+
+    <div class="cstats">
+      <div class="cs"><div class="l">Kelishilgan tushum</div>
+        <div class="n">{{ r.revenue|grp }}</div></div>
+      <div class="cs"><div class="l">Kelib tushgan</div>
+        <div class="n pos">{{ r.paid|grp }}</div></div>
+      <div class="cs"><div class="l">Oqim xarajati</div>
+        <div class="n neg">{{ r.direct_cost|grp }}</div></div>
+      <div class="cs"><div class="l">Foyda</div>
+        <div class="n {{ 'pos' if r.margin >= 0 else 'neg' }}">{{ r.margin|grp }}
+          <span style="font-size:11px;color:var(--dim)">({{ '%.0f'|format(r.margin_pct) }}%)</span></div></div>
+    </div>
+
+    {% if r.refunds %}
+    <div class="mrow" style="font-size:12px;color:var(--mut)">Qaytarilgan: <b class="neg num">{{ r.refunds|grp }}</b></div>
+    {% endif %}
+
+    <div class="cfoot">
+      <a class="chip" href="/contracts?status=all">Shartnomalar</a>
+      <a class="chip" href="/planner?course_id={{ ch.course_id }}&price={{ ch.course.base_price|int }}&capacity={{ ch.capacity }}&duration={{ total_days }}">Launch-hisob →</a>
+    </div>
+  </div>
+  {% endfor %}
 </div>
+{% else %}
+<div class="card"><div class="empty">Hozircha oqim yo'q — yuqoridagi «+» bilan birinchisini oching</div></div>
+{% endif %}
 {% endblock %}

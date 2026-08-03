@@ -5,22 +5,22 @@
 
 <div class="grid g4">
   <div class="card kpi">
-    <div class="l">Kassadagi jami pul</div>
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg></span><div class="l">Kassadagi jami pul</div>
     <div class="v gold">{{ d.total_balance|grp }}</div>
     <div class="h">{{ d.balances|length }} ta hisob bo'yicha</div>
   </div>
   <div class="card kpi">
-    <div class="l">Bu oy kirdi</div>
-    <div class="v pos">{{ d.cashflow.income_total|grp }}</div>
-    <div class="h">barcha tushumlar</div>
+    <span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7 7 7-7"/></svg></span><div class="l">Bu oy kirdi</div>
+    <div class="v pos">{{ d.cashflow.income_total|grp }}{% if d.delta_inc is not none %}<span class="delta {{ 'up' if d.delta_inc >= 0 else 'down' }}">{{ '▲' if d.delta_inc >= 0 else '▼' }} {{ '%.0f'|format(d.delta_inc|abs) }}%</span>{% endif %}</div>
+    <div class="h">o'tgan oyga nisbatan</div>
   </div>
   <div class="card kpi">
-    <div class="l">Bu oy chiqdi</div>
-    <div class="v neg">{{ d.cashflow.expense_total|grp }}</div>
-    <div class="h">barcha xarajatlar</div>
+    <span class="ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg></span><div class="l">Bu oy chiqdi</div>
+    <div class="v neg">{{ d.cashflow.expense_total|grp }}{% if d.delta_exp is not none %}<span class="delta {{ 'down' if d.delta_exp >= 0 else 'up' }}">{{ '▲' if d.delta_exp >= 0 else '▼' }} {{ '%.0f'|format(d.delta_exp|abs) }}%</span>{% endif %}</div>
+    <div class="h">o'tgan oyga nisbatan</div>
   </div>
   <div class="card kpi">
-    <div class="l">Bu oy natija</div>
+    <span class="ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span><div class="l">Bu oy natija</div>
     <div class="v {{ 'pos' if d.cashflow.net >= 0 else 'neg' }}">{{ d.cashflow.net|grp }}</div>
     <div class="h">{{ "foyda ko'rinmoqda" if d.cashflow.net >= 0 else "chiqim kirimdan ko'p" }}</div>
   </div>
@@ -28,22 +28,22 @@
 
 <div class="grid g4" style="margin-top:14px">
   <div class="card kpi {{ 'alert' if d.overdue_total }}">
-    <div class="l">Kechikkan to'lovlar</div>
+    <span class="ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><div class="l">Kechikkan to'lovlar</div>
     <div class="v {{ 'neg' if d.overdue_total else 'pos' }}">{{ d.overdue_total|grp }}</div>
     <div class="h">{{ d.overdue|length }} ta o'quvchidan kutilmoqda · <a href="/debtors">ro'yxat</a></div>
   </div>
   <div class="card kpi">
-    <div class="l">Shu hafta kelishi kerak</div>
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg></span><div class="l">Shu hafta kelishi kerak</div>
     <div class="v">{{ d.upcoming_total|grp }}</div>
     <div class="h">{{ d.upcoming|length }} ta rejali to'lov</div>
   </div>
   <div class="card kpi">
-    <div class="l">O'qiyotgan o'quvchilar</div>
+    <span class="ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><div class="l">O'qiyotgan o'quvchilar</div>
     <div class="v">{{ d.active_contracts }}</div>
     <div class="h">faol shartnomalar</div>
   </div>
   <div class="card kpi">
-    <div class="l">Bu oy yangi o'quvchi</div>
+    <span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Bu oy yangi o'quvchi</div>
     <div class="v">{{ d.ue.new_students }}</div>
     <div class="h"><a href="/reports">marketing tahlili →</a></div>
   </div>
