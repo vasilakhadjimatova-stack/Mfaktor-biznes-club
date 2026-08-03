@@ -21,6 +21,7 @@ Mfaktor o'quv-ta'lim loyihasining barcha jarayonlariga — marketing, sotuv, o'q
 | [docs/04-impulse-andozalar.md](docs/04-impulse-andozalar.md) | Impulse ERP va Impulse Moliya loyihalari texnik auditi — Mfaktor uchun tayyor andozalar |
 | [docs/05-moliya-dastur.md](docs/05-moliya-dastur.md) | Mfaktor Moliya dasturi loyihalash hujjati (kod: `moliya/`) |
 | [docs/06-moliya-tahlil.md](docs/06-moliya-tahlil.md) | Real 2026 ma'lumotlari tahlili: CAC dinamikasi, qaytarishlar, plan-fakt, topilmalar |
+| [docs/07-avtomatlashtirish-imkoniyatlari.md](docs/07-avtomatlashtirish-imkoniyatlari.md) | Avtomatlashtirish imkoniyatlari xaritasi: jahon izlanishi + real og'riqlarga bog'langan ustuvorliklar |
 
 ## Dastur
 
