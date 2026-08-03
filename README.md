@@ -20,6 +20,7 @@ Mfaktor o'quv-ta'lim loyihasining barcha jarayonlariga — marketing, sotuv, o'q
 | [docs/03-ai-strategiya-roadmap.md](docs/03-ai-strategiya-roadmap.md) | AI integratsiya strategiyasi va bosqichma-bosqich yo'l xaritasi |
 | [docs/04-impulse-andozalar.md](docs/04-impulse-andozalar.md) | Impulse ERP va Impulse Moliya loyihalari texnik auditi — Mfaktor uchun tayyor andozalar |
 | [docs/05-moliya-dastur.md](docs/05-moliya-dastur.md) | Mfaktor Moliya dasturi loyihalash hujjati (kod: `moliya/`) |
+| [docs/06-moliya-tahlil.md](docs/06-moliya-tahlil.md) | Real 2026 ma'lumotlari tahlili: CAC dinamikasi, qaytarishlar, plan-fakt, topilmalar |
 
 ## Dastur
 
