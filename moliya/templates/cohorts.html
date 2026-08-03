@@ -20,7 +20,8 @@
   </form>
 </div>
 
-<div class="card scroll" style="margin-top:14px">
+<div class="card" style="margin-top:14px">
+  <div class="tablewrap">
   <table>
     <tr><th>Oqim</th><th>Davr</th><th class="r">O'quvchi</th><th>To'ldirilish</th>
         <th class="r">Tushum (net)</th><th class="r">To'langan</th>
@@ -39,7 +40,8 @@
       <td class="r {{ 'pos' if r.margin >= 0 else 'neg' }}">{{ r.margin|grp }}
         <div style="font-size:12px;color:var(--mut)">{{ '%.0f'|format(r.margin_pct) }}%</div></td>
     </tr>
-    {% else %}<tr><td colspan="8" class="sub">Oqim yo'q — yuqorida yangisini oching</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="8"><div class="empty">Oqim yo'q — yuqorida yangisini oching</div></td></tr>{% endfor %}
   </table>
+  </div>
 </div>
 {% endblock %}

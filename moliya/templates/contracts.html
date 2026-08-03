@@ -3,11 +3,12 @@
 <h1>Shartnomalar</h1>
 <p class="sub">O'quvchi bilan kelishuv → avtomatik bo'lib to'lash grafigi</p>
 
-<div class="card">
-  <h2 style="margin-top:0">Yangi shartnoma</h2>
+<details class="adder">
+  <summary>Yangi shartnoma tuzish</summary>
+  <div class="body">
   <form class="inline" method="post" action="/contracts/add">
-    <div><label>O'quvchi F.I.Sh</label><input name="student_name" required></div>
-    <div><label>Telefon</label><input name="phone"></div>
+    <div><label>O'quvchi F.I.Sh</label><input name="student_name" required placeholder="Ism Familiya"></div>
+    <div><label>Telefon</label><input name="phone" placeholder="+998 90 ..."></div>
     <div><label>Qayerdan keldi</label>
       <select name="source">{% for c in CHANNELS %}<option>{{ c }}</option>{% endfor %}</select></div>
     <div><label>Oqim</label>
@@ -17,35 +18,38 @@
     <div><label>Narx</label><input name="price" type="number" step="any" required></div>
     <div><label>Chegirma/Grant</label><input name="discount" type="number" step="any" value="0"></div>
     <div><label>Imzo sanasi</label><input type="date" name="signed_date" value="{{ today.isoformat() }}"></div>
-    <div><label>Necha qismga bo'linadi</label>
+    <div><label>Bo'lib to'lash</label>
       <select name="installments">{% for n in [1,2,3,4,6] %}<option value="{{n}}">{{n}} qism</option>{% endfor %}</select></div>
     <div><button>Shartnoma yaratish</button></div>
   </form>
-</div>
+  </div>
+</details>
 
-<div class="monthnav" style="margin-top:16px">
+<div class="monthnav">
   {% for s, label in [('active','Faol'), ('completed','Tugatgan'), ('refunded','Qaytarilgan'), ('all','Hammasi')] %}
-    <a class="badge {{ 'b-gold' if status==s else 'b-gray' }}" href="?status={{ s }}">{{ label }}</a>
+    <a class="chip {{ 'on' if status==s }}" href="?status={{ s }}">{{ label }}</a>
   {% endfor %}
 </div>
 
-<div class="card scroll">
+<div class="card">
+  <div class="tablewrap">
   <table>
     <tr><th>O'quvchi</th><th>Oqim</th><th class="r">Net narx</th>
         <th class="r">To'langan</th><th class="r">Qoldiq</th><th>Holat</th><th>Imzo</th></tr>
     {% for c in rows %}
     <tr>
-      <td><a href="/contracts/{{ c.id }}">{{ c.student.name }}</a>
-          <div style="color:var(--mut);font-size:12px">{{ c.student.phone }}</div></td>
-      <td>{{ c.cohort.course.name }} · {{ c.cohort.name }}</td>
+      <td><a href="/contracts/{{ c.id }}"><b>{{ c.student.name }}</b></a>
+          <div style="color:var(--dim);font-size:12px" class="num">{{ c.student.phone }}</div></td>
+      <td>{{ c.cohort.course.name }}<div style="color:var(--dim);font-size:12px">{{ c.cohort.name }}</div></td>
       <td class="r">{{ c.net_price|grp }}</td>
       <td class="r pos">{{ c.paid_total()|grp }}</td>
       <td class="r {{ 'neg' if c.due_total() }}">{{ c.due_total()|grp }}</td>
       <td>{% set b = {'active':'b-green','completed':'b-gray','refunded':'b-red','cancelled':'b-red'} %}
           <span class="badge {{ b.get(c.status, 'b-gray') }}">{{ STATUSES.get(c.status, c.status) }}</span></td>
-      <td>{{ c.signed_date|dmy }}</td>
+      <td class="num">{{ c.signed_date|dmy }}</td>
     </tr>
-    {% else %}<tr><td colspan="7" class="sub">Shartnoma yo'q</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="7"><div class="empty">Shartnoma yo'q — yuqoridagi «+» bilan yarating</div></td></tr>{% endfor %}
   </table>
+  </div>
 </div>
 {% endblock %}

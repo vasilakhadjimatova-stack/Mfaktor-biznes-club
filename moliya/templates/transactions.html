@@ -1,17 +1,19 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Kassa — pul harakati</h1>
-<p class="sub">{{ '%02d'|format(m) }}.{{ y }} oyi · Kirim <b class="pos">{{ cf.income_total|grp }}</b> · Chiqim <b class="neg">{{ cf.expense_total|grp }}</b> · Sof <b class="{{ 'pos' if cf.net>=0 else 'neg' }}">{{ cf.net|grp }}</b></p>
+<p class="sub">{{ '%02d'|format(m) }}.{{ y }} · Kirim <b class="pos num">{{ cf.income_total|grp }}</b> · Chiqim <b class="neg num">{{ cf.expense_total|grp }}</b> · Sof <b class="num {{ 'pos' if cf.net>=0 else 'neg' }}">{{ cf.net|grp }}</b></p>
 
 <div class="monthnav">
   {% set py, pm = (y-1, 12) if m == 1 else (y, m-1) %}
   {% set ny, nm = (y+1, 1) if m == 12 else (y, m+1) %}
-  <a class="btn ghost" style="padding:6px 12px;border:1px solid var(--border);border-radius:8px" href="?y={{py}}&m={{pm}}">← {{ '%02d'|format(pm) }}.{{ py }}</a>
-  <a class="btn ghost" style="padding:6px 12px;border:1px solid var(--border);border-radius:8px" href="?y={{ny}}&m={{nm}}">{{ '%02d'|format(nm) }}.{{ ny }} →</a>
+  <a class="chip" href="?y={{py}}&m={{pm}}">← {{ '%02d'|format(pm) }}.{{ py }}</a>
+  <span class="chip on">{{ '%02d'|format(m) }}.{{ y }}</span>
+  <a class="chip" href="?y={{ny}}&m={{nm}}">{{ '%02d'|format(nm) }}.{{ ny }} →</a>
 </div>
 
-<div class="card">
-  <h2 style="margin-top:0">Yangi yozuv</h2>
+<details class="adder">
+  <summary>Yangi yozuv kiritish</summary>
+  <div class="body">
   <form class="inline" method="post" action="/transactions/add">
     <div><label>Sana</label><input type="date" name="tdate" value="{{ today.isoformat() }}"></div>
     <div><label>Amal</label>
@@ -23,39 +25,43 @@
       <select name="wallet_code">{% for w in wallets %}<option value="{{ w.code }}">{{ w.name }}</option>{% endfor %}</select></div>
     <div id="tr-to" style="display:none"><label>Qaysi hamyonga</label>
       <select name="transfer_to">{% for w in wallets %}<option value="{{ w.code }}">{{ w.name }}</option>{% endfor %}</select></div>
-    <div><label>Summa</label><input name="amount" type="number" step="any" required></div>
+    <div><label>Summa</label><input name="amount" type="number" step="any" required placeholder="0"></div>
     <div><label>Statya</label>
       <select name="category">
         <optgroup label="Kirim">{% for c in INCOME_CATS %}<option>{{ c }}</option>{% endfor %}</optgroup>
         <optgroup label="Chiqim">{% for c in EXPENSE_CATS %}<option>{{ c }}</option>{% endfor %}</optgroup>
       </select></div>
-    <div><label>Kanal (marketing bo'lsa)</label>
+    <div><label>Kanal (marketing)</label>
       <select name="channel"><option value="">—</option>{% for c in CHANNELS %}<option>{{ c }}</option>{% endfor %}</select></div>
-    <div><label>Kontragent</label><input name="counterparty"></div>
+    <div><label>Kontragent</label><input name="counterparty" placeholder="Kimdan/kimga"></div>
     <div><label>Izoh</label><input name="comment"></div>
     <div><button>Saqlash</button></div>
   </form>
-</div>
+  </div>
+</details>
 
-<div class="card scroll" style="margin-top:14px">
+<div class="card">
+  <div class="tablewrap">
   <table>
     <tr><th>Sana</th><th>Amal</th><th>Hamyon</th><th class="r">Summa</th>
         <th>Statya</th><th>Kontragent</th><th>Izoh</th><th></th></tr>
     {% for t in txs %}
     <tr>
-      <td>{{ t.tdate|dmy }}</td>
+      <td class="num">{{ t.tdate|dmy }}</td>
       <td>{% if t.is_transfer %}<span class="badge b-gold">Transfer → {{ t.transfer_to_wallet }}</span>
+          {% elif t.activity == 'tech' %}<span class="badge b-gold">Perevod</span>
           {% elif t.operation == 'kirim' %}<span class="badge b-green">Kirim</span>
           {% else %}<span class="badge b-red">Chiqim</span>{% endif %}</td>
       <td>{{ t.wallet_code }}</td>
-      <td class="r {{ 'pos' if t.operation=='kirim' and not t.is_transfer else '' }}">{{ t.amount|grp }}</td>
+      <td class="r {{ 'pos' if t.operation=='kirim' and not t.is_transfer and t.activity != 'tech' }}">{{ t.amount|grp }}</td>
       <td>{{ t.category }}{% if t.channel %} <span class="badge b-gray">{{ t.channel }}</span>{% endif %}</td>
-      <td>{{ t.counterparty }}</td>
-      <td style="color:var(--mut)">{{ t.comment }}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.counterparty }}</td>
+      <td style="color:var(--dim);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.comment }}</td>
       <td><form method="post" action="/transactions/{{ t.id }}/delete"
                 onsubmit="return confirm('O\'chirilsinmi?')"><button class="danger">✕</button></form></td>
     </tr>
-    {% else %}<tr><td colspan="8" class="sub">Bu oyda yozuv yo'q</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="8"><div class="empty">Bu oyda yozuv yo'q — yuqoridagi «+» bilan qo'shing</div></td></tr>{% endfor %}
   </table>
+  </div>
 </div>
 {% endblock %}

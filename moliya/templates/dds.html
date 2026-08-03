@@ -4,12 +4,13 @@
 <p class="sub">{{ d.year }}-yil · Mfaktor Sheets jadvali formatida: statya × oy</p>
 
 <div class="monthnav">
-  <a class="badge b-gray" href="?year={{ d.year - 1 }}">← {{ d.year - 1 }}</a>
-  <a class="badge b-gold">{{ d.year }}</a>
-  <a class="badge b-gray" href="?year={{ d.year + 1 }}">{{ d.year + 1 }} →</a>
+  <a class="chip" href="?year={{ d.year - 1 }}">← {{ d.year - 1 }}</a>
+  <a class="chip on">{{ d.year }}</a>
+  <a class="chip" href="?year={{ d.year + 1 }}">{{ d.year + 1 }} →</a>
 </div>
 
-<div class="card scroll">
+<div class="card">
+  <div class="tablewrap">
   <table style="min-width:1150px;font-size:13px">
     <tr>
       <th style="min-width:220px">Наименование</th>
@@ -18,7 +19,7 @@
       <th class="r">Jami</th><th class="r">%</th>
     </tr>
 
-    <tr style="background:rgba(255,255,255,.05)">
+    <tr style="background:rgba(255,255,255,.045)">
       <td><b>Остаток ДС на начало</b></td>
       {% for v in d.opens %}<td class="r"><b>{{ v|grp }}</b></td>{% endfor %}
       <td class="r"></td><td class="r"></td>
@@ -78,20 +79,21 @@
     {% endfor %}
     {% endif %}
 
-    <tr style="background:rgba(255,255,255,.05)">
+    <tr style="background:rgba(255,255,255,.045)">
       <td><b>Sof oqim (oy)</b></td>
       {% for v in d.net %}<td class="r {{ 'pos' if v >= 0 else 'neg' }}"><b>{{ v|grp }}</b></td>{% endfor %}
       <td class="r {{ 'pos' if d.net_year >= 0 else 'neg' }}"><b>{{ d.net_year|grp }}</b></td><td></td>
     </tr>
-    <tr style="background:rgba(255,255,255,.05)">
+    <tr style="background:rgba(255,255,255,.045)">
       <td><b>Остаток ДС на конец</b></td>
       {% for v in d.closes %}<td class="r"><b>{{ v|grp }}</b></td>{% endfor %}
       <td></td><td></td>
     </tr>
   </table>
+  </div>
 </div>
 
 <div class="card" style="margin-top:14px">
-  <p class="sub" style="margin:0">💡 % ustuni — statyaning yillik kirimga nisbati. Real Sheets ma'lumotini yuklash: <code>python import_dds.py fayl.xlsx</code> (Google Sheets → Fayl → Yuklab olish → Excel).</p>
+  <p class="hint" style="margin:0">💡 % ustuni — statyaning yillik kirimga nisbati. Real Sheets ma'lumotini yuklash: <code>python import_dds.py fayl.xlsx</code> (Google Sheets → Fayl → Yuklab olish → Excel).</p>
 </div>
 {% endblock %}

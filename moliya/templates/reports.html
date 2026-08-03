@@ -6,8 +6,8 @@
 <div class="monthnav">
   {% set py, pm = (y-1, 12) if m == 1 else (y, m-1) %}
   {% set ny, nm = (y+1, 1) if m == 12 else (y, m+1) %}
-  <a class="badge b-gray" href="?y={{py}}&m={{pm}}">← {{ '%02d'|format(pm) }}.{{ py }}</a>
-  <a class="badge b-gray" href="?y={{ny}}&m={{nm}}">{{ '%02d'|format(nm) }}.{{ ny }} →</a>
+  <a class="chip" href="?y={{py}}&m={{pm}}">← {{ '%02d'|format(pm) }}.{{ py }}</a>
+  <a class="chip" href="?y={{ny}}&m={{nm}}">{{ '%02d'|format(nm) }}.{{ ny }} →</a>
 </div>
 
 <div class="grid g2">

@@ -356,6 +356,9 @@ def dashboard_data(today=None):
     y, m = today.year, today.month
     balances, total_balance = wallet_balances()
     cf = month_cashflow(y, m)
+    dm = dds_matrix(y)
+    series = [{"m": i + 1, "inc": dm["inc_tot"][i], "exp": dm["exp_tot"][i]}
+              for i in range(m)]
     acc = accrual_summary(today)
     over = overdue_lines(today)
     up = upcoming_lines(7, today)
@@ -366,6 +369,8 @@ def dashboard_data(today=None):
         "overdue": over, "overdue_total": sum(r["rest"] for r in over),
         "upcoming": up, "upcoming_total": sum(r["rest"] for r in up),
         "ue": ue,
+        "series": series,
+        "series_max": max([max(r["inc"], r["exp"]) for r in series] or [1]) or 1,
         "active_contracts": Contract.query.filter_by(status="active").count(),
         "students": Student.query.count(),
     }

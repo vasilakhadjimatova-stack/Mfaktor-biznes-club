@@ -38,9 +38,13 @@ def create_app():
 
     @app.context_processor
     def ctx():
+        try:
+            _, total_cash = core.wallet_balances()
+        except Exception:
+            total_cash = None
         return {"INCOME_CATS": INCOME_CATS, "EXPENSE_CATS": EXPENSE_CATS,
                 "CHANNELS": MARKETING_CHANNELS, "STATUSES": CONTRACT_STATUSES,
-                "today": date.today()}
+                "today": date.today(), "total_cash": total_cash}
 
     register_routes(app)
     return app
