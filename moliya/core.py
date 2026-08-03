@@ -42,7 +42,8 @@ def wallet_balances():
 def month_cashflow(year, month):
     """Oylik DDS: statya kesimida kirim/chiqim (transferlar hisobga olinmaydi)."""
     q = (Transaction.query
-         .filter(Transaction.is_transfer.is_(False))
+         .filter(Transaction.is_transfer.is_(False),
+                 Transaction.activity != "tech")
          .filter(func.extract("year", Transaction.tdate) == year)
          .filter(func.extract("month", Transaction.tdate) == month))
     inc, exp = defaultdict(float), defaultdict(float)
@@ -140,7 +141,8 @@ def upcoming_lines(days=7, today=None):
 # ══════════════════════════════════════════════════════════════════
 def marketing_spend_by_channel(year=None, month=None):
     q = Transaction.query.filter(Transaction.category == "Таргет (реклама)",
-                                 Transaction.is_transfer.is_(False))
+                                 Transaction.is_transfer.is_(False),
+                                 Transaction.activity != "tech")
     if year:
         q = q.filter(func.extract("year", Transaction.tdate) == year)
     if month:
@@ -230,7 +232,7 @@ def cohort_report():
 def break_even(year, month):
     """Oyiga nechta o'quvchi kerak: doimiy xarajat ÷ (o'rtacha chek marjasi)."""
     cf = month_cashflow(year, month)
-    fixed_cats = ["Зарплата МФМ", "Аренда", "Коммунальные услуги",
+    fixed_cats = ["Зарплата МБМ", "Аренда", "Коммунальные услуги",
                   "CRM OnlinePBX", "Интернет/IP-телефония",
                   "Абонентские подписки", "Обед сотрудников"]
     fixed = sum(cf["expense"].get(c, 0.0) for c in fixed_cats)
@@ -241,7 +243,7 @@ def break_even(year, month):
     avg = ue["avg_check"]
     # o'zgaruvchan ulush: yo'nalish jamoalari ish haqi + premiya + komissiya +
     # kofe-breyk — tushumga bog'liq o'sadigan xarajatlar
-    var_cats = ["Зарплата СМК", "Зарплата РОП", "Зарплата ТВВ", "Премия",
+    var_cats = ["Зарплата СМК", "Зарплата РОП", "Зарплата ТББ", "Премия",
                 "Комиссия банка", "Кофе-брейк", "Выпускные расходы"]
     var = sum(cf["expense"].get(c, 0.0) for c in var_cats)
     inc = cf["income_total"]
@@ -266,12 +268,20 @@ def dds_matrix(year):
     inc = {c: [0.0] * 12 for c in INCOME_CATS}
     exp = {c: [0.0] * 12 for c in EXPENSE_CATS}
     other_inc, other_exp = [0.0] * 12, [0.0] * 12
+    fin = defaultdict(lambda: [0.0] * 12)     # Финансовая деятельность (dividend...)
+    fin_net = [0.0] * 12
 
     year_txs = (Transaction.query
-                .filter(Transaction.is_transfer.is_(False))
+                .filter(Transaction.is_transfer.is_(False),
+                 Transaction.activity != "tech")
                 .filter(func.extract("year", Transaction.tdate) == year).all())
     for t in year_txs:
         i = t.tdate.month - 1
+        if t.activity == "finance":
+            sign = 1 if t.operation == "kirim" else -1
+            fin[t.category or "Финансовая"][i] += sign * t.amount
+            fin_net[i] += sign * t.amount
+            continue
         if t.operation == "kirim":
             if t.category in inc:
                 inc[t.category][i] += t.amount
@@ -285,12 +295,13 @@ def dds_matrix(year):
 
     inc_tot = [sum(inc[c][i] for c in inc) + other_inc[i] for i in range(12)]
     exp_tot = [sum(exp[c][i] for c in exp) + other_exp[i] for i in range(12)]
-    net = [inc_tot[i] - exp_tot[i] for i in range(12)]
+    net = [inc_tot[i] - exp_tot[i] + fin_net[i] for i in range(12)]
 
     # yil boshigacha bo'lgan qoldiq: hamyon ochilishlari + avvalgi harakat
     opening_total = sum(w.opening for w in Wallet.query.all())
     prior = 0.0
-    for t in Transaction.query.filter(Transaction.is_transfer.is_(False)) \
+    for t in Transaction.query.filter(Transaction.is_transfer.is_(False),
+                 Transaction.activity != "tech") \
             .filter(Transaction.tdate < date(year, 1, 1)).all():
         prior += t.amount if t.operation == "kirim" else -t.amount
     start = opening_total + prior
@@ -308,11 +319,14 @@ def dds_matrix(year):
     rows_exp = [{"cat": c, "vals": exp[c], "total": sum(exp[c]),
                  "pct": sum(exp[c]) / inc_year_total * 100}
                 for c in EXPENSE_CATS if any(exp[c])]
+    rows_fin = [{"cat": c, "vals": v, "total": sum(v)}
+                for c, v in sorted(fin.items())]
     return {
         "year": year, "opens": opens, "closes": closes,
-        "rows_inc": rows_inc, "rows_exp": rows_exp,
+        "rows_inc": rows_inc, "rows_exp": rows_exp, "rows_fin": rows_fin,
         "other_inc": other_inc, "other_exp": other_exp,
         "inc_tot": inc_tot, "exp_tot": exp_tot, "net": net,
+        "fin_net": fin_net, "fin_year": sum(fin_net),
         "inc_year": sum(inc_tot), "exp_year": sum(exp_tot),
         "net_year": sum(net),
     }

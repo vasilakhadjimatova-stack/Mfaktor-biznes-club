@@ -56,3 +56,35 @@ Demo (`seed.py`) o'rniga real ish boshlash uchun jamoadan kerak:
 2. Faol oqimlar: nomi, davri, narxi, o'quvchilar ro'yxati va to'lov holati
 3. Oylik doimiy xarajatlar (ijara, oyliklar, servislar)
 4. Marketing byudjeti kanal kesimida (oxirgi 2–3 oy — CAC bazasi uchun)
+
+---
+
+## Real ma'lumot importi (2026-yil avgust holati)
+
+`Mbm_2026.xlsx` (ДДС данные varag'i) dan **1415 ta real tranzaksiya** import qilindi (03.01–27.07.2026). Validatsiya: operatsion kirim 7/7 oy, operatsion chiqim 6/7 oy jamlama jadval bilan **aynan mos** (farq 0 so'm).
+
+### Audit topilmalari
+
+1. **Jamlama jadvalda xato:** 09.05.2026, «зарплата РОП» (spiker gonorar), 11 059 000 so'm — «ДДС данные»da bor, lekin jamlama ДДС_2026 uni may oyiga qo'shmagan. Sheets'dagi may chiqimi 11 mln kam ko'rsatilgan.
+2. **Juftlanmagan perevodlar:** hamyonlar orasi o'tkazmalarda chiqim 1 358,2 mln, kirim 1 247,7 mln — 110,5 mln farq (129 ta chiqim vs 117 ta kirim yozuvi). Shu sababli hamyonlar kesimidagi qoldiqlar tranzaksiya ma'lumotidan aniq chiqmaydi; jamlamadagi qoldiq qatorlari qo'lda yuritilgan ko'rinadi.
+3. **Dividendlar operatsion foydadan katta:** 7 oyda operatsion sof oqim +225,4 mln, dividendlar −237,6 mln → umumiy sof oqim −12,2 mln. Kassa yil boshidagi 145,2 mln dan 133,0 mln ga tushgan.
+4. **Qaytarishlar (возврат клиенту) 131,6 mln** — kirimning ~5% i. Sabablar tahlili (qaysi kurs, qaysi bosqichda) alohida o'rganishga arziydi.
+
+### 7 oylik asosiy raqamlar (import qilingan real ma'lumot)
+
+| Ko'rsatkich | Summa | Ulush |
+|---|---|---|
+| Operatsion kirim | 2 693,0 mln | 100% |
+| — РОП mijozlari | 1 575,7 mln | 59% |
+| — СМК mijozlari | 421,7 mln | 16% |
+| — ТББ mijozlari | 412,6 mln | 15% |
+| — Мфактор tushumlari | 244,1 mln | 9% |
+| Operatsion chiqim | 2 467,7 mln | 92% |
+| — Зарплата МБМ | 568,5 mln | 21% |
+| — Премия | 356,4 mln | 13% |
+| — Таргет (reklama) | 339,3 mln | 13% |
+| — Возврат клиенту | 131,6 mln | 5% |
+| — Кофе-брейк | 133,6 mln | 5% |
+| Operatsion sof oqim | +225,4 mln | 8,4% marja |
+| Dividendlar | −237,6 mln | |
+| **Umumiy sof oqim** | **−12,2 mln** | |

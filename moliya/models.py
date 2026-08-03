@@ -20,7 +20,7 @@ from database import db
 INCOME_CATS = [
     "Поступление от клиента РОП",
     "Поступление от клиента СМК",
-    "Поступление от клиента ТВВ",
+    "Поступление от клиента ТББ",
     "Поступление Б2Б",
     "Мфактор поступления",
     "Доход — долг",
@@ -28,10 +28,11 @@ INCOME_CATS = [
 ]
 EXPENSE_CATS = [
     "Возврат клиенту",
-    "Зарплата МФМ", "Зарплата СМК", "Зарплата РОП", "Зарплата ТВВ",
+    "Зарплата МБМ", "Зарплата СМК", "Зарплата РОП", "Зарплата ТББ",
     "Премия",
     "Аренда",
-    "Налог/дивиденд",
+    "Налог/дивиденд Зп",
+    "Дивиденды",
     "Обед сотрудников",
     "Комиссия банка",
     "Коммунальные услуги",
@@ -44,23 +45,31 @@ EXPENSE_CATS = [
     "Такси",
     "Интернет/IP-телефония",
     "Абонентские подписки",
-    "Хайринг",
+    "Хайрия",
     "Корпоративный расход",
     "Прочие расходы",
     "Расход — долг",
 ]
+
+# Texnik operatsiya (hamyonlar orasi perevod) — hisobotlarda chiqmaydi,
+# faqat hamyon qoldig'iga ta'sir qiladi
+TRANSFER_CAT = "Перевод между счетами"
 
 # Kurs yo'nalishi → kirim statyasi (kurs nomidan aniqlanadi)
 DIRECTION_INCOME = {
     "РОП": "Поступление от клиента РОП",
     "ROP": "Поступление от клиента РОП",
     "СМК": "Поступление от клиента СМК",
-    "ТВВ": "Поступление от клиента ТВВ",
+    "SMK": "Поступление от клиента СМК",
+    "ТББ": "Поступление от клиента ТББ",
+    "TBB": "Поступление от клиента ТББ",
+    "ТВВ": "Поступление от клиента ТББ",
 }
 # Kurs yo'nalishi → shu yo'nalish jamoasining ish haqi statyasi
 DIRECTION_SALARY = {
     "РОП": "Зарплата РОП", "ROP": "Зарплата РОП",
-    "СМК": "Зарплата СМК", "ТВВ": "Зарплата ТВВ",
+    "СМК": "Зарплата СМК", "SMK": "Зарплата СМК",
+    "ТББ": "Зарплата ТББ", "TBB": "Зарплата ТББ", "ТВВ": "Зарплата ТББ",
 }
 
 
@@ -118,6 +127,8 @@ class Transaction(db.Model):
     contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"), nullable=True)
     # marketing chiqimi bo'lsa — kanal (CAC hisobi uchun)
     channel     = db.Column(db.String(50), default="")
+    # faoliyat turi: operating / finance / tech (perevod — hisobotdan tashqari)
+    activity    = db.Column(db.String(20), default="operating", index=True)
 
 
 class Course(db.Model):

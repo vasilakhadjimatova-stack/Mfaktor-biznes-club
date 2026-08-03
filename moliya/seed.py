@@ -46,7 +46,7 @@ def run():
 
         smk = Course(name="Sotuv menejerlari kursi (СМК)", base_price=4_000_000)
         rop = Course(name="Sotuv bo'limi rahbari (РОП)", base_price=7_000_000)
-        tvv = Course(name="ТВВ yo'nalishi", base_price=5_000_000)
+        tvv = Course(name="ТББ yo'nalishi", base_price=5_000_000)
         db.session.add_all([smk, rop, tvv])
         db.session.flush()
 
@@ -59,7 +59,7 @@ def run():
         c_rop = Cohort(course_id=rop.id, name="РОП-3",
                        start_date=today - timedelta(days=10),
                        end_date=today + timedelta(days=80), capacity=15)
-        c_tvv = Cohort(course_id=tvv.id, name="ТВВ-5",
+        c_tvv = Cohort(course_id=tvv.id, name="ТББ-5",
                        start_date=today - timedelta(days=20),
                        end_date=today + timedelta(days=40), capacity=20)
         db.session.add_all([c_old, c_cur, c_rop, c_tvv])
@@ -111,7 +111,7 @@ def run():
             base = today.replace(day=5) - timedelta(days=30 * back)
             db.session.add_all([
                 Transaction(tdate=base, wallet_code="rs_mfm", operation="chiqim",
-                            amount=22_000_000, category="Зарплата МФМ",
+                            amount=22_000_000, category="Зарплата МБМ",
                             counterparty="Admin jamoa"),
                 Transaction(tdate=base, wallet_code="rs_mfm", operation="chiqim",
                             amount=6_500_000, category="Зарплата СМК",
@@ -127,7 +127,7 @@ def run():
                             category="Аренда", counterparty="Biznes markaz"),
                 Transaction(tdate=base + timedelta(days=3), wallet_code="rs_mfm",
                             operation="chiqim", amount=7_500_000,
-                            category="Налог/дивиденд", counterparty="Soliq"),
+                            category="Налог/дивиденд Зп", counterparty="Soliq"),
                 Transaction(tdate=base + timedelta(days=1), wallet_code="karta2406",
                             operation="chiqim", amount=9_800_000,
                             category="Таргет (реклама)", channel="Instagram",
@@ -157,7 +157,7 @@ def run():
             RecurringPayment(name="Ofis ijarasi", amount=6_000_000, pay_day=5,
                              category="Аренда"),
             RecurringPayment(name="Admin jamoa ish haqi", amount=22_000_000,
-                             pay_day=5, category="Зарплата МФМ"),
+                             pay_day=5, category="Зарплата МБМ"),
             RecurringPayment(name="CRM OnlinePBX", amount=1_200_000,
                              pay_day=10, category="CRM OnlinePBX"),
             RecurringPayment(name="Internet/IP-telefoniya", amount=1_100_000,
@@ -166,10 +166,10 @@ def run():
         for cat, btype, plan_sum in [
             ("Поступление от клиента СМК", "income", 70_000_000),
             ("Поступление от клиента РОП", "income", 40_000_000),
-            ("Поступление от клиента ТВВ", "income", 35_000_000),
+            ("Поступление от клиента ТББ", "income", 35_000_000),
             ("Таргет (реклама)", "expense", 14_000_000),
             ("Премия", "expense", 15_000_000),
-            ("Зарплата МФМ", "expense", 22_000_000),
+            ("Зарплата МБМ", "expense", 22_000_000),
         ]:
             db.session.add(Budget(year=today.year, month=today.month,
                                   category=cat, btype=btype, planned=plan_sum))

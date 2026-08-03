@@ -1,108 +1,102 @@
 """
-Mfaktor ДДС Google Sheets → Mfaktor Moliya importeri.
+Mfaktor ДДС (Mbm_2026.xlsx) → Mfaktor Moliya importeri.
 
 Foydalanish:
-  1. Google Sheets'da: Файл → Скачать → Microsoft Excel (.xlsx)
-  2. python import_dds.py /yol/dds.xlsx [--year 2026] [--wipe]
+  python import_dds.py /yol/Mbm_2026.xlsx [--wipe]
 
-Jadval formati (skrinshotdagi kabi):
-  • Bir ustunda qator nomlari («Наименование»), keyin 12 oy ustuni
-  • «Остаток ДС на начало периода» ostida hamyon qatorlari
-  • «Поступления...» ostida kirim statyalari
-  • «Выбытия...» ostida chiqim statyalari
-
-Import natijasi:
-  • Har (statya, oy) → bitta jamlama Transaction (oyning 15-sanasi,
-    "sheets" virtual hamyoni)
-  • Hamyonlar birinchi oy qoldiqlaridan ochiladi
-  • --wipe: eski import yozuvlarini o'chirib qayta yuklaydi
+Nima qiladi:
+  1. «ДДС данные» varag'idan HAR BIR tranzaksiyani o'qiydi
+     (sana, summa, hamyon, statya, kirim/chiqim, faoliyat turi, izoh)
+  2. «ДДС_2026» varag'idan hamyonlarning YIL BOSHI qoldiqlarini oladi
+  3. Perevodlar (Техническая операция) activity="tech" bilan yoziladi —
+     hamyon qoldig'iga ta'sir qiladi, statya hisobotlariga kirmaydi
+  4. --wipe: avvalgi importni (comment markeri bo'yicha) o'chirib qayta yuklaydi
 """
 import sys
 import unicodedata
-from datetime import date
+from datetime import date, datetime
 
 from openpyxl import load_workbook
 
 from app import create_app
 from database import db
-from models import EXPENSE_CATS, INCOME_CATS, Transaction, Wallet
+from models import EXPENSE_CATS, INCOME_CATS, TRANSFER_CAT, Transaction, Wallet
 
-IMPORT_WALLET = ("sheets", "Sheets import (jamlama)")
+IMPORT_MARK = "[dds-import]"
 
-# Sheets'dagi qator nomi → dastur statyasi (kichik harf, moslashuvchan)
-ROW_MAP = {
+# «ДДС данные» hamyon nomi → (kod, ko'rsatiladigan nom)
+WALLET_MAP = {
+    "рс mbm": ("rs_mbm", "РС МБМ"),
+    "наличные": ("nal", "Наличные (сум)"),
+    "рс davr bank mbm": ("davr_mbm", "РС Davr bank МБМ"),
+    "$": ("usd", "$ (valyuta)"),
+    "uzcard 2406": ("uzcard2406", "UZCARD 2406"),
+    "pc mfaktor": ("rs_mfaktor", "РС MFAKTOR"),
+    "mfaktor karta": ("karta_mfaktor", "карта MFAKTOR"),
+}
+# «ДДС_2026» qoldiq qatori nomi → hamyon kodi
+OPENING_MAP = {
+    "р.с мбм": "rs_mbm",
+    "накт сум": "nal",
+    "нал сум": "nal",
+    "р.с мбм davr bank": "davr_mbm",
+    "$": "usd",
+    "карта 2406": "uzcard2406",
+    "рс mfaktor": "rs_mfaktor",
+    "pc mfaktor": "rs_mfaktor",
+    "карта mfaktor": "karta_mfaktor",
+}
+
+# Statya nomi (data varag'idagi) → dastur statyasi
+CAT_MAP = {
     "поступление от клиента роп": "Поступление от клиента РОП",
     "поступление от клиента смк": "Поступление от клиента СМК",
-    "поступление от клиента твв": "Поступление от клиента ТВВ",
+    "поступление от клиента tbb": "Поступление от клиента ТББ",
+    "поступление от клиента твв": "Поступление от клиента ТББ",
+    "поступление от клиента тбб": "Поступление от клиента ТББ",
     "поступление б2б": "Поступление Б2Б",
     "мфактор поступления": "Мфактор поступления",
     "доход — долг": "Доход — долг",
     "доход - долг": "Доход — долг",
-    "возврат поступлений клиент": "Возврат клиенту",
-    "зарплата": "Зарплата МФМ",
+    "возврат поступления/клиент": "Возврат клиенту",
+    "зарплата": "Зарплата МБМ",
     "зарплата смк": "Зарплата СМК",
     "зарплата роп": "Зарплата РОП",
-    "зарплата твв": "Зарплата ТВВ",
-    "зарплата тбб": "Зарплата ТВВ",
+    "зарплата тбб": "Зарплата ТББ",
     "премия": "Премия",
     "аренда": "Аренда",
-    "налог дивиденд зп": "Налог/дивиденд",
-    "налог дивиденд 3п": "Налог/дивиденд",
-    "обед сотрудник": "Обед сотрудников",
+    "налог дивиденд/зп": "Налог/дивиденд Зп",
+    "дивиденды": "Дивиденды",
+    "обед сотрудники": "Обед сотрудников",
     "комиссия банк": "Комиссия банка",
+    "комунальные услуги": "Коммунальные услуги",
     "коммунальные услуги": "Коммунальные услуги",
     "ремонт": "Ремонт",
     "таргет": "Таргет (реклама)",
-    "закупхоз товар": "Закуп хоз. товаров",
-    "закуп хоз товар": "Закуп хоз. товаров",
-    "выпускные расходы": "Выпускные расходы",
+    "закуп/хоз товар": "Закуп хоз. товаров",
+    "выпускное расходы": "Выпускные расходы",
     "кофе брейк": "Кофе-брейк",
-    "кофе-брейк": "Кофе-брейк",
-    "crm online pbx": "CRM OnlinePBX",
     "срм online pbx": "CRM OnlinePBX",
+    "crm online pbx": "CRM OnlinePBX",
     "такси": "Такси",
-    "интернет ip-телефония": "Интернет/IP-телефония",
-    "интернет iр-телефония": "Интернет/IP-телефония",
+    "интернет/ip-телефония": "Интернет/IP-телефония",
+    "интернет/iр-телефония": "Интернет/IP-телефония",
     "абонентские подписки": "Абонентские подписки",
-    "хайринг": "Хайринг",
+    "хайрия": "Хайрия",
     "корпоративный расход": "Корпоративный расход",
     "прочие расходы": "Прочие расходы",
     "расход — долг": "Расход — долг",
     "расход - долг": "Расход — долг",
+    "доход — перевод между счетами": TRANSFER_CAT,
+    "расход — перевод между счетами": TRANSFER_CAT,
+    "доход - перевод между счетами": TRANSFER_CAT,
+    "расход - перевод между счетами": TRANSFER_CAT,
 }
 
 
 def norm(s):
     s = unicodedata.normalize("NFKC", str(s or "")).strip().lower()
     return " ".join(s.split())
-
-
-def match_cat(label):
-    n = norm(label)
-    if n in ROW_MAP:
-        return ROW_MAP[n]
-    for key, cat in ROW_MAP.items():  # qisman moslik
-        if key and (key in n or n in key) and len(n) > 3:
-            return cat
-    return None
-
-
-def find_layout(ws):
-    """Sarlavha qatori va oy ustunlarini topadi."""
-    for row in ws.iter_rows(min_row=1, max_row=30):
-        for cell in row:
-            if norm(cell.value).startswith("наименование"):
-                label_col = cell.column
-                month_cols = []
-                for c in ws[cell.row]:
-                    v = norm(c.value)
-                    for i, pref in enumerate(["янв", "фев", "мар", "апр", "май",
-                                              "июн", "июл", "авг", "сен",
-                                              "окт", "ноя", "дек"]):
-                        if v.startswith(pref):
-                            month_cols.append((c.column, i + 1))
-                return cell.row, label_col, month_cols
-    raise SystemExit("«Наименование» qatori topilmadi — jadval formati boshqacha")
 
 
 def to_num(v):
@@ -117,90 +111,122 @@ def to_num(v):
         return 0.0
 
 
-def run(path, year, wipe):
+def to_date(v):
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    for fmt in ("%d.%m.%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(str(v).strip(), fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def ensure_wallets():
+    for code, name in WALLET_MAP.values():
+        if not Wallet.query.filter_by(code=code).first():
+            db.session.add(Wallet(code=code, name=name, opening=0.0))
+    db.session.flush()
+
+
+def import_openings(wb):
+    """«ДДС_2026»dan yanvar (2-ustun) qoldiqlarini hamyonlarga yozadi."""
+    if "ДДС_2026" not in wb.sheetnames:
+        print("! ДДС_2026 varag'i yo'q — ochilish qoldiqlari o'zgartirilmadi")
+        return
+    ws = wb["ДДС_2026"]
+    in_bal = False
+    for r in range(1, min(ws.max_row, 40) + 1):
+        label = norm(ws.cell(row=r, column=1).value)
+        if not label:
+            continue
+        if label.startswith("остаток дс на начало"):
+            in_bal = True
+            continue
+        if in_bal:
+            code = OPENING_MAP.get(label)
+            if code:
+                val = to_num(ws.cell(row=r, column=2).value)
+                w = Wallet.query.filter_by(code=code).first()
+                if w:
+                    w.opening = val
+                    print(f"  Qoldiq: {w.name} → {val:,.0f}")
+            elif label.startswith(("операционная", "поступления")):
+                break
+
+
+def run(path, wipe):
     app = create_app()
     with app.app_context():
         wb = load_workbook(path, data_only=True)
-        ws = wb.active
-        hdr_row, label_col, month_cols = find_layout(ws)
-        print(f"Varaq: {ws.title} | sarlavha qatori {hdr_row} | "
-              f"{len(month_cols)} oy ustuni")
+        if "ДДС данные" not in wb.sheetnames:
+            raise SystemExit("«ДДС данные» varag'i topilmadi. Varaqlar: "
+                             + ", ".join(wb.sheetnames[:10]))
+        ws = wb["ДДС данные"]
 
         if wipe:
-            n = Transaction.query.filter_by(wallet_code=IMPORT_WALLET[0]) \
+            n = Transaction.query.filter(
+                Transaction.comment.like(f"%{IMPORT_MARK}%")) \
                 .delete(synchronize_session=False)
             print(f"Eski import o'chirildi: {n} yozuv")
 
-        if not Wallet.query.filter_by(code=IMPORT_WALLET[0]).first():
-            db.session.add(Wallet(code=IMPORT_WALLET[0], name=IMPORT_WALLET[1],
-                                  opening=0.0, sort=99))
+        ensure_wallets()
+        import_openings(wb)
 
-        section = None   # 'balance' | 'income' | 'expense'
-        opening_done = False
         made = skipped = 0
-        for r in range(hdr_row + 1, ws.max_row + 1):
-            label = ws.cell(row=r, column=label_col).value
-            n = norm(label)
-            if not n:
+        unknown = {}
+        for r in range(3, ws.max_row + 1):
+            amount = to_num(ws.cell(row=r, column=4).value)
+            tdate = to_date(ws.cell(row=r, column=3).value)
+            if amount <= 0 or not tdate:
                 continue
-            if n.startswith("остаток дс на начало"):
-                section = "balance"
+            wallet_raw = norm(ws.cell(row=r, column=5).value)
+            wallet = WALLET_MAP.get(wallet_raw)
+            cat_raw = norm(ws.cell(row=r, column=8).value)
+            cat = CAT_MAP.get(cat_raw)
+            op_raw = norm(ws.cell(row=r, column=9).value)
+            vid = norm(ws.cell(row=r, column=10).value)
+            paykind = str(ws.cell(row=r, column=6).value or "").strip()
+            purpose = str(ws.cell(row=r, column=7).value or "").strip()
+
+            if not wallet:
+                unknown.setdefault(f"hamyon: {wallet_raw}", 0)
+                unknown[f"hamyon: {wallet_raw}"] += 1
+                skipped += 1
                 continue
-            if "поступления по операционной" in n:
-                section = "income"
-                continue
-            if "выбытия по операционной" in n:
-                section = "expense"
-                continue
-            if n.startswith(("операционная", "инвестиционная", "финансовая",
-                             "остаток дс на конец", "отчет о движении")):
-                if n.startswith(("инвестиционная", "финансовая")):
-                    section = None
+            if not cat:
+                unknown.setdefault(f"statya: {cat_raw}", 0)
+                unknown[f"statya: {cat_raw}"] += 1
+                skipped += 1
                 continue
 
-            if section == "balance" and not opening_done:
-                # hamyon qatori: birinchi oy ustuni = ochilish qoldig'i
-                first_col = month_cols[0][0] if month_cols else None
-                val = to_num(ws.cell(row=r, column=first_col).value) if first_col else 0
-                code = norm(label).replace(" ", "_").replace(".", "")[:20] or f"w{r}"
-                w = Wallet.query.filter_by(code=code).first()
-                if not w:
-                    db.session.add(Wallet(code=code, name=str(label).strip(),
-                                          opening=val, sort=r))
-                    print(f"  Hamyon: {label} → ochilish {val:,.0f}")
-                continue
+            operation = "kirim" if op_raw.startswith("поступ") else "chiqim"
+            if cat == TRANSFER_CAT:
+                activity = "tech"
+            elif vid.startswith("финанс"):
+                activity = "finance"
+            else:
+                activity = "operating"
 
-            if section in ("income", "expense"):
-                cat = match_cat(label)
-                if not cat:
-                    if any(to_num(ws.cell(row=r, column=c).value)
-                           for c, _ in month_cols):
-                        print(f"  ! Notanish statya (o'tkazildi): {label}")
-                        skipped += 1
-                    continue
-                op = "kirim" if cat in INCOME_CATS else "chiqim"
-                for col, month in month_cols:
-                    val = to_num(ws.cell(row=r, column=col).value)
-                    if val <= 0:
-                        continue
-                    db.session.add(Transaction(
-                        tdate=date(year, month, 15),
-                        wallet_code=IMPORT_WALLET[0],
-                        operation=op, amount=val, category=cat,
-                        counterparty="Sheets import",
-                        comment=f"ДДС {year} import: {label}"))
-                    made += 1
+            comment = f"{purpose} {IMPORT_MARK}".strip()
+            if paykind:
+                comment = f"[{paykind}] " + comment
+            db.session.add(Transaction(
+                tdate=tdate, wallet_code=wallet[0], operation=operation,
+                amount=amount, category=cat, activity=activity,
+                counterparty=purpose[:200], comment=comment))
+            made += 1
 
         db.session.commit()
-        print(f"Tayyor: {made} jamlama tranzaksiya, {skipped} notanish qator.")
+        print(f"\nTayyor: {made} tranzaksiya import qilindi, {skipped} o'tkazildi.")
+        for k, v in unknown.items():
+            print(f"  ! Notanish ({v} ta): {k}")
 
 
 if __name__ == "__main__":
     args = sys.argv[1:]
     if not args:
         raise SystemExit(__doc__)
-    path = args[0]
-    year = date.today().year
-    if "--year" in args:
-        year = int(args[args.index("--year") + 1])
-    run(path, year, wipe="--wipe" in args)
+    run(args[0], wipe="--wipe" in args)

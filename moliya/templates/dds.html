@@ -63,6 +63,21 @@
       <td class="r">{{ d.other_exp|sum|grp }}</td><td></td></tr>
     {% endif %}
 
+    {% if d.rows_fin %}
+    <tr style="background:rgba(88,166,255,.08)">
+      <td><b>Финансовая деятельность</b></td>
+      {% for v in d.fin_net %}<td class="r {{ 'neg' if v < 0 }}"><b>{{ v|grp }}</b></td>{% endfor %}
+      <td class="r {{ 'neg' if d.fin_year < 0 }}"><b>{{ d.fin_year|grp }}</b></td><td></td>
+    </tr>
+    {% for r in d.rows_fin %}
+    <tr>
+      <td style="padding-left:22px">{{ r.cat }}</td>
+      {% for v in r.vals %}<td class="r {{ 'neg' if v < 0 }}">{{ v|grp if v else '' }}</td>{% endfor %}
+      <td class="r {{ 'neg' if r.total < 0 }}">{{ r.total|grp }}</td><td></td>
+    </tr>
+    {% endfor %}
+    {% endif %}
+
     <tr style="background:rgba(255,255,255,.05)">
       <td><b>Sof oqim (oy)</b></td>
       {% for v in d.net %}<td class="r {{ 'pos' if v >= 0 else 'neg' }}"><b>{{ v|grp }}</b></td>{% endfor %}
