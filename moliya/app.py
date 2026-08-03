@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 
+import automation
 import core
 from database import db, init_db
 from models import (Budget, Cohort, Contract, Course, EXPENSE_CATS,
@@ -184,9 +185,13 @@ def register_routes(app):
             return redirect(url_for("contracts"))
         db.session.add(student)
         db.session.flush()
+        cohort = db.session.get(Cohort, int(f.get("cohort_id") or 0))
+        if not cohort:
+            flash("Oqim tanlanmagan — avval Oqimlar sahifasida oqim oching", "error")
+            return redirect(url_for("contracts"))
         price = float(f.get("price") or 0)
         c = Contract(student_id=student.id,
-                     cohort_id=int(f.get("cohort_id")),
+                     cohort_id=cohort.id,
                      price=price,
                      discount=float(f.get("discount") or 0),
                      signed_date=_parse_date(f.get("signed_date")))
@@ -199,9 +204,10 @@ def register_routes(app):
             due = c.signed_date + timedelta(days=30 * i)
             db.session.add(InstallmentLine(contract_id=c.id,
                                            due_date=due, amount=per))
+        steps, welcome = automation.on_contract_created(c, n)
         db.session.commit()
-        flash(f"Shartnoma yaratildi ({n} qismli grafik)", "ok")
-        return redirect(url_for("contract_detail", cid=c.id))
+        flash(f"Shartnoma yaratildi — {len(steps)} jarayon avtomatik bajarildi", "ok")
+        return redirect(url_for("contract_detail", cid=c.id, welcome=1))
 
     @app.route("/contracts/<int:cid>")
     def contract_detail(cid):
@@ -212,8 +218,14 @@ def register_routes(app):
         txs = Transaction.query.filter_by(contract_id=cid).order_by(
             Transaction.tdate.desc()).all()
         wallets = Wallet.query.filter_by(is_active=True).order_by(Wallet.sort).all()
+        receipt = welcome = None
+        if request.args.get("receipt") and txs:
+            receipt = automation.receipt_text(c, txs[0].amount)
+        if request.args.get("welcome"):
+            welcome = automation.welcome_text(c)
         return render_template("contract_detail.html", c=c,
-                               recognized=recognized, txs=txs, wallets=wallets)
+                               recognized=recognized, txs=txs, wallets=wallets,
+                               receipt=receipt, welcome=welcome)
 
     @app.route("/contracts/<int:cid>/pay", methods=["POST"])
     def contract_pay(cid):
@@ -241,9 +253,11 @@ def register_routes(app):
             pay = min(need, rest)
             line.paid += pay
             rest -= pay
+        # ── AVTOMATIKA ZANJIRI: bir amal -> bir nechta jarayon ──
+        steps, receipt = automation.on_payment(c, amount, f.get("wallet_code", ""))
         db.session.commit()
-        flash("To'lov qabul qilindi", "ok")
-        return redirect(url_for("contract_detail", cid=cid))
+        flash(f"To'lov qabul qilindi — {len(steps)} jarayon avtomatik bajarildi", "ok")
+        return redirect(url_for("contract_detail", cid=cid, receipt=1))
 
     @app.route("/contracts/<int:cid>/status", methods=["POST"])
     def contract_status(cid):
@@ -263,6 +277,7 @@ def register_routes(app):
                         counterparty=c.student.name,
                         contract_id=c.id,
                         comment="Pul qaytarish (kafolat)"))
+                    automation.on_refund(c, refund)
             db.session.commit()
             flash("Holat yangilandi", "ok")
         return redirect(url_for("contract_detail", cid=cid))
@@ -309,6 +324,35 @@ def register_routes(app):
         db.session.commit()
         flash("Reja saqlandi", "ok")
         return redirect(url_for("reports", y=y, m=m))
+
+    # ── Avtomatika markazi ──────────────────────────────────────
+    @app.route("/automation")
+    def automation_page():
+        day = None
+        if request.args.get("closed"):
+            day = automation.close_day()
+            db.session.commit()
+        wallets = Wallet.query.filter_by(is_active=True).order_by(Wallet.sort).all()
+        return render_template("automation.html", feed=automation.feed(),
+                               day=day, wallets=wallets)
+
+    @app.route("/automation/close-day", methods=["POST"])
+    def close_day():
+        return redirect(url_for("automation_page", closed=1))
+
+    @app.route("/automation/reminded/<int:line_id>", methods=["POST"])
+    def mark_reminded(line_id):
+        automation.mark_reminded(line_id, request.form.get("channel", "manual"))
+        db.session.commit()
+        flash("Eslatma belgilandi — bugun qayta chiqmaydi", "ok")
+        return redirect(url_for("automation_page", closed=1))
+
+    @app.route("/automation/recurring/<int:rec_id>", methods=["POST"])
+    def book_recurring(rec_id):
+        r = automation.book_recurring(rec_id, request.form.get("wallet_code", ""))
+        db.session.commit()
+        flash(f"«{r.name}» kassaga yozildi" if r else "Topilmadi", "ok" if r else "error")
+        return redirect(url_for("automation_page", closed=1))
 
     # ── Sozlamalar ───────────────────────────────────────────────
     @app.route("/settings")

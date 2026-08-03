@@ -3,6 +3,18 @@
 <h1>{{ c.student.name }}</h1>
 <p class="sub">{{ c.cohort.course.name }} · {{ c.cohort.name }} ({{ c.cohort.start_date|dmy }} – {{ c.cohort.end_date|dmy }}) · Imzo: {{ c.signed_date|dmy }}</p>
 
+{% if receipt or welcome %}
+<div class="card" style="margin-bottom:14px;border-color:var(--gold)">
+  <h2>{{ '🧾 Kvitansiya tayyor' if receipt else '👋 Xush kelibsiz xabari tayyor' }} — o'quvchiga yuboring</h2>
+  {% set msg = receipt or welcome %}
+  <pre style="white-space:pre-wrap;font:13px var(--sans);color:var(--mut);background:var(--track);padding:12px 14px;border-radius:10px;margin:0 0 12px">{{ msg }}</pre>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="ghost" type="button" onclick="navigator.clipboard.writeText(this.parentElement.previousElementSibling.textContent).then(()=>{this.textContent='✓ Nusxalandi'})">📋 Nusxalash</button>
+    <a class="chip" target="_blank" href="https://t.me/share/url?url=&text={{ msg|urlencode }}">Telegram orqali yuborish →</a>
+  </div>
+</div>
+{% endif %}
+
 <div class="grid g4">
   <div class="card kpi"><div class="l">Net narx</div><div class="v">{{ c.net_price|grp }}</div>
     {% if c.discount %}<div class="h">Chegirma: {{ c.discount|grp }}</div>{% endif %}</div>

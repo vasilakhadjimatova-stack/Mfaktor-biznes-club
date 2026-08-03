@@ -210,6 +210,30 @@ class InstallmentLine(db.Model):
         return max((today - self.due_date).days, 0)
 
 
+class AutoEvent(db.Model):
+    """Avtomatika jurnali — tizim har bir qadamda nima qilganini yozadi.
+
+    'Bir amal → bir nechta jarayon' zanjirining ko'rinadigan izi:
+    foydalanuvchi bitta ish qiladi, jurnal zanjirni ko'rsatadi.
+    """
+    __tablename__ = "auto_events"
+    id         = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    kind       = db.Column(db.String(30), default="info")   # payment/contract/reminder/day/refund
+    title      = db.Column(db.String(200), nullable=False)
+    detail     = db.Column(db.Text, default="")
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"), nullable=True)
+
+
+class ReminderLog(db.Model):
+    """Yuborilgan/tayyorlangan eslatmalar — takror bezovta qilmaslik uchun."""
+    __tablename__ = "reminder_logs"
+    id         = db.Column(db.Integer, primary_key=True)
+    line_id    = db.Column(db.Integer, db.ForeignKey("installment_lines.id"), nullable=False)
+    sent_date  = db.Column(db.Date, nullable=False)
+    channel    = db.Column(db.String(20), default="manual")   # manual/sms/telegram
+
+
 class Budget(db.Model):
     """Oylik reja (plan-fakt) — statya bo'yicha."""
     __tablename__ = "budgets"

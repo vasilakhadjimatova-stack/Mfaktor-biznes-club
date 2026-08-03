@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Avtomatika markazi</h1>
+<p class="sub">Bir amal — bir nechta jarayon. Tizim nima qilganini shu yerda kuzatasiz.</p>
+
+<div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+  <div style="flex:1;min-width:220px">
+    <h2 style="margin:0 0 4px">Kunni yopish</h2>
+    <p class="sub" style="margin:0;font-size:12.5px">Bitta tugma: muddati o'tganlarga eslatma matnlari + bugungi takroriy to'lovlar + 7 kunlik prognoz + kunlik xulosa</p>
+  </div>
+  <form method="post" action="/automation/close-day">
+    <button>⚡ Kunni yopish</button>
+  </form>
+</div>
+
+{% if day %}
+<div class="grid g4" style="margin-top:14px">
+  <div class="card kpi"><div class="l">Bugun kirim</div><div class="v pos">{{ day.inc|grp }}</div></div>
+  <div class="card kpi"><div class="l">Bugun chiqim</div><div class="v neg">{{ day.exp|grp }}</div></div>
+  <div class="card kpi"><div class="l">Sof</div><div class="v {{ 'pos' if day.net>=0 else 'neg' }}">{{ day.net|grp }}</div></div>
+  <div class="card kpi"><div class="l">7 kunda kutilmoqda</div>
+    <div class="v">{{ day.upcoming|sum(attribute='rest')|grp }}</div>
+    <div class="h">{{ day.upcoming|length }} ta to'lov</div></div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <h2>Eslatmalar navbati — {{ day.reminders|length }} ta</h2>
+  {% if day.reminders %}
+  {% for r in day.reminders %}
+  <div style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+      <div>
+        <b><a href="/contracts/{{ r.contract.id }}">{{ r.contract.student.name }}</a></b>
+        <span class="badge b-red" style="margin-left:8px">{{ r.days }} kun kechikdi</span>
+        <span class="num" style="color:var(--mut);margin-left:8px">{{ r.rest|grp }} so'm · {{ r.contract.student.phone }}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="ghost" type="button" onclick="copyText(this)" data-text="{{ r.text }}">📋 Nusxalash</button>
+        <a class="chip" target="_blank" href="https://t.me/share/url?url=&text={{ r.text|urlencode }}">Telegram →</a>
+        <form method="post" action="/automation/reminded/{{ r.line.id }}">
+          <button class="ghost">✓ Yuborildi</button>
+        </form>
+      </div>
+    </div>
+    <pre style="margin:10px 0 0;white-space:pre-wrap;font:12.5px var(--sans);color:var(--mut);background:var(--track);padding:10px 12px;border-radius:10px">{{ r.text }}</pre>
+  </div>
+  {% endfor %}
+  {% else %}<div class="empty">Bugun eslatma kerak emas — hammasi vaqtida 🎉</div>{% endif %}
+</div>
+
+<div class="card" style="margin-top:14px">
+  <h2>Bugungi takroriy to'lovlar — {{ day.rec_due|length }} ta</h2>
+  {% if day.rec_due %}
+  <table>
+    <tr><th>Nomi</th><th class="r">Summa</th><th>Statya</th><th style="width:280px"></th></tr>
+    {% for r in day.rec_due %}
+    <tr>
+      <td><b>{{ r.name }}</b></td>
+      <td class="r">{{ r.amount|grp }}</td>
+      <td>{{ r.category }}</td>
+      <td>
+        <form method="post" action="/automation/recurring/{{ r.id }}" style="display:flex;gap:8px">
+          <select name="wallet_code" style="width:auto">{% for w in wallets %}<option value="{{ w.code }}">{{ w.name }}</option>{% endfor %}</select>
+          <button class="ghost">Kassaga yozish</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">Bugun muddati kelgan takroriy to'lov yo'q</div>{% endif %}
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:14px">
+  <h2>Avtomatika jurnali</h2>
+  {% if feed %}
+  <table>
+    <tr><th style="width:130px">Vaqt</th><th style="width:110px">Turi</th><th>Voqea va zanjir</th></tr>
+    {% for e in feed %}
+    <tr>
+      <td class="num" style="color:var(--dim);font-size:12px">{{ e.created_at.strftime('%d.%m %H:%M') }}</td>
+      <td>{% set k = {'payment':('b-green','To\'lov'), 'contract':('b-gold','Shartnoma'),
+                      'reminder':('b-gold','Eslatma'), 'day':('b-gray','Kun'),
+                      'refund':('b-red','Qaytarish')} %}
+        {% set kk = k.get(e.kind, ('b-gray', e.kind)) %}
+        <span class="badge {{ kk[0] }}">{{ kk[1] }}</span></td>
+      <td><b>{{ e.title }}</b>
+        {% if e.detail %}<div style="color:var(--dim);font-size:12px;margin-top:3px">{{ e.detail }}</div>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">Jurnal hozircha bo'sh — to'lov kiriting yoki kunni yoping</div>{% endif %}
+</div>
+
+<script>
+function copyText(btn){
+  navigator.clipboard.writeText(btn.dataset.text).then(() => {
+    btn.textContent = "✓ Nusxalandi";
+    setTimeout(() => btn.textContent = "📋 Nusxalash", 1600);
+  });
+}
+</script>
+{% endblock %}
