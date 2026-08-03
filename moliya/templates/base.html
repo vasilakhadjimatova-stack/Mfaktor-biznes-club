@@ -90,29 +90,41 @@ a:hover{text-decoration:underline}
 
 /* ── Layout: sidebar + content ── */
 .shell{display:grid;grid-template-columns:228px 1fr;min-height:100vh;position:relative;z-index:1}
-aside{border-right:1px solid var(--line);background:linear-gradient(180deg,var(--ink2),var(--ink));
-  padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;
-  transition:background .25s}
+:root{--side-bg1:#0e1218; --side-bg2:#0a0d12; --side-line:rgba(255,255,255,.08);
+  --side-txt:#e8eaef; --side-mut:#8d95a5; --side-dim:#5a6272; --side-hover:rgba(255,255,255,.05)}
+aside{border-right:1px solid var(--side-line);
+  background:linear-gradient(180deg,var(--side-bg1),var(--side-bg2));
+  padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+aside::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(400px 200px at 20% 0%, rgba(232,182,76,.08), transparent 70%)}
+aside > *{position:relative;z-index:1}
 .brand{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:.01em;
-  color:var(--gold);padding:0 10px 18px;display:flex;align-items:center;gap:9px}
-.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);
-  box-shadow:0 0 14px var(--gold);flex:none}
-.brand small{display:block;font-family:var(--sans);font-weight:500;font-size:10px;
-  color:var(--dim);letter-spacing:.22em;text-transform:uppercase}
+  color:#f0c25e;padding:0 8px 20px;display:flex;align-items:center;gap:11px}
+.brand .dot{width:34px;height:34px;border-radius:11px;flex:none;
+  background:linear-gradient(135deg,#f6d489,#d9a538);
+  display:flex;align-items:center;justify-content:center;
+  color:#241a05;font:700 16px var(--sans);
+  box-shadow:0 4px 14px rgba(217,165,58,.4)}
+.brand .dot::before{content:"◆";font-size:14px}
+.brand small{display:block;font-family:var(--sans);font-weight:500;font-size:9.5px;
+  color:var(--side-dim);letter-spacing:.24em;text-transform:uppercase;margin-top:1px}
 nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;
-  color:var(--mut);font-weight:500;font-size:13.5px;transition:.15s;text-decoration:none}
-nav a:hover{color:var(--txt);background:var(--hover);text-decoration:none}
-nav a.on{color:var(--gold);background:var(--gold-dim);font-weight:600}
+  color:var(--side-mut);font-weight:500;font-size:13.5px;transition:.15s;
+  text-decoration:none;position:relative}
+nav a:hover{color:var(--side-txt);background:var(--side-hover);text-decoration:none}
+nav a.on{color:#f0c25e;background:rgba(232,182,76,.13);font-weight:600}
+nav a.on::before{content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:3px;
+  border-radius:0 3px 3px 0;background:linear-gradient(180deg,#f6d489,#d9a538)}
 nav a svg{width:17px;height:17px;flex:none;opacity:.85}
-nav .sep{margin:14px 12px 6px;font-size:10px;letter-spacing:.2em;color:var(--dim);
+nav .sep{margin:14px 12px 6px;font-size:10px;letter-spacing:.2em;color:var(--side-dim);
   text-transform:uppercase}
-.side-foot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid var(--line);
-  font-size:11.5px;color:var(--dim)}
-.side-foot b{color:var(--gold);font-family:var(--mono);font-size:13px;display:block}
+.side-foot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid var(--side-line);
+  font-size:11.5px;color:var(--side-dim)}
+.side-foot b{color:#f0c25e;font-family:var(--mono);font-size:13px;display:block}
 .theme-btn{display:flex;align-items:center;gap:9px;width:100%;margin-top:10px;
-  background:transparent;border:1px solid var(--line2);color:var(--mut);border-radius:10px;
+  background:transparent;border:1px solid var(--side-line);color:var(--side-mut);border-radius:10px;
   padding:8px 12px;font:600 12.5px var(--sans);cursor:pointer;box-shadow:none;transition:.15s}
-.theme-btn:hover{color:var(--txt);border-color:var(--mut);transform:none;filter:none}
+.theme-btn:hover{color:var(--side-txt);border-color:var(--side-mut);transform:none;filter:none}
 .theme-btn svg{width:15px;height:15px}
 :root[data-theme="dark"] .tl-sun{display:none}
 :root[data-theme="light"] .tl-moon{display:none}
@@ -222,6 +234,7 @@ button,.btn{background:linear-gradient(180deg,var(--btn-g1),var(--btn-g2));color
   border-radius:10px;padding:10px 18px;font:600 13.5px var(--sans);cursor:pointer;transition:.15s;
   box-shadow:0 2px 10px rgba(217,165,58,.3)}
 button:hover{filter:brightness(1.06);transform:translateY(-1px)}
+button:active{transform:translateY(0) scale(.98)}
 button.ghost{background:transparent;color:var(--mut);border:1px solid var(--line2);box-shadow:none}
 button.ghost:hover{color:var(--txt);border-color:var(--mut)}
 button.danger{background:transparent;color:var(--red);border:1px solid var(--red-dim);
@@ -262,6 +275,33 @@ code{font-family:var(--mono);font-size:12px;background:var(--track);
 .legend{display:flex;gap:16px;font-size:11.5px;color:var(--mut);margin-top:10px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 
+/* ── Jonlanish (staggered reveal) ── */
+main > *{animation:rise .5s cubic-bezier(.16,.84,.3,1) both}
+main > *:nth-child(2){animation-delay:.05s}
+main > *:nth-child(3){animation-delay:.1s}
+main > *:nth-child(4){animation-delay:.15s}
+main > *:nth-child(5){animation-delay:.2s}
+main > *:nth-child(6){animation-delay:.25s}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
+/* ── Donut diagramma ── */
+.donut-wrap{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.donut{width:150px;height:150px;border-radius:50%;position:relative;flex:none}
+.donut::after{content:"";position:absolute;inset:26px;border-radius:50%;
+  background:var(--ink);border:1px solid var(--line)}
+.donut .dc{position:absolute;inset:26px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:1;text-align:center}
+.donut .dc b{font:600 13px var(--mono)}
+.donut .dc span{font-size:9.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.dlegend{flex:1;min-width:200px;display:flex;flex-direction:column;gap:7px}
+.dlegend .dl{display:flex;align-items:center;gap:9px;font-size:12.5px}
+.dlegend .dl i{width:11px;height:11px;border-radius:4px;flex:none}
+.dlegend .dl span{color:var(--mut);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlegend .dl b{font-family:var(--mono);font-size:12px}
+
 /* ── Print (ДДС chop etish uchun) ── */
 @media print{
   aside,.monthnav,details.adder,.flash,.hint{display:none!important}
@@ -276,7 +316,9 @@ code{font-family:var(--mono);font-size:12px;background:var(--track);
 @media(max-width:900px){
   .shell{grid-template-columns:1fr}
   aside{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:2px;
-    padding:10px 12px;overflow-x:auto;z-index:20;border-right:0;border-bottom:1px solid var(--line)}
+    padding:10px 12px;overflow-x:auto;z-index:20;border-right:0;border-bottom:1px solid var(--side-line)}
+  nav a.on::before{display:none}
+  .brand .dot{width:26px;height:26px;border-radius:8px}
   .brand{padding:0 10px 0 4px;font-size:16px}
   .brand small,nav .sep,.cash-line{display:none}
   .side-foot{margin:0 0 0 auto;padding:0;border:0;flex:none}
@@ -328,6 +370,28 @@ code{font-family:var(--mono);font-size:12px;background:var(--track);
 </main>
 </div>
 <script>
+function countUp(){
+  document.querySelectorAll(".kpi .v").forEach(el => {
+    const node = el.childNodes[0];
+    if (!node || node.nodeType !== 3) return;
+    const raw = node.textContent.trim();
+    const num = parseFloat(raw.replace(/ /g, "").replace(",", "."));
+    if (isNaN(num) || Math.abs(num) < 10) return;
+    const dur = 650, t0 = performance.now();
+    const fmt = (v) => Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
+    function tick(t){
+      const p = Math.min((t - t0) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      node.textContent = fmt(num * ease);
+      if (p < 1) requestAnimationFrame(tick);
+      else node.textContent = raw;
+    }
+    requestAnimationFrame(tick);
+  });
+}
+addEventListener("DOMContentLoaded", () => {
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) countUp();
+});
 function toggleTheme(){
   var el = document.documentElement;
   var next = el.dataset.theme === "light" ? "dark" : "light";

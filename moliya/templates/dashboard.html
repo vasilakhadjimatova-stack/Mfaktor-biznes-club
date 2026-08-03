@@ -84,9 +84,35 @@
   </div>
 </div>
 
-{% if d.overdue %}
-<div class="card" style="margin-top:14px">
-  <h2>Kim to'lovni kechiktiryapti</h2>
+<div class="grid g2" style="margin-top:14px">
+  {% if d.exp_top %}
+  <div class="card">
+    <h2>Pul qayerga ketyapti — {{ d.today.year }}</h2>
+    {% set colors = ['var(--gold)', 'var(--blue)', 'var(--green)', 'var(--red)', '#8d95a5', 'var(--dim)'] %}
+    {% set ns = namespace(acc=0) %}
+    {% set stops = [] %}
+    <div class="donut-wrap">
+      <div class="donut" style="background:conic-gradient(
+        {%- for e in d.exp_top -%}
+          {{ colors[loop.index0 % 6] }} {{ ns.acc|round(1) }}% {{ (ns.acc + e.pct)|round(1) }}%{{ ',' if not loop.last }}
+          {%- set ns.acc = ns.acc + e.pct -%}
+        {%- endfor -%})">
+        <div class="dc"><b>100%</b><span>xarajat</span></div>
+      </div>
+      <div class="dlegend">
+        {% for e in d.exp_top %}
+        <div class="dl"><i style="background:{{ colors[loop.index0 % 6] }}"></i>
+          <span>{{ e.cat }}</span><b>{{ '%.0f'|format(e.pct) }}%</b></div>
+        {% endfor %}
+      </div>
+    </div>
+    <p class="sub" style="margin:14px 0 0;font-size:12px">Yil boshidan barcha chiqimlar tarkibi · <a href="/dds">to'liq ДДС →</a></p>
+  </div>
+  {% endif %}
+
+  {% if d.overdue %}
+  <div class="card">
+    <h2>Kim to'lovni kechiktiryapti</h2>
   <div class="tablewrap">
   <table>
     <tr><th>O'quvchi</th><th class="r">Qancha</th><th class="r">Necha kun</th></tr>
@@ -100,6 +126,7 @@
   </table>
   </div>
   <p class="sub" style="margin:10px 0 0;font-size:12.5px">Eslatma yuborish uchun: <a href="/automation">Avtomatika → Kunni yopish</a></p>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
 {% endblock %}

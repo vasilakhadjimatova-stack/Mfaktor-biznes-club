@@ -363,6 +363,18 @@ def dashboard_data(today=None):
     py, pm = (y - 1, 12) if m == 1 else (y, m - 1)
     prev = month_cashflow(py, pm)
 
+    # xarajatlar tarkibi (donut) — yil boshidan, top-5 statya
+    exp_rows = sorted([(r["cat"], r["total"]) for r in dm["rows_exp"]],
+                      key=lambda x: -x[1])
+    exp_total_year = sum(v for _, v in exp_rows) or 1.0
+    top5 = exp_rows[:5]
+    other = exp_total_year - sum(v for _, v in top5)
+    exp_top = [{"cat": cat, "val": v, "pct": v / exp_total_year * 100}
+               for cat, v in top5]
+    if other > 0:
+        exp_top.append({"cat": "Boshqa", "val": other,
+                        "pct": other / exp_total_year * 100})
+
     def delta(cur, old):
         if not old:
             return None
@@ -379,6 +391,7 @@ def dashboard_data(today=None):
         "ue": ue,
         "delta_inc": delta(cf["income_total"], prev["income_total"]),
         "delta_exp": delta(cf["expense_total"], prev["expense_total"]),
+        "exp_top": exp_top,
         "series": series,
         "series_max": max([max(r["inc"], r["exp"]) for r in series] or [1]) or 1,
         "active_contracts": Contract.query.filter_by(status="active").count(),
