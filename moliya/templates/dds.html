@@ -19,13 +19,13 @@
       <th class="r">Jami</th><th class="r">%</th>
     </tr>
 
-    <tr style="background:rgba(255,255,255,.045)">
+    <tr class="row-strong">
       <td><b>Остаток ДС на начало</b></td>
       {% for v in d.opens %}<td class="r"><b>{{ v|grp }}</b></td>{% endfor %}
       <td class="r"></td><td class="r"></td>
     </tr>
 
-    <tr style="background:rgba(63,185,112,.08)">
+    <tr class="row-inc">
       <td><b>Поступления (kirim)</b></td>
       {% for v in d.inc_tot %}<td class="r pos"><b>{{ v|grp }}</b></td>{% endfor %}
       <td class="r pos"><b>{{ d.inc_year|grp }}</b></td><td class="r">100%</td>
@@ -35,7 +35,7 @@
       <td style="padding-left:22px">{{ r.cat }}</td>
       {% for v in r.vals %}<td class="r">{{ v|grp if v else '' }}</td>{% endfor %}
       <td class="r">{{ r.total|grp }}</td>
-      <td class="r" style="color:var(--mut)">{{ '%.0f'|format(r.pct) }}%</td>
+      <td class="r" style="color:var(--dim)">{{ '%.0f'|format(r.pct) }}%</td>
     </tr>
     {% endfor %}
     {% if d.other_inc|sum %}
@@ -44,7 +44,7 @@
       <td class="r">{{ d.other_inc|sum|grp }}</td><td></td></tr>
     {% endif %}
 
-    <tr style="background:rgba(248,81,73,.08)">
+    <tr class="row-exp">
       <td><b>Выбытия (chiqim)</b></td>
       {% for v in d.exp_tot %}<td class="r neg"><b>{{ v|grp }}</b></td>{% endfor %}
       <td class="r neg"><b>{{ d.exp_year|grp }}</b></td>
@@ -55,7 +55,7 @@
       <td style="padding-left:22px">{{ r.cat }}</td>
       {% for v in r.vals %}<td class="r">{{ v|grp if v else '' }}</td>{% endfor %}
       <td class="r">{{ r.total|grp }}</td>
-      <td class="r" style="color:var(--mut)">{{ '%.0f'|format(r.pct) }}%</td>
+      <td class="r" style="color:var(--dim)">{{ '%.0f'|format(r.pct) }}%</td>
     </tr>
     {% endfor %}
     {% if d.other_exp|sum %}
@@ -65,7 +65,7 @@
     {% endif %}
 
     {% if d.rows_fin %}
-    <tr style="background:rgba(88,166,255,.08)">
+    <tr class="row-fin">
       <td><b>Финансовая деятельность</b></td>
       {% for v in d.fin_net %}<td class="r {{ 'neg' if v < 0 }}"><b>{{ v|grp }}</b></td>{% endfor %}
       <td class="r {{ 'neg' if d.fin_year < 0 }}"><b>{{ d.fin_year|grp }}</b></td><td></td>
@@ -79,12 +79,12 @@
     {% endfor %}
     {% endif %}
 
-    <tr style="background:rgba(255,255,255,.045)">
+    <tr class="row-strong">
       <td><b>Sof oqim (oy)</b></td>
       {% for v in d.net %}<td class="r {{ 'pos' if v >= 0 else 'neg' }}"><b>{{ v|grp }}</b></td>{% endfor %}
       <td class="r {{ 'pos' if d.net_year >= 0 else 'neg' }}"><b>{{ d.net_year|grp }}</b></td><td></td>
     </tr>
-    <tr style="background:rgba(255,255,255,.045)">
+    <tr class="row-strong">
       <td><b>Остаток ДС на конец</b></td>
       {% for v in d.closes %}<td class="r"><b>{{ v|grp }}</b></td>{% endfor %}
       <td></td><td></td>
