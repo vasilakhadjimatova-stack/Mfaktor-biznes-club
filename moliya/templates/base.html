@@ -312,6 +312,23 @@ main > *:nth-child(6){animation-delay:.25s}
   main{padding:0;max-width:none}
 }
 
+/* ── Pastki tab-bar (mobil, PWA) ── */
+.tabbar{display:none}
+@media(max-width:900px){
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;
+    background:linear-gradient(180deg,var(--side-bg1),var(--side-bg2));
+    border-top:1px solid var(--side-line);
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    backdrop-filter:blur(14px)}
+  .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:6px 2px;border-radius:10px;color:var(--side-mut);
+    font:600 9.5px var(--sans);text-decoration:none;letter-spacing:.02em}
+  .tabbar a svg{width:20px;height:20px}
+  .tabbar a.on{color:#f0c25e}
+  .tabbar a.on svg{filter:drop-shadow(0 0 6px rgba(240,194,94,.5))}
+  main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+}
+
 /* ── Mobile ── */
 @media(max-width:900px){
   .shell{grid-template-columns:1fr}
@@ -329,6 +346,20 @@ main > *:nth-child(6){animation-delay:.25s}
   nav a svg{display:none}
   main{padding:20px 14px 60px}
   h1{font-size:24px}
+  .g4{grid-template-columns:1fr 1fr;gap:10px}
+  .grid{gap:10px}
+  .card{padding:14px 14px 12px}
+  .kpi .l{font-size:9.5px;letter-spacing:.06em;padding-right:34px}
+  .kpi .v{font-size:17.5px;margin-top:5px}
+  .kpi .h{font-size:11px;margin-top:4px}
+  .kpi .ic{width:28px;height:28px;top:11px;right:11px;border-radius:8px}
+  .kpi .ic svg{width:14px;height:14px}
+  .delta{font-size:9.5px;padding:1px 6px;margin-left:4px}
+  .donut{width:120px;height:120px}
+  .donut::after{inset:20px}
+  .donut .dc{inset:20px}
+  h2{font-size:14px;margin:20px 0 10px}
+  .course-grid{grid-template-columns:1fr;gap:12px}
 }
 </style>
 </head>
@@ -369,6 +400,25 @@ main > *:nth-child(6){animation-delay:.25s}
   {% block body %}{% endblock %}
 </main>
 </div>
+
+<nav class="tabbar">
+  {% set p = request.path %}
+  <a class="{{ 'on' if p=='/' }}" href="/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+    Panel</a>
+  <a class="{{ 'on' if p.startswith('/transactions') }}" href="/transactions">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg>
+    Kassa</a>
+  <a class="{{ 'on' if p.startswith('/debtors') }}" href="/debtors">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    Qarzlar</a>
+  <a class="{{ 'on' if p.startswith('/dds') }}" href="/dds">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+    ДДС</a>
+  <a class="{{ 'on' if p.startswith('/reports') }}" href="/reports">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>
+    Tahlil</a>
+</nav>
 <script>
 function countUp(){
   document.querySelectorAll(".kpi .v").forEach(el => {
