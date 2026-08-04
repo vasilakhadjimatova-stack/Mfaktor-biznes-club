@@ -37,12 +37,12 @@
     <div class="v">{{ d.upcoming_total|grp }}</div>
     <div class="h">{{ d.upcoming|length }} ta rejali to'lov</div>
   </div>
-  <div class="card kpi">
+  <div class="card kpi m-hide">
     <span class="ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><div class="l">O'qiyotgan o'quvchilar</div>
     <div class="v">{{ d.active_contracts }}</div>
     <div class="h">faol shartnomalar</div>
   </div>
-  <div class="card kpi">
+  <div class="card kpi m-hide">
     <span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Bu oy yangi o'quvchi</div>
     <div class="v">{{ d.ue.new_students }}</div>
     <div class="h"><a href="/reports">marketing tahlili →</a></div>
@@ -69,7 +69,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card m-hide">
     <h2>Hisoblar bo'yicha pul</h2>
     <div class="tablewrap">
     <table>
@@ -86,7 +86,7 @@
 
 <div class="grid g2" style="margin-top:14px">
   {% if d.exp_top %}
-  <div class="card">
+  <div class="card m-hide">
     <h2>Pul qayerga ketyapti — {{ d.today.year }}</h2>
     {% set colors = ['var(--gold)', 'var(--blue)', 'var(--green)', 'var(--red)', '#8d95a5', 'var(--dim)'] %}
     {% set ns = namespace(acc=0) %}
