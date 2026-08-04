@@ -16,7 +16,7 @@
         <td class="r neg">{{ r.rest|grp }}</td>
         <td><span class="badge {{ 'b-red' if r.days > 7 else 'b-gold' }}">{{ r.bucket }}</span></td>
       </tr>
-      {% else %}<tr><td colspan="4" class="sub">Kechikkan to'lov yo'q 🎉</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="4" class="sub">Kechikkan to'lov yo'q</td></tr>{% endfor %}
     </table>
   </div>
 
@@ -36,6 +36,6 @@
 </div>
 
 <div class="card" style="margin-top:14px">
-  <p class="hint" style="margin:0">💡 Keyingi bosqich (roadmap): bu ro'yxat asosida avtomatik SMS/Telegram eslatmalari yuboriladi (Impulse <code>core/sms.py</code> + <code>reminders.py</code> andozasi).</p>
+  <p class="hint" style="margin:0">Keyingi bosqich (roadmap): bu ro'yxat asosida avtomatik SMS/Telegram eslatmalari yuboriladi (Impulse <code>core/sms.py</code> + <code>reminders.py</code> andozasi).</p>
 </div>
 {% endblock %}

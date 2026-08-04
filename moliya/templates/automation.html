@@ -9,7 +9,7 @@
     <p class="sub" style="margin:0;font-size:12.5px">Bitta tugma: muddati o'tganlarga eslatma matnlari + bugungi takroriy to'lovlar + 7 kunlik prognoz + kunlik xulosa</p>
   </div>
   <form method="post" action="/automation/close-day">
-    <button>⚡ Kunni yopish</button>
+    <button style="display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>Kunni yopish</button>
   </form>
 </div>
 
@@ -35,7 +35,7 @@
         <span class="num" style="color:var(--mut);margin-left:8px">{{ r.rest|grp }} so'm · {{ r.contract.student.phone }}</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="ghost" type="button" onclick="copyText(this)" data-text="{{ r.text }}">📋 Nusxalash</button>
+        <button class="ghost" type="button" onclick="copyText(this)" data-text="{{ r.text }}">Nusxalash</button>
         <a class="chip" target="_blank" href="https://t.me/share/url?url=&text={{ r.text|urlencode }}">Telegram →</a>
         <form method="post" action="/automation/reminded/{{ r.line.id }}">
           <button class="ghost">✓ Yuborildi</button>
@@ -45,7 +45,7 @@
     <pre style="margin:10px 0 0;white-space:pre-wrap;font:12.5px var(--sans);color:var(--mut);background:var(--track);padding:10px 12px;border-radius:10px">{{ r.text }}</pre>
   </div>
   {% endfor %}
-  {% else %}<div class="empty">Bugun eslatma kerak emas — hammasi vaqtida 🎉</div>{% endif %}
+  {% else %}<div class="empty">Bugun eslatma kerak emas — hammasi vaqtida</div>{% endif %}
 </div>
 
 <div class="card" style="margin-top:14px">
@@ -96,7 +96,7 @@
 function copyText(btn){
   navigator.clipboard.writeText(btn.dataset.text).then(() => {
     btn.textContent = "✓ Nusxalandi";
-    setTimeout(() => btn.textContent = "📋 Nusxalash", 1600);
+    setTimeout(() => btn.textContent = "Nusxalash", 1600);
   });
 }
 </script>

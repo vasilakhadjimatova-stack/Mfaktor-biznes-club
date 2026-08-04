@@ -5,11 +5,11 @@
 
 {% if receipt or welcome %}
 <div class="card" style="margin-bottom:14px;border-color:var(--gold)">
-  <h2>{{ '🧾 Kvitansiya tayyor' if receipt else '👋 Xush kelibsiz xabari tayyor' }} — o'quvchiga yuboring</h2>
+  <h2>{{ 'Kvitansiya tayyor' if receipt else 'Xush kelibsiz xabari tayyor' }} — o'quvchiga yuboring</h2>
   {% set msg = receipt or welcome %}
   <pre style="white-space:pre-wrap;font:13px var(--sans);color:var(--mut);background:var(--track);padding:12px 14px;border-radius:10px;margin:0 0 12px">{{ msg }}</pre>
   <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <button class="ghost" type="button" onclick="navigator.clipboard.writeText(this.parentElement.previousElementSibling.textContent).then(()=>{this.textContent='✓ Nusxalandi'})">📋 Nusxalash</button>
+    <button class="ghost" type="button" onclick="navigator.clipboard.writeText(this.parentElement.previousElementSibling.textContent).then(()=>{this.textContent='✓ Nusxalandi'})">Nusxalash</button>
     <a class="chip" target="_blank" href="https://t.me/share/url?url=&text={{ msg|urlencode }}">Telegram orqali yuborish →</a>
   </div>
 </div>

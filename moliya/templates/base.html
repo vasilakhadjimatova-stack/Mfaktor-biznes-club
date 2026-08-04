@@ -76,6 +76,8 @@ function syncThemeColor(t){
   --shadow:0 8px 30px rgba(60,48,20,.18);
 }
 *{box-sizing:border-box;margin:0}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:6px}
+summary{cursor:pointer}
 html{scroll-behavior:smooth}
 body{background:var(--ink);color:var(--txt);font:14px/1.55 var(--sans);min-height:100vh;
   transition:background .25s,color .25s}
@@ -189,7 +191,7 @@ h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--g
 /* ── Tables ── */
 .tablewrap{overflow-x:auto;border-radius:var(--r)}
 table{width:100%;border-collapse:collapse;font-size:13.5px}
-th{color:var(--dim);text-align:left;font-size:10.5px;text-transform:uppercase;font-weight:600;
+th{color:var(--mut);text-align:left;font-size:10.5px;text-transform:uppercase;font-weight:600;
    letter-spacing:.08em;padding:9px 11px;border-bottom:1px solid var(--line2);white-space:nowrap;
    position:sticky;top:0;background:var(--ink2);z-index:1}
 td{padding:10px 11px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -257,13 +259,20 @@ button.danger{background:transparent;color:var(--red);border:1px solid var(--red
   border:1px solid var(--line2);color:var(--mut);font-weight:600;font-size:12.5px;transition:.15s}
 .chip:hover{color:var(--txt);border-color:var(--mut);text-decoration:none}
 .chip.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold)}
-.hint{border:1px solid var(--line);border-radius:var(--r);padding:13px 17px;color:var(--mut);
-  font-size:12.5px;background:var(--hint-bg)}
+.hint{border:1px solid var(--line);border-radius:var(--r);padding:13px 17px 13px 44px;color:var(--mut);
+  font-size:12.5px;background:var(--hint-bg);position:relative}
+.hint::before{content:"i";position:absolute;left:14px;top:12px;width:19px;height:19px;
+  border-radius:50%;background:var(--blue);color:#fff;font:700 11px/19px var(--serif);
+  text-align:center;font-style:italic}
 code{font-family:var(--mono);font-size:12px;background:var(--track);
   padding:2px 6px;border-radius:6px}
 
 /* ── Chart ── */
-.chart{display:flex;align-items:flex-end;gap:10px;height:130px;padding:8px 4px 0}
+.chart{display:flex;align-items:flex-end;gap:10px;height:130px;padding:8px 4px 0;
+  background:linear-gradient(to top, transparent 0, transparent calc(25% - 1px), var(--line) 25%,
+    transparent calc(25% + 1px), transparent calc(50% - 1px), var(--line) 50%,
+    transparent calc(50% + 1px), transparent calc(75% - 1px), var(--line) 75%,
+    transparent calc(75% + 1px), transparent 100%);border-radius:4px}
 .chart .grp{flex:1;display:flex;align-items:flex-end;gap:3px;height:100%;position:relative}
 .chart .b{flex:1;border-radius:4px 4px 0 0;min-height:2px;transition:.2s}
 .chart .b.inc{background:linear-gradient(180deg,var(--green),transparent 160%)}
@@ -355,6 +364,8 @@ main > *:nth-child(6){animation-delay:.25s}
   .kpi .ic{width:28px;height:28px;top:11px;right:11px;border-radius:8px}
   .kpi .ic svg{width:14px;height:14px}
   .delta{font-size:9.5px;padding:1px 6px;margin-left:4px}
+  .chip{padding:9px 16px;font-size:13px}
+  button,.btn{padding:12px 18px}
   .donut{width:120px;height:120px}
   .donut::after{inset:20px}
   .donut .dc{inset:20px}
