@@ -19,7 +19,7 @@
 /* mavzu: localStorage → tizim sozlamasi → dark. FOUC oldini olish uchun head'da */
 (function(){
   var t = localStorage.getItem("mf-theme");
-  if (!t) t = "light";
+  if (!t) t = "dark";
   document.documentElement.dataset.theme = t;
   addEventListener("DOMContentLoaded", function(){ syncThemeColor(t); });
 })();
@@ -36,44 +36,42 @@ function syncThemeColor(t){
   --r:14px;
   /* tungi mavzu (asosiy) */
   color-scheme:dark;
-  --ink:#0b0e13; --ink2:#10141c; --ink3:#161b26;
-  --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.12);
-  --txt:#eceef2; --mut:#9aa3b2; --dim:#5f6774;
-  --gold:#e8b64c; --gold2:#f6d489; --gold-dim:rgba(232,182,76,.14);
-  --green:#4cc38a; --green-dim:rgba(76,195,138,.13);
-  --red:#ef6a6a; --red-dim:rgba(239,106,106,.13);
-  --blue:#6cb2f7;
-  --hover:rgba(255,255,255,.04); --track:rgba(255,255,255,.08);
-  --card-top:rgba(255,255,255,.035); --card-bot:rgba(255,255,255,.015);
-  --card-faint:rgba(255,255,255,.015);
-  --btn-g1:#f6d489; --btn-g2:#e8b64c; --btn-txt:#241a05;
-  --row-strong:rgba(255,255,255,.045);
-  --row-inc:rgba(76,195,138,.08); --row-exp:rgba(239,106,106,.07);
-  --row-fin:rgba(108,178,247,.08);
-  --hint-bg:rgba(108,178,247,.05);
-  --glow1:rgba(232,182,76,.04); --glow2:transparent;
-  --shadow:0 8px 30px rgba(0,0,0,.5);
+  --ink:#05070e; --ink2:#0a0d17; --ink3:#111527;
+  --line:rgba(160,180,255,.1); --line2:rgba(160,180,255,.2);
+  --txt:#f2f4fb; --mut:#9ba7c2; --dim:#5e6a85;
+  --gold:#f5c15c; --gold2:#ffe3a1; --gold-dim:rgba(245,193,92,.15);
+  --green:#3ee59a; --green-dim:rgba(62,229,154,.13);
+  --red:#ff7a88; --red-dim:rgba(255,122,136,.13);
+  --blue:#82b9ff;
+  --hover:rgba(160,180,255,.06); --track:rgba(160,180,255,.1);
+  --card-top:rgba(158,180,255,.07); --card-bot:rgba(158,180,255,.02);
+  --card-faint:rgba(158,180,255,.03);
+  --btn-g1:#ffe3a1; --btn-g2:#f0b342; --btn-txt:#241a05;
+  --row-strong:rgba(160,180,255,.07);
+  --row-inc:rgba(62,229,154,.09); --row-exp:rgba(255,122,136,.08);
+  --row-fin:rgba(130,185,255,.09);
+  --hint-bg:rgba(130,185,255,.07);
+  --shadow:0 14px 44px rgba(0,0,0,.6);
 }
 :root[data-theme="light"]{
   /* yorug' mavzu — "qog'oz daftar": iliq oq-qaymoq fon, quyuq siyoh matn */
   color-scheme:light;
-  --ink:#f7f4ed; --ink2:#efebe1; --ink3:#ffffff;
-  --line:rgba(43,35,18,.09); --line2:rgba(43,35,18,.16);
-  --txt:#241f14; --mut:#6d675a; --dim:#9b937f;
-  --gold:#8f6a12; --gold2:#6e510c; --gold-dim:rgba(176,132,26,.13);
-  --green:#177a4d; --green-dim:rgba(23,122,77,.11);
-  --red:#c03a3a; --red-dim:rgba(192,58,58,.10);
-  --blue:#1f66ad;
-  --hover:rgba(43,35,18,.04); --track:rgba(43,35,18,.08);
-  --card-top:rgba(255,255,255,.75); --card-bot:rgba(255,255,255,.45);
-  --card-faint:rgba(255,255,255,.5);
-  --btn-g1:#f0c25e; --btn-g2:#dfa938; --btn-txt:#241a05;
-  --row-strong:rgba(43,35,18,.05);
-  --row-inc:rgba(23,122,77,.08); --row-exp:rgba(192,58,58,.07);
-  --row-fin:rgba(31,102,173,.08);
-  --hint-bg:rgba(31,102,173,.06);
-  --glow1:rgba(217,165,58,.05); --glow2:transparent;
-  --shadow:0 8px 30px rgba(60,48,20,.18);
+  --ink:#eef1f9; --ink2:#e4e9f5; --ink3:#ffffff;
+  --line:rgba(40,60,120,.1); --line2:rgba(40,60,120,.18);
+  --txt:#1a2137; --mut:#5b6682; --dim:#8f9ab5;
+  --gold:#9a6f10; --gold2:#7a570b; --gold-dim:rgba(200,150,30,.14);
+  --green:#0d8a57; --green-dim:rgba(13,138,87,.11);
+  --red:#cc3d4e; --red-dim:rgba(204,61,78,.10);
+  --blue:#2563c4;
+  --hover:rgba(40,60,120,.05); --track:rgba(40,60,120,.08);
+  --card-top:rgba(255,255,255,.82); --card-bot:rgba(255,255,255,.55);
+  --card-faint:rgba(255,255,255,.55);
+  --btn-g1:#f6cd6d; --btn-g2:#e3a92f; --btn-txt:#241a05;
+  --row-strong:rgba(40,60,120,.06);
+  --row-inc:rgba(13,138,87,.08); --row-exp:rgba(204,61,78,.07);
+  --row-fin:rgba(37,99,196,.08);
+  --hint-bg:rgba(37,99,196,.06);
+  --shadow:0 14px 40px rgba(40,60,120,.16);
 }
 *{box-sizing:border-box;margin:0}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:6px}
@@ -81,9 +79,22 @@ summary{cursor:pointer}
 html{scroll-behavior:smooth}
 body{background:var(--ink);color:var(--txt);font:14px/1.55 var(--sans);min-height:100vh;
   transition:background .25s,color .25s}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:radial-gradient(1100px 500px at 85% -10%, var(--glow1), transparent 60%),
-             radial-gradient(800px 400px at -10% 110%, var(--glow2), transparent 60%)}
+body::before{content:"";position:fixed;inset:-20%;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(42% 34% at 78% 6%, rgba(245,193,92,.13), transparent 70%),
+    radial-gradient(38% 30% at 8% 88%, rgba(130,185,255,.12), transparent 70%),
+    radial-gradient(30% 26% at 88% 78%, rgba(62,229,154,.09), transparent 70%);
+  animation:aurora 26s ease-in-out infinite alternate}
+:root[data-theme="light"] body::before{opacity:.55}
+@keyframes aurora{
+  0%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(-2.5%,2%) scale(1.06)}
+  100%{transform:translate(2%,-2.5%) scale(1.02)}}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(rgba(160,180,255,.09) 1px, transparent 1px);
+  background-size:26px 26px;
+  mask-image:radial-gradient(70% 60% at 50% 30%, #000, transparent)}
+:root[data-theme="light"] body::after{opacity:.5}
 a{color:var(--blue);text-decoration:none}
 a:hover{text-decoration:underline}
 ::-webkit-scrollbar{height:9px;width:9px}
@@ -92,10 +103,11 @@ a:hover{text-decoration:underline}
 
 /* ── Layout: sidebar + content ── */
 .shell{display:grid;grid-template-columns:228px 1fr;min-height:100vh;position:relative;z-index:1}
-:root{--side-bg1:#0e1218; --side-bg2:#0a0d12; --side-line:rgba(255,255,255,.08);
-  --side-txt:#e8eaef; --side-mut:#8d95a5; --side-dim:#5a6272; --side-hover:rgba(255,255,255,.05)}
+:root{--side-bg1:rgba(10,14,26,.82); --side-bg2:rgba(5,7,14,.92); --side-line:rgba(160,180,255,.12);
+  --side-txt:#eef1fa; --side-mut:#93a0bd; --side-dim:#5c6883; --side-hover:rgba(160,180,255,.08)}
 aside{border-right:1px solid var(--side-line);
   background:linear-gradient(180deg,var(--side-bg1),var(--side-bg2));
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
 aside::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(400px 200px at 20% 0%, rgba(232,182,76,.08), transparent 70%)}
@@ -132,7 +144,9 @@ nav .sep{margin:14px 12px 6px;font-size:10px;letter-spacing:.2em;color:var(--sid
 :root[data-theme="light"] .tl-moon{display:none}
 
 main{padding:30px 34px 70px;max-width:1240px;width:100%}
-h1{font-family:var(--serif);font-weight:600;font-size:30px;letter-spacing:-.01em;margin:0 0 4px}
+h1{font-family:var(--serif);font-weight:600;font-size:31px;letter-spacing:-.01em;margin:0 0 4px}
+h1::after{content:"";display:block;width:52px;height:4px;border-radius:4px;margin-top:10px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
 h2{font:600 15px var(--sans);color:var(--txt);margin:26px 0 12px;display:flex;align-items:center;gap:8px}
 h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--gold)}
 .card h2:first-child{margin-top:0}
@@ -142,15 +156,23 @@ h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--g
 .grid{display:grid;gap:14px}
 .g4{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
 .g2{grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}
-.card{background:linear-gradient(180deg,var(--card-top),var(--card-bot));
-  border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 16px;
-  box-shadow:0 1px 0 rgba(255,255,255,.03) inset;transition:background .25s}
-:root[data-theme="light"] .card{box-shadow:0 1px 3px rgba(60,48,20,.06)}
+.card{background:linear-gradient(160deg,var(--card-top),var(--card-bot));
+  border:1px solid var(--line);border-radius:18px;padding:18px 18px 16px;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 0 8px 28px rgba(0,0,0,.22);
+  transition:background .25s;position:relative}
+.card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;
+  border-radius:18px 18px 0 0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);
+  pointer-events:none}
+:root[data-theme="light"] .card{box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 8px 26px rgba(40,60,120,.1)}
 .card.kpi{position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s,background .25s}
 .card.kpi:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(60,48,20,.13)}
 :root[data-theme="dark"] .card.kpi:hover{box-shadow:0 10px 26px rgba(0,0,0,.45)}
 .kpi .l{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.09em;font-weight:600;padding-right:44px}
-.kpi .v{font-family:var(--sans);font-variant-numeric:tabular-nums;font-size:23px;font-weight:700;margin-top:8px;letter-spacing:0}
+.kpi .v{font-family:var(--sans);font-variant-numeric:tabular-nums;font-size:26px;font-weight:700;margin-top:8px;letter-spacing:-.01em}
+.kpi .v.gold{background:linear-gradient(120deg,var(--gold2),var(--gold));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
 .kpi .h{font-size:12.5px;color:var(--mut);margin-top:6px}
 .kpi .ic{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:11px;
   display:flex;align-items:center;justify-content:center;background:var(--gold-dim);color:var(--gold)}
@@ -234,7 +256,7 @@ input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 
 input[type=number]{font-variant-numeric:tabular-nums}
 button,.btn{background:linear-gradient(180deg,var(--btn-g1),var(--btn-g2));color:var(--btn-txt);border:0;
   border-radius:10px;padding:10px 18px;font:600 13.5px var(--sans);cursor:pointer;transition:.15s;
-  box-shadow:0 2px 10px rgba(217,165,58,.3)}
+  box-shadow:0 2px 18px rgba(240,179,66,.45), 0 1px 0 rgba(255,255,255,.4) inset}
 button:hover{filter:brightness(1.06);transform:translateY(-1px)}
 button:active{transform:translateY(0) scale(.98)}
 button.ghost{background:transparent;color:var(--mut);border:1px solid var(--line2);box-shadow:none}
@@ -275,8 +297,10 @@ code{font-family:var(--mono);font-size:12px;background:var(--track);
     transparent calc(75% + 1px), transparent 100%);border-radius:4px}
 .chart .grp{flex:1;display:flex;align-items:flex-end;gap:3px;height:100%;position:relative}
 .chart .b{flex:1;border-radius:4px 4px 0 0;min-height:2px;transition:.2s}
-.chart .b.inc{background:linear-gradient(180deg,var(--green),transparent 160%)}
-.chart .b.exp{background:linear-gradient(180deg,var(--red),transparent 160%)}
+.chart .b.inc{background:linear-gradient(180deg,var(--green),rgba(62,229,154,.25));
+  box-shadow:0 0 14px rgba(62,229,154,.35)}
+.chart .b.exp{background:linear-gradient(180deg,var(--red),rgba(255,122,136,.22));
+  box-shadow:0 0 14px rgba(255,122,136,.3)}
 .chart .grp:hover .b{filter:brightness(1.2)}
 .chart-x{display:flex;gap:10px;padding:6px 4px 0;color:var(--dim);font-size:10.5px}
 .chart-x span{flex:1;text-align:center}
@@ -299,7 +323,7 @@ main > *:nth-child(6){animation-delay:.25s}
 .donut-wrap{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
 .donut{width:150px;height:150px;border-radius:50%;position:relative;flex:none}
 .donut::after{content:"";position:absolute;inset:26px;border-radius:50%;
-  background:var(--ink);border:1px solid var(--line)}
+  background:var(--ink2);border:1px solid var(--line);box-shadow:0 0 18px rgba(0,0,0,.3) inset}
 .donut .dc{position:absolute;inset:26px;display:flex;flex-direction:column;
   align-items:center;justify-content:center;z-index:1;text-align:center}
 .donut .dc b{font:700 13px var(--sans)}
