@@ -73,7 +73,8 @@ function syncThemeColor(t){
   --hint-bg:rgba(37,99,196,.06);
   --shadow:0 14px 40px rgba(40,60,120,.16);
 }
-*{box-sizing:border-box;margin:0}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+a,button,summary,.chip{touch-action:manipulation}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:6px}
 summary{cursor:pointer}
 html{scroll-behavior:smooth}
@@ -258,7 +259,7 @@ button,.btn{background:linear-gradient(180deg,var(--btn-g1),var(--btn-g2));color
   border-radius:10px;padding:10px 18px;font:600 13.5px var(--sans);cursor:pointer;transition:.15s;
   box-shadow:0 2px 18px rgba(240,179,66,.45), 0 1px 0 rgba(255,255,255,.4) inset}
 button:hover{filter:brightness(1.06);transform:translateY(-1px)}
-button:active{transform:translateY(0) scale(.98)}
+button:active{transform:translateY(0) scale(.95)}
 button.ghost{background:transparent;color:var(--mut);border:1px solid var(--line2);box-shadow:none}
 button.ghost:hover{color:var(--txt);border-color:var(--mut)}
 button.danger{background:transparent;color:var(--red);border:1px solid var(--red-dim);
@@ -280,6 +281,7 @@ button.danger{background:transparent;color:var(--red);border:1px solid var(--red
 .chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;
   border:1px solid var(--line2);color:var(--mut);font-weight:600;font-size:12.5px;transition:.15s}
 .chip:hover{color:var(--txt);border-color:var(--mut);text-decoration:none}
+.chip:active{transform:scale(.94)}
 .chip.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold)}
 .hint{border:1px solid var(--line);border-radius:var(--r);padding:13px 17px 13px 44px;color:var(--mut);
   font-size:12.5px;background:var(--hint-bg);position:relative}
@@ -352,13 +354,44 @@ main > *:nth-child(6){animation-delay:.25s}
     border-top:1px solid var(--side-line);
     padding:6px 8px calc(6px + env(safe-area-inset-bottom));
     backdrop-filter:blur(14px)}
-  .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-    padding:6px 2px;border-radius:10px;color:var(--side-mut);
-    font:600 9.5px var(--sans);text-decoration:none;letter-spacing:.02em}
-  .tabbar a svg{width:20px;height:20px}
+  .tabbar a,.tabbar button.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:6px 2px;border-radius:12px;color:var(--side-mut);background:none;border:0;box-shadow:none;
+    font:600 9.5px var(--sans);text-decoration:none;letter-spacing:.02em;cursor:pointer;
+    transition:transform .12s cubic-bezier(.2,.9,.4,1.4), background .15s, color .15s;
+    user-select:none;-webkit-user-select:none}
+  .tabbar a svg,.tabbar button.tab svg{width:20px;height:20px}
   .tabbar a.on{color:#f0c25e}
   .tabbar a.on svg{filter:drop-shadow(0 0 6px rgba(240,194,94,.5))}
+  .tabbar a:active,.tabbar button.tab:active{transform:scale(.85);background:var(--side-hover)}
+  .tabbar button.tab:hover{filter:none;transform:none}
+  .tabbar button.tab:active{transform:scale(.85)}
   main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+}
+
+/* ── Mobil menyu sheet ── */
+.msheet-wrap{display:none}
+@media(max-width:900px){
+  .msheet-wrap{display:block;position:fixed;inset:0;z-index:40;pointer-events:none}
+  .msheet-ovl{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;
+    transition:opacity .25s;backdrop-filter:blur(3px)}
+  .msheet{position:absolute;left:0;right:0;bottom:0;transform:translateY(105%);
+    transition:transform .32s cubic-bezier(.2,.9,.3,1);
+    background:linear-gradient(180deg,var(--ink2),var(--ink));
+    border-radius:22px 22px 0 0;border:1px solid var(--line2);border-bottom:0;
+    padding:10px 16px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -14px 50px rgba(0,0,0,.5)}
+  .msheet::before{content:"";display:block;width:40px;height:4px;border-radius:4px;
+    background:var(--line2);margin:2px auto 14px}
+  .msheet-wrap.open{pointer-events:auto}
+  .msheet-wrap.open .msheet-ovl{opacity:1}
+  .msheet-wrap.open .msheet{transform:translateY(0)}
+  .msheet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .msheet-grid a{display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:15px 6px;border-radius:14px;background:var(--card-faint);
+    border:1px solid var(--line);color:var(--txt);font:600 11.5px var(--sans);
+    text-decoration:none;transition:transform .12s}
+  .msheet-grid a:active{transform:scale(.92)}
+  .msheet-grid a svg{width:22px;height:22px;color:var(--gold)}
 }
 
 /* ── Mobile ── */
@@ -369,7 +402,8 @@ main > *:nth-child(6){animation-delay:.25s}
   nav a.on::before{display:none}
   .brand .dot{width:26px;height:26px;border-radius:8px}
   .brand{padding:0 10px 0 4px;font-size:16px}
-  .brand small,nav .sep,.cash-line{display:none}
+  .brand small,.cash-line{display:none}
+  aside nav{display:none!important}
   .side-foot{margin:0 0 0 auto;padding:0;border:0;flex:none}
   .theme-btn{margin:0;padding:7px 9px;width:auto}
   .theme-btn .tl-moon:not(svg),.theme-btn .tl-sun:not(svg){display:none}
@@ -450,10 +484,24 @@ main > *:nth-child(6){animation-delay:.25s}
   <a class="{{ 'on' if p.startswith('/dds') }}" href="/dds">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
     ДДС</a>
-  <a class="{{ 'on' if p.startswith('/reports') }}" href="/reports">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>
-    Tahlil</a>
+  <button class="tab" type="button" onclick="toggleSheet()" aria-label="Menyu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+    Menyu</button>
 </nav>
+
+<div class="msheet-wrap" id="msheet">
+  <div class="msheet-ovl" onclick="toggleSheet(false)"></div>
+  <div class="msheet">
+    <div class="msheet-grid">
+      <a href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Tahlillar</a>
+      <a href="/contracts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-5z"/><path d="M9 13h6M9 17h6"/></svg>Shartnomalar</a>
+      <a href="/cohorts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Oqimlar</a>
+      <a href="/planner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h3M13 10h3M8 14h3M13 14h3M8 18h3M13 18h3"/></svg>Launch-hisob</a>
+      <a href="/automation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>Avtomatika</a>
+      <a href="/settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Sozlamalar</a>
+    </div>
+  </div>
+</div>
 <script>
 function countUp(){
   document.querySelectorAll(".kpi .v").forEach(el => {
@@ -476,6 +524,16 @@ function countUp(){
 }
 addEventListener("DOMContentLoaded", () => {
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches) countUp();
+});
+function toggleSheet(open){
+  var w = document.getElementById("msheet");
+  if (!w) return;
+  var willOpen = open !== undefined ? open : !w.classList.contains("open");
+  w.classList.toggle("open", willOpen);
+}
+document.addEventListener("click", function(e){
+  var a = e.target.closest && e.target.closest(".msheet-grid a");
+  if (a) toggleSheet(false);
 });
 function toggleTheme(){
   var el = document.documentElement;
