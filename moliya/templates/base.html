@@ -123,14 +123,14 @@ aside > *{position:relative;z-index:1}
 .brand .dot::before{content:"◆";font-size:14px}
 .brand small{display:block;font-family:var(--sans);font-weight:500;font-size:9.5px;
   color:var(--side-dim);letter-spacing:.24em;text-transform:uppercase;margin-top:1px}
-nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;
+aside nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;
   color:var(--side-mut);font-weight:500;font-size:13.5px;transition:.15s;
   text-decoration:none;position:relative}
-nav a:hover{color:var(--side-txt);background:var(--side-hover);text-decoration:none}
-nav a.on{color:#f0c25e;background:rgba(232,182,76,.13);font-weight:600}
-nav a.on::before{content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:3px;
+aside nav a:hover{color:var(--side-txt);background:var(--side-hover);text-decoration:none}
+aside nav a.on{color:#f0c25e;background:rgba(232,182,76,.13);font-weight:600}
+aside nav a.on::before{content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:3px;
   border-radius:0 3px 3px 0;background:linear-gradient(180deg,#f6d489,#d9a538)}
-nav a svg{width:17px;height:17px;flex:none;opacity:.85}
+aside nav a svg{width:17px;height:17px;flex:none;opacity:.85}
 nav .sep{margin:14px 12px 6px;font-size:10px;letter-spacing:.2em;color:var(--side-dim);
   text-transform:uppercase}
 .side-foot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid var(--side-line);
@@ -613,22 +613,38 @@ main > *:nth-child(6){animation-delay:.25s}
 .tabbar{display:none}
 @media(max-width:900px){
   .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;
-    background:linear-gradient(180deg,var(--side-bg1),var(--side-bg2));
+    background:linear-gradient(180deg,rgba(9,12,22,.97),rgba(4,6,12,.99));
     border-top:1px solid var(--side-line);
-    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
-    backdrop-filter:blur(14px)}
-  .tabbar a,.tabbar button.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-    padding:6px 2px;border-radius:12px;color:var(--side-mut);background:none;border:0;box-shadow:none;
-    font:600 9.5px var(--sans);text-decoration:none;letter-spacing:.02em;cursor:pointer;
-    transition:transform .12s cubic-bezier(.2,.9,.4,1.4), background .15s, color .15s;
-    user-select:none;-webkit-user-select:none}
-  .tabbar a svg,.tabbar button.tab svg{width:20px;height:20px}
-  .tabbar a.on{color:#f0c25e}
-  .tabbar a.on svg{filter:drop-shadow(0 0 6px rgba(240,194,94,.5))}
-  .tabbar a:active,.tabbar button.tab:active{transform:scale(.85);background:var(--side-hover)}
+    padding:7px 6px calc(7px + env(safe-area-inset-bottom));
+    backdrop-filter:blur(20px) saturate(1.3);
+    -webkit-backdrop-filter:blur(20px) saturate(1.3);
+    box-shadow:0 -8px 24px rgba(0,0,0,.3)}
+  .tabbar a,.tabbar button.tab{flex:1;position:relative;display:flex;flex-direction:column;
+    align-items:center;gap:4px;min-width:0;
+    padding:7px 2px 5px;border-radius:14px;color:var(--side-mut);
+    background:none;border:0;box-shadow:none;
+    font:600 10px var(--sans);text-decoration:none;letter-spacing:.01em;cursor:pointer;
+    transition:transform .16s cubic-bezier(.2,.9,.4,1.4),color .18s;
+    user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  /* ikonka uchun kapsula — faol holatda oltin nur bilan to'ladi */
+  .tabbar a svg,.tabbar button.tab svg{display:block;width:22px;height:22px;
+    position:relative;z-index:1;transition:transform .2s cubic-bezier(.2,.9,.3,1.5)}
+  .tabbar .tb-pill{position:absolute;top:3px;left:50%;transform:translateX(-50%) scale(.6);
+    width:48px;height:30px;border-radius:99px;
+    background:linear-gradient(180deg,rgba(245,205,119,.26),rgba(240,194,94,.08));
+    border:1px solid rgba(245,205,119,.24);
+    box-shadow:0 3px 12px -4px rgba(240,194,94,.45),
+               inset 0 1px 0 rgba(255,235,190,.28);
+    opacity:0;transition:opacity .22s,transform .22s cubic-bezier(.2,.9,.3,1.5)}
+  .tabbar a.on{color:#f5cd77;font-weight:700}
+  .tabbar a:not(.on) svg,.tabbar button.tab svg{opacity:.72}
+  .tabbar a.on .tb-pill{opacity:1;transform:translateX(-50%) scale(1)}
+  .tabbar a.on svg{transform:translateY(-1px);
+    filter:drop-shadow(0 0 8px rgba(240,194,94,.55))}
+  .tabbar a:active,.tabbar button.tab:active{transform:scale(.9)}
+  .tabbar a:active svg,.tabbar button.tab:active svg{transform:scale(.86)}
   .tabbar button.tab:hover{filter:none;transform:none}
-  .tabbar button.tab:active{transform:scale(.85)}
-  main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+  main{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
 }
 
 /* ── Mobil menyu sheet ── */
@@ -662,7 +678,7 @@ main > *:nth-child(6){animation-delay:.25s}
   .shell{grid-template-columns:1fr}
   aside{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:2px;
     padding:10px 12px;overflow-x:auto;z-index:20;border-right:0;border-bottom:1px solid var(--side-line)}
-  nav a.on::before{display:none}
+  aside nav a.on::before{display:none}
   .brand .dot{width:26px;height:26px;border-radius:8px}
   .brand{padding:0 10px 0 4px;font-size:16px}
   .brand small,.cash-line{display:none}
@@ -670,10 +686,9 @@ main > *:nth-child(6){animation-delay:.25s}
   .side-foot{margin:0 0 0 auto;padding:0;border:0;flex:none}
   .theme-btn{margin:0;padding:7px 9px;width:auto}
   .theme-btn .tl-moon:not(svg),.theme-btn .tl-sun:not(svg){display:none}
-  aside nav{display:flex;gap:2px}
-  nav a{padding:8px 11px;white-space:nowrap;font-size:12.5px}
-  nav a svg{display:none}
-  main{padding:20px 14px 60px}
+  aside nav a{padding:8px 11px;white-space:nowrap;font-size:12.5px}
+  aside nav a svg{display:none}
+  main{padding:20px 14px calc(96px + env(safe-area-inset-bottom))}
   h1{font-size:24px}
   .g4{grid-template-columns:1fr 1fr;gap:10px}
   .grid{gap:10px}
@@ -736,19 +751,19 @@ main > *:nth-child(6){animation-delay:.25s}
 <nav class="tabbar">
   {% set p = request.path %}
   <a class="{{ 'on' if p=='/' }}" href="/">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+    <span class="tb-pill"></span><svg viewBox="0 0 256 256" fill="currentColor"><path d="M120,56v48a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V56A16,16,0,0,1,56,40h48A16,16,0,0,1,120,56Zm80-16H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm-96,96H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm96,0H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Z"/></svg>
     Panel</a>
   <a class="{{ 'on' if p.startswith('/transactions') }}" href="/transactions">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg>
+    <span class="tb-pill"></span><svg viewBox="0 0 256 256" fill="currentColor"><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm-36,80a12,12,0,1,1,12-12A12,12,0,0,1,180,144Z"/></svg>
     Kassa</a>
   <a class="{{ 'on' if p.startswith('/debtors') }}" href="/debtors">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    <span class="tb-pill"></span><svg viewBox="0 0 256 256" fill="currentColor"><path d="M61.66,37.66l-32,32A8,8,0,0,1,18.34,58.34l32-32A8,8,0,0,1,61.66,37.66Zm176,20.68-32-32a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32-11.32ZM224,136a96,96,0,1,1-96-96A96.11,96.11,0,0,1,224,136Zm-32,0a8,8,0,0,0-8-8H136V80a8,8,0,0,0-16,0v56a8,8,0,0,0,8,8h56A8,8,0,0,0,192,136Z"/></svg>
     Qarzlar</a>
   <a class="{{ 'on' if p.startswith('/dds') }}" href="/dds">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+    <span class="tb-pill"></span><svg viewBox="0 0 256 256" fill="currentColor"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1,0-16h8V136a8,8,0,0,1,8-8H72a8,8,0,0,1,8,8v64H96V88a8,8,0,0,1,8-8h32a8,8,0,0,1,8,8V200h16V40a8,8,0,0,1,8-8h40a8,8,0,0,1,8,8V200h8A8,8,0,0,1,232,208Z"/></svg>
     ДДС</a>
   <button class="tab" type="button" onclick="toggleSheet()" aria-label="Menyu">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+    <svg viewBox="0 0 256 256" fill="currentColor"><path d="M156,128a28,28,0,1,1-28-28A28,28,0,0,1,156,128ZM48,100a28,28,0,1,0,28,28A28,28,0,0,0,48,100Zm160,0a28,28,0,1,0,28,28A28,28,0,0,0,208,100Z"/></svg>
     Menyu</button>
 </nav>
 
