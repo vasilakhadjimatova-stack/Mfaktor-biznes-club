@@ -14,6 +14,7 @@ from flask import Flask, flash, redirect, render_template, request, url_for
 import automation
 import core
 import planner
+import praytimes
 from database import db, init_db
 from models import (Budget, Cohort, Contract, Course, EXPENSE_CATS,
                     INCOME_CATS, InstallmentLine, MARKETING_CHANNELS,
@@ -86,7 +87,8 @@ def register_routes(app):
     # ── Dashboard ────────────────────────────────────────────────
     @app.route("/")
     def dashboard():
-        return render_template("dashboard.html", d=core.dashboard_data())
+        return render_template("dashboard.html", d=core.dashboard_data(),
+                               pray=praytimes.today_with_next())
 
     # ── Tranzaksiyalar ───────────────────────────────────────────
     @app.route("/transactions")

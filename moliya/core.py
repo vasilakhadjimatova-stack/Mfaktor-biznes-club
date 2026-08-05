@@ -41,6 +41,34 @@ def wallet_balances():
     return rows, sum(r["balance"] for r in rows)
 
 
+def wallet_cards(limit_tx=8):
+    """Super-app kartalari: har hamyon uchun balans + oxirgi harakatlar."""
+    balances, total = wallet_balances()
+    cards = []
+    for i, r in enumerate(balances):
+        w = r["wallet"]
+        txs = (Transaction.query
+               .filter((Transaction.wallet_code == w.code) |
+                       (Transaction.transfer_to_wallet == w.code))
+               .order_by(Transaction.tdate.desc(), Transaction.id.desc())
+               .limit(limit_tx).all())
+        hist = []
+        for t in txs:
+            incoming = (t.operation == "kirim" or
+                        (t.is_transfer and t.transfer_to_wallet == w.code))
+            hist.append({
+                "d": t.tdate.strftime("%d.%m"),
+                "t": (t.counterparty or t.category or "—")[:34],
+                "c": ("Perevod" if (t.is_transfer or t.activity == "tech")
+                      else (t.category or ""))[:26],
+                "a": t.amount, "in": bool(incoming),
+            })
+        cards.append({"code": w.code, "name": w.name,
+                      "balance": r["balance"], "grad": i % 6,
+                      "hist": hist})
+    return {"cards": cards, "total": total}
+
+
 def month_cashflow(year, month):
     """Oylik DDS: statya kesimida kirim/chiqim (transferlar hisobga olinmaydi)."""
     q = (Transaction.query
@@ -414,6 +442,7 @@ def dashboard_data(today=None):
         "delta_exp": delta(cf["expense_total"], prev["expense_total"]),
         "exp_top": exp_top,
         "chart_main": chart_main, "wf": wf, "rank": rank,
+        "wcards": wallet_cards(),
         "series": series,
         "series_max": max([max(r["inc"], r["exp"]) for r in series] or [1]) or 1,
         "active_contracts": Contract.query.filter_by(status="active").count(),

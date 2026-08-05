@@ -4,6 +4,55 @@
 <h1>Boshqaruv paneli</h1>
 <p class="sub">{{ d.today|dmy }} — bugungi holat bir qarashda</p>
 
+{# ══ SUPER-APP: namoz vaqtlari + jonli hamyon kartalari ══ #}
+<div class="pray">
+  <div class="pray-next">
+    <span class="pray-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></span>
+    <div><b>{{ pray.next.name }} · {{ pray.next.time }}</b>
+      <span>{{ (pray.left_h ~ ' soat ') if pray.left_h else '' }}{{ pray.left_m }} daqiqa qoldi</span></div>
+  </div>
+  <div class="pray-times">
+    {% for t in pray.times if t.key != 'quyosh' %}
+    <div class="pray-t {{ 'next' if t.is_next }}" data-m="{{ t.minutes }}" data-k="{{ t.key }}">
+      <span>{{ t.name }}</span><b>{{ t.time }}</b>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<script type="application/json" id="pray-data">{{ {'times': pray.times}|tojson }}</script>
+
+<div class="wallet-deck">
+  <div class="wtrack">
+    {% for w in d.wcards.cards %}
+    <div class="wcard wg{{ w.grad }}" data-code="{{ w.code }}">
+      <div class="wtop">
+        <div class="wname">{{ w.name }}</div>
+        <div class="wlogo">◆ MFAKTOR</div>
+      </div>
+      <div class="wchip"></div>
+      <svg class="wwave" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8.5 8.5a5 5 0 0 1 0 7"/><path d="M11.5 5.5a9 9 0 0 1 0 13"/><path d="M14.5 2.5a13 13 0 0 1 0 19"/>
+      </svg>
+      <div class="wbal {{ 'neg' if w.balance < 0 }}">{{ w.balance|grp }}<small>so'm</small></div>
+      <div class="wnum">•••• {{ '%04d'|format(loop.index * 1379 % 10000) }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<div class="wdots">
+  {% for w in d.wcards.cards %}<i class="{{ 'on' if loop.first }}"></i>{% endfor %}
+</div>
+<script type="application/json" id="wcards-data">{{ d.wcards.cards|tojson }}</script>
+
+<div class="card whist">
+  <div class="whist-head">
+    <h2 style="margin:0" id="whist-title">{{ d.wcards.cards[0].name if d.wcards.cards }}</h2>
+    <a class="chip" href="/transactions">Hammasi →</a>
+  </div>
+  <div id="whist-list"></div>
+</div>
+
+
 <div class="grid g4">
   <div class="card kpi">
     <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg></span><div class="l">Kassadagi jami pul</div>
@@ -57,27 +106,13 @@
   </div>
 
   <div class="card m-hide">
-    <h2>Hisoblar bo'yicha pul</h2>
-    <div class="tablewrap">
-    <table>
-      <tr><th>Hisob</th><th class="r">Qoldiq</th></tr>
-      {% for r in d.balances %}
-      <tr><td>{{ r.wallet.name }}</td>
-          <td class="r {{ 'neg' if r.balance < 0 }}">{{ r.balance|grp }}</td></tr>
-      {% endfor %}
-      <tr><td><b>Jami</b></td><td class="r"><b>{{ d.total_balance|grp }}</b></td></tr>
-    </table>
-    </div>
+    <h2>Pul yil davomida qanday harakatlandi</h2>
+    {{ viz.waterfall_chart(d.wf) }}
+    <p class="sub" style="margin:6px 0 0;font-size:12px">Yil boshidagi qoldiqdan bugungi holatgacha</p>
   </div>
 </div>
 
 <div class="grid g2" style="margin-top:14px">
-  <div class="card m-hide">
-    <h2>Pul yil davomida qanday harakatlandi</h2>
-    {{ viz.waterfall_chart(d.wf) }}
-    <p class="sub" style="margin:6px 0 0;font-size:12px">Yil boshidagi qoldiqdan bugungi holatgacha — nima qo'shdi, nima kamaytirdi</p>
-  </div>
-
   {% if d.overdue %}
   <div class="card">
     <h2>Kim to'lovni kechiktiryapti</h2>

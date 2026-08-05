@@ -144,7 +144,7 @@ nav .sep{margin:14px 12px 6px;font-size:10px;letter-spacing:.2em;color:var(--sid
 :root[data-theme="dark"] .tl-sun{display:none}
 :root[data-theme="light"] .tl-moon{display:none}
 
-main{padding:30px 34px 70px;max-width:1240px;width:100%}
+main{padding:30px 34px 70px;max-width:1240px;width:100%;min-width:0}
 h1{font-family:var(--serif);font-weight:600;font-size:31px;letter-spacing:-.01em;margin:0 0 4px}
 h1::after{content:"";display:block;width:52px;height:4px;border-radius:4px;margin-top:10px;
   background:linear-gradient(90deg,var(--gold),transparent)}
@@ -401,6 +401,107 @@ main > *:nth-child(6){animation-delay:.25s}
   .viz-legend{font-size:12.5px}
 }
 
+
+/* ══ SUPER-APP: jonli hamyon kartalari ══ */
+.wallet-deck{position:relative;margin:0 -34px}
+@media(max-width:900px){.wallet-deck{margin:0 -14px}}
+.wtrack{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
+  padding:6px 34px 14px;scrollbar-width:none}
+@media(max-width:900px){.wtrack{padding:6px 14px 14px;gap:12px}}
+.wtrack::-webkit-scrollbar{display:none}
+.wcard{position:relative;flex:0 0 340px;height:196px;border-radius:22px;
+  scroll-snap-align:center;padding:20px 22px;color:#fff;overflow:hidden;
+  cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.3,1), box-shadow .25s;
+  box-shadow:0 12px 32px rgba(0,0,0,.35);user-select:none;-webkit-user-select:none}
+@media(max-width:900px){.wcard{flex:0 0 82vw;max-width:330px;height:188px}}
+.wcard:active{transform:scale(.97)}
+.wcard.active{box-shadow:0 16px 44px rgba(0,0,0,.5), 0 0 0 2.5px var(--gold)}
+.wcard::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 90% at 85% -10%, rgba(255,255,255,.28), transparent 55%),
+             radial-gradient(80% 60% at 10% 110%, rgba(0,0,0,.25), transparent 60%)}
+.wcard::after{content:"";position:absolute;top:-60%;left:-20%;width:60%;height:220%;
+  background:linear-gradient(70deg,transparent,rgba(255,255,255,.14),transparent);
+  transform:rotate(8deg)}
+.wg0{background:linear-gradient(135deg,#b78628,#7a5010 55%,#4a3008)}
+.wg1{background:linear-gradient(135deg,#1e3a8a,#14275e 55%,#0b1638)}
+.wg2{background:linear-gradient(135deg,#065f46,#053f30 55%,#02251c)}
+.wg3{background:linear-gradient(135deg,#4c1d95,#331367 55%,#1e0b3e)}
+.wg4{background:linear-gradient(135deg,#7f1d1d,#581414 55%,#320a0a)}
+.wg5{background:linear-gradient(135deg,#334155,#1e293b 55%,#0f172a)}
+.wcard .wtop{display:flex;justify-content:space-between;align-items:flex-start;
+  position:relative;z-index:1}
+.wcard .wname{font:600 13px var(--sans);letter-spacing:.03em;opacity:.92;
+  max-width:70%;line-height:1.35}
+.wcard .wlogo{font-family:var(--serif);font-weight:700;font-size:13px;
+  opacity:.85;letter-spacing:.04em}
+.wcard .wchip{position:absolute;left:22px;top:56px;width:42px;height:31px;
+  border-radius:7px;z-index:1;
+  background:linear-gradient(135deg,#f1d492,#c9a24a);
+  box-shadow:0 1px 3px rgba(0,0,0,.35) inset, 0 1px 2px rgba(0,0,0,.3)}
+.wcard .wchip::before{content:"";position:absolute;inset:7px 5px;
+  border:1px solid rgba(90,60,10,.5);border-radius:4px}
+.wcard .wwave{position:absolute;left:74px;top:60px;z-index:1;opacity:.8}
+.wcard .wbal{position:absolute;left:22px;bottom:46px;z-index:1;
+  font:700 25px var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  text-shadow:0 2px 8px rgba(0,0,0,.35)}
+.wcard .wbal small{font:600 13px var(--sans);opacity:.75;margin-left:5px}
+.wcard .wnum{position:absolute;left:22px;bottom:18px;z-index:1;
+  font:500 13px var(--sans);letter-spacing:.22em;opacity:.7;
+  font-variant-numeric:tabular-nums}
+.wdots{display:flex;gap:7px;justify-content:center;margin-top:2px}
+.wdots i{width:7px;height:7px;border-radius:50%;background:var(--line2);
+  transition:.25s}
+.wdots i.on{background:var(--gold);width:20px;border-radius:5px}
+
+/* karta tarixi paneli */
+.whist{margin-top:16px}
+.whist-head{display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:6px}
+.whist-head b{font:600 14px var(--sans)}
+.whist-row{display:flex;align-items:center;gap:12px;padding:11px 4px;
+  border-bottom:1px solid var(--line)}
+.whist-row:last-child{border-bottom:0}
+.whist-ic{width:38px;height:38px;border-radius:12px;flex:none;
+  display:flex;align-items:center;justify-content:center}
+.whist-ic.in{background:var(--green-dim);color:var(--green)}
+.whist-ic.out{background:var(--red-dim);color:var(--red)}
+.whist-ic svg{width:17px;height:17px}
+.whist-mid{flex:1;min-width:0}
+.whist-mid b{display:block;font:600 13.5px var(--sans);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.whist-mid span{font-size:11.5px;color:var(--dim)}
+.whist-amt{font:700 14px var(--sans);font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.whist-amt.in{color:var(--green)}
+.whist .empty{padding:18px}
+
+/* ══ Namoz vaqtlari ══ */
+.pray{display:flex;align-items:center;gap:14px;padding:13px 16px;
+  border-radius:16px;border:1px solid var(--line);
+  background:linear-gradient(120deg,rgba(62,229,154,.08),var(--card-faint) 60%);
+  margin-bottom:16px;flex-wrap:wrap}
+.pray-next{display:flex;align-items:center;gap:11px;min-width:170px}
+.pray-moon{width:38px;height:38px;border-radius:12px;flex:none;
+  background:var(--green-dim);color:var(--green);
+  display:flex;align-items:center;justify-content:center}
+.pray-moon svg{width:19px;height:19px}
+.pray-next b{display:block;font:700 14px var(--sans)}
+.pray-next span{font-size:11.5px;color:var(--mut)}
+.pray-times{display:flex;gap:4px;flex:1;justify-content:flex-end;flex-wrap:wrap}
+.pray-t{text-align:center;padding:5px 10px;border-radius:10px;min-width:56px}
+.pray-t span{display:block;font-size:10px;color:var(--dim);
+  text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.pray-t b{font:600 13px var(--sans);font-variant-numeric:tabular-nums}
+.pray-t.next{background:var(--green-dim)}
+.pray-t.next b{color:var(--green)}
+.pray-t.passed{opacity:.45}
+@media(max-width:900px){
+  .pray{padding:11px 13px;gap:10px}
+  .pray-times{justify-content:space-between;flex:1 1 100%;gap:2px}
+  .pray-t{min-width:0;flex:1;padding:5px 2px;overflow:hidden}
+  .pray-t span{letter-spacing:0}
+}
+
 /* ── Print (ДДС chop etish uchun) ── */
 @media print{
   aside,.monthnav,details.adder,.flash,.hint{display:none!important}
@@ -632,6 +733,90 @@ function initViz(){
   });
 }
 addEventListener("DOMContentLoaded", initViz);
+
+
+function initDeck(){
+  var deck = document.querySelector(".wallet-deck");
+  if (!deck) return;
+  var track = deck.querySelector(".wtrack");
+  var cards = [].slice.call(track.querySelectorAll(".wcard"));
+  var dots = [].slice.call(deck.parentElement.querySelectorAll(".wdots i"));
+  var histBox = document.getElementById("whist-list");
+  var histTitle = document.getElementById("whist-title");
+  var D = JSON.parse(document.getElementById("wcards-data").textContent);
+  function fmt(v){ return Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g," "); }
+  function render(i){
+    cards.forEach(function(c,k){ c.classList.toggle("active", k===i); });
+    dots.forEach(function(d,k){ d.classList.toggle("on", k===i); });
+    var w = D[i];
+    if (histTitle) histTitle.textContent = w.name;
+    if (!histBox) return;
+    if (!w.hist.length){
+      histBox.innerHTML = '<div class="empty">Bu hisobda hali harakat yo\'q</div>';
+      return;
+    }
+    histBox.innerHTML = w.hist.map(function(h){
+      var dir = h["in"] ? "in" : "out";
+      var arrow = h["in"]
+        ? '<path d="M12 19V5M5 12l7 7 7-7"/>' : '<path d="M12 5v14M5 12l7-7 7 7"/>';
+      return '<div class="whist-row">'
+        + '<span class="whist-ic '+dir+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+arrow+'</svg></span>'
+        + '<span class="whist-mid"><b>'+h.t+'</b><span>'+h.d+' \u00b7 '+h.c+'</span></span>'
+        + '<span class="whist-amt '+dir+'">'+(h["in"]?"+":"\u2212")+fmt(h.a)+'</span>'
+        + '</div>';
+    }).join("");
+  }
+  var cur = -1;
+  function onScroll(){
+    var center = track.scrollLeft + track.clientWidth/2;
+    var best = 0, bd = 1e9;
+    cards.forEach(function(c,k){
+      var cc = c.offsetLeft + c.offsetWidth/2;
+      var d = Math.abs(cc-center);
+      if (d < bd){ bd = d; best = k; }
+    });
+    if (best !== cur){ cur = best; render(best); }
+  }
+  track.addEventListener("scroll", function(){ requestAnimationFrame(onScroll); }, {passive:true});
+  cards.forEach(function(c,k){
+    c.addEventListener("click", function(){
+      // faqat trek aylantiriladi — scrollIntoView butun sahifani surib yuboradi
+      track.scrollTo({left: c.offsetLeft - (track.clientWidth - c.offsetWidth)/2,
+                      behavior: "smooth"});
+    });
+  });
+  onScroll();
+}
+function initPray(){
+  var el = document.querySelector(".pray");
+  if (!el) return;
+  var data = JSON.parse(document.getElementById("pray-data").textContent);
+  function tick(){
+    var now = new Date();
+    var cur = now.getHours()*60 + now.getMinutes();
+    var keys = {bomdod:1, peshin:1, asr:1, shom:1, xufton:1};
+    var nxt = null;
+    data.times.forEach(function(t){
+      if (keys[t.key] && t.minutes > cur && !nxt) nxt = t;
+    });
+    var left, name;
+    if (nxt){ left = nxt.minutes - cur; name = nxt.name; }
+    else { left = (24*60 - cur) + data.times[0].minutes; name = data.times[0].name; }
+    var h = Math.floor(left/60), m = left%60;
+    var lbl = el.querySelector(".pray-next div span");
+    var bl = el.querySelector(".pray-next div b");
+    if (bl) bl.textContent = name + " \u00b7 " + (nxt? nxt.time : data.times[0].time);
+    if (lbl) lbl.textContent = (h? h + " soat " : "") + m + " daqiqa qoldi";
+    el.querySelectorAll(".pray-t").forEach(function(pt){
+      var mins = +pt.dataset.m;
+      pt.classList.toggle("passed", mins <= cur);
+      pt.classList.toggle("next", nxt ? (mins === nxt.minutes) : pt.dataset.k === "bomdod");
+    });
+  }
+  tick();
+  setInterval(tick, 30000);
+}
+addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); });
 
 function toggleSheet(open){
   var w = document.getElementById("msheet");
