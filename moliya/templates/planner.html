@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_charts.html" as viz %}
 {% block body %}
 <h1>Launch-kalkulyator</h1>
 <p class="sub">Yangi kurs ochishdan oldin: qancha o'quvchi kerak va qancha foyda bo'ladi — real raqamlar asosida</p>
@@ -45,6 +46,12 @@
     <div class="h">o'rinlar chegaradan qancha yuqori</div>
     {% else %}<div class="v neg">—</div><div class="h">hissa musbat emas!</div>{% endif %}
   </div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <h2>Foyda o'quvchilar soniga qarab</h2>
+  {{ viz.bep_chart(r.bep_viz) }}
+  <p class="sub" style="margin:8px 0 0;font-size:12px">Chiziq nolni kesib o'tgan joy — zararsizlik nuqtasi. Undan o'ngda foyda, chapda zarar.</p>
 </div>
 
 <div class="grid g2" style="margin-top:14px">

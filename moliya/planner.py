@@ -20,6 +20,7 @@ from datetime import date
 from sqlalchemy import func
 
 from database import db
+import charts
 from models import (Contract, Course, RecurringPayment, Transaction,
                     DIRECTION_INCOME, DIRECTION_SALARY)
 
@@ -151,7 +152,10 @@ def launch_plan(course_name, price, capacity, duration_days,
 
     def bep_str(s):
         return s["bep_full"]
-    return {"base": base, "dir": d, "share": share, "cac": cac,
+    bep_viz = charts.bep_chart(capacity, main["contribution_after_cac"],
+                               main["fixed_alloc"], main["bep_full"])
+    return {"bep_viz": bep_viz,
+            "base": base, "dir": d, "share": share, "cac": cac,
             "price": price, "capacity": capacity,
             "duration_days": duration_days,
             "main": main,

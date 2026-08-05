@@ -15,6 +15,8 @@ from datetime import date, timedelta
 
 from sqlalchemy import func
 
+import charts
+
 from database import db
 from models import (Budget, Cohort, Contract, Course, InstallmentLine,
                     RecurringPayment, Student, Transaction, Wallet)
@@ -314,10 +316,12 @@ def dds_matrix(year):
 
     inc_year_total = sum(inc_tot) or 1.0
     rows_inc = [{"cat": c, "vals": inc[c], "total": sum(inc[c]),
-                 "pct": sum(inc[c]) / inc_year_total * 100}
+                 "pct": sum(inc[c]) / inc_year_total * 100,
+                 "spark": charts.sparkline(inc[c])}
                 for c in INCOME_CATS if any(inc[c])]
     rows_exp = [{"cat": c, "vals": exp[c], "total": sum(exp[c]),
-                 "pct": sum(exp[c]) / inc_year_total * 100}
+                 "pct": sum(exp[c]) / inc_year_total * 100,
+                 "spark": charts.sparkline(exp[c])}
                 for c in EXPENSE_CATS if any(exp[c])]
     rows_fin = [{"cat": c, "vals": v, "total": sum(v)}
                 for c, v in sorted(fin.items())]
@@ -375,6 +379,23 @@ def dashboard_data(today=None):
         exp_top.append({"cat": "Boshqa", "val": other,
                         "pct": other / exp_total_year * 100})
 
+    # ── Diagrammalar ──
+    MN = ["Yan", "Fev", "Mar", "Apr", "May", "Iyn",
+          "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"]
+    chart_main = charts.line_area(
+        [{"key": "inc", "name": "Tushum", "values": dm["inc_tot"][:m]},
+         {"key": "exp", "name": "Xarajat", "values": dm["exp_tot"][:m]}],
+        MN[:m])
+    wf = charts.waterfall([
+        {"name": "Yil boshi", "value": dm["opens"][0], "kind": "start"},
+        {"name": "Tushum", "value": sum(dm["inc_tot"]), "kind": "plus"},
+        {"name": "Xarajat", "value": sum(dm["exp_tot"]), "kind": "minus"},
+        {"name": "Dividend", "value": abs(dm["fin_year"]), "kind": "minus"},
+        {"name": "Hozir", "value": dm["closes"][m - 1], "kind": "end"},
+    ])
+    rank = charts.rank_bars([{"cat": r["cat"], "val": r["total"]}
+                             for r in dm["rows_exp"]])
+
     def delta(cur, old):
         if not old:
             return None
@@ -392,6 +413,7 @@ def dashboard_data(today=None):
         "delta_inc": delta(cf["income_total"], prev["income_total"]),
         "delta_exp": delta(cf["expense_total"], prev["expense_total"]),
         "exp_top": exp_top,
+        "chart_main": chart_main, "wf": wf, "rank": rank,
         "series": series,
         "series_max": max([max(r["inc"], r["exp"]) for r in series] or [1]) or 1,
         "active_contracts": Contract.query.filter_by(status="active").count(),

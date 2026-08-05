@@ -1,0 +1,146 @@
+{# ═══ Qayta ishlatiladigan SVG diagrammalar ═══ #}
+
+{% macro area_chart(c, cid='ac1') %}
+<div class="viz" data-viz="{{ cid }}">
+  <svg viewBox="0 0 {{ c.w }} {{ c.h }}" class="viz-svg" role="img" aria-label="Oylar bo'yicha tushum va xarajat">
+    <defs>
+      <linearGradient id="g-{{ cid }}-1" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="var(--s1)" stop-opacity=".34"/>
+        <stop offset="1" stop-color="var(--s1)" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="g-{{ cid }}-2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="var(--s2)" stop-opacity=".26"/>
+        <stop offset="1" stop-color="var(--s2)" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+
+    {% for t in c.ticks %}
+    <line class="viz-grid" x1="{{ c.pl }}" x2="{{ c.w - 10 }}" y1="{{ t.y }}" y2="{{ t.y }}"/>
+    <text class="viz-ytxt" x="{{ c.pl - 10 }}" y="{{ t.y + 3.5 }}" text-anchor="end">{{ t.label }}</text>
+    {% endfor %}
+
+    {% for s in c.series %}
+    <path d="{{ s.area }}" fill="url(#g-{{ cid }}-{{ loop.index }})"/>
+    {% endfor %}
+    {% for s in c.series %}
+    <path d="{{ s.line }}" fill="none" stroke="var(--s{{ loop.index }})" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round"
+          {% if loop.index == 2 %}stroke-dasharray="6 4"{% endif %}/>
+    {% endfor %}
+
+    {% for col in c.cols %}
+    <text class="viz-xtxt" x="{{ col.x }}" y="{{ c.h - 12 }}" text-anchor="middle">{{ col.label }}</text>
+    {% endfor %}
+
+    <g class="viz-cross" style="opacity:0">
+      <line class="viz-crossline" y1="{{ c.pt }}" y2="{{ c.base }}"/>
+      {% for s in c.series %}<circle class="viz-dot d{{ loop.index }}" r="5"/>{% endfor %}
+    </g>
+
+    {% for col in c.cols %}
+    <rect class="viz-hit" x="{{ col.hx }}" y="{{ c.pt }}" width="{{ col.hw }}" height="{{ c.ih }}"
+          data-i="{{ loop.index0 }}"/>
+    {% endfor %}
+  </svg>
+
+  <div class="viz-tip" hidden>
+    <div class="tt-title"></div>
+    {% for s in c.series %}
+    <div class="tt-row"><i style="background:var(--s{{ loop.index }})"></i>
+      <span>{{ s.name }}</span><b data-slot="{{ loop.index }}"></b></div>
+    {% endfor %}
+  </div>
+
+  <div class="viz-legend">
+    {% for s in c.series %}
+    <span><i class="lg{{ loop.index }}"></i>{{ s.name }}</span>
+    {% endfor %}
+  </div>
+
+  <script type="application/json" class="viz-data">
+    {{ {'cols': c.cols|map(attribute='x')|list,
+        'labels': c.cols|map(attribute='label')|list,
+        'series': c.series|map(attribute='pts')|list,
+        'names': c.series|map(attribute='name')|list}|tojson }}
+  </script>
+</div>
+{% endmacro %}
+
+
+{% macro waterfall_chart(c) %}
+<div class="viz">
+  <svg viewBox="0 0 {{ c.w }} {{ c.h }}" class="viz-svg" role="img" aria-label="Yil davomida pul harakati">
+    <line class="viz-grid" x1="{{ c.pl - 6 }}" x2="{{ c.w - 8 }}" y1="{{ c.base }}" y2="{{ c.base }}"/>
+    {% for k in c.conns %}
+    <line class="viz-conn" x1="{{ k.x1 }}" x2="{{ k.x2 }}" y1="{{ k.y }}" y2="{{ k.y }}"/>
+    {% endfor %}
+    {% for b in c.bars %}
+    <rect class="wf-bar wf-{{ b.kind }}" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}"
+          height="{{ b.h }}" rx="4"><title>{{ b.name }}: {{ b.label }}</title></rect>
+    <text class="wf-val" x="{{ b.cx }}" y="{{ b.ly }}" text-anchor="middle">{{ b.label }}</text>
+    <text class="viz-xtxt" x="{{ b.cx }}" y="{{ c.h - 14 }}" text-anchor="middle">{{ b.name }}</text>
+    {% endfor %}
+  </svg>
+</div>
+{% endmacro %}
+
+
+{% macro rank_bars(rb) %}
+<div class="rank">
+  {% for r in rb.rows %}
+  <div class="rank-row">
+    <div class="rank-head"><span>{{ r.cat }}</span><b>{{ '%.0f'|format(r.pct) }}%</b></div>
+    <div class="rank-track">
+      <i style="width:{{ '%.1f'|format(r.w) }}%;opacity:{{ '%.2f'|format(r.shade) }}"></i>
+      <em>{{ r.val|grp }}</em>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+
+{% macro spark(s, tone='s1') %}
+{% if s %}<svg class="spark" viewBox="0 0 {{ s.w }} {{ s.h }}" preserveAspectRatio="none" aria-hidden="true">
+  <path d="{{ s.d }}" fill="none" stroke="var(--{{ tone }})" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="{{ s.lx }}" cy="{{ s.ly }}" r="2.2" fill="var(--{{ tone }})"/>
+</svg>{% endif %}
+{% endmacro %}
+
+
+{% macro bep_chart(c) %}
+<div class="viz">
+  <svg viewBox="0 0 {{ c.w }} {{ c.h }}" class="viz-svg" role="img" aria-label="Zararsizlik grafigi">
+    <defs>
+      <linearGradient id="g-bep" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="var(--s1)" stop-opacity=".3"/>
+        <stop offset="1" stop-color="var(--s1)" stop-opacity="0"/>
+      </linearGradient>
+      <clipPath id="clip-pos"><rect x="0" y="0" width="{{ c.w }}" height="{{ c.zero }}"/></clipPath>
+      <clipPath id="clip-neg"><rect x="0" y="{{ c.zero }}" width="{{ c.w }}" height="{{ c.h }}"/></clipPath>
+    </defs>
+    <text class="viz-ytxt" x="{{ c.pl - 10 }}" y="{{ c.pt + 8 }}" text-anchor="end">{{ c.ymax_label }}</text>
+    <text class="viz-ytxt" x="{{ c.pl - 10 }}" y="{{ c.base }}" text-anchor="end">{{ c.ymin_label }}</text>
+    <line class="viz-zero" x1="{{ c.x0 }}" x2="{{ c.x1 }}" y1="{{ c.zero }}" y2="{{ c.zero }}"/>
+    <text class="viz-ytxt" x="{{ c.pl - 10 }}" y="{{ c.zero + 3.5 }}" text-anchor="end">0</text>
+    <path d="{{ c.area }}" fill="url(#g-bep)" clip-path="url(#clip-pos)"/>
+    <path d="{{ c.line }}" fill="none" stroke="var(--s2)" stroke-width="2.6"
+          stroke-linecap="round" clip-path="url(#clip-neg)"/>
+    <path d="{{ c.line }}" fill="none" stroke="var(--s1)" stroke-width="2.6"
+          stroke-linecap="round" clip-path="url(#clip-pos)"/>
+    {% if c.marker %}
+    <line class="viz-marker" x1="{{ c.marker.x }}" x2="{{ c.marker.x }}"
+          y1="{{ c.pt }}" y2="{{ c.base }}"/>
+    <circle cx="{{ c.marker.x }}" cy="{{ c.marker.y }}" r="5.5" class="viz-bepdot"/>
+    <text class="viz-mtxt" x="{{ c.marker.x + 8 }}" y="{{ c.pt + 12 }}">{{ c.marker.label }}</text>
+    {% endif %}
+    <text class="viz-xtxt" x="{{ c.x0 }}" y="{{ c.h - 10 }}">0</text>
+    <text class="viz-xtxt" x="{{ c.x1 }}" y="{{ c.h - 10 }}" text-anchor="end">{{ c.cap_label }}</text>
+  </svg>
+  <div class="viz-legend">
+    <span><i class="lg1"></i>Foyda zonasi</span>
+    <span><i class="lg2"></i>Zarar zonasi</span>
+  </div>
+</div>
+{% endmacro %}

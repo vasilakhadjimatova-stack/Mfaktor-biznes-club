@@ -154,7 +154,7 @@ h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--g
 .sub{color:var(--mut);margin-bottom:22px;font-size:13.5px}
 
 /* ── Cards / grids ── */
-.grid{display:grid;gap:14px}
+.grid{display:grid;gap:14px;align-items:start}
 .g4{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
 .g2{grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}
 .card{background:linear-gradient(160deg,var(--card-top),var(--card-bot));
@@ -335,6 +335,71 @@ main > *:nth-child(6){animation-delay:.25s}
 .dlegend .dl i{width:11px;height:11px;border-radius:4px;flex:none}
 .dlegend .dl span{color:var(--mut);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlegend .dl b{font-family:var(--mono);font-size:12px}
+
+
+/* ══ Diagrammalar ══ */
+:root{ --s1:#3987e5; --s2:#d95926; }
+:root[data-theme="light"]{ --s1:#2a78d6; --s2:#eb6834; }
+.viz{position:relative;width:100%}
+.viz-svg{width:100%;height:auto;display:block;overflow:visible}
+.viz-grid{stroke:var(--line);stroke-width:1}
+.viz-zero{stroke:var(--line2);stroke-width:1.5;stroke-dasharray:4 4}
+.viz-conn{stroke:var(--line2);stroke-width:1;stroke-dasharray:3 3}
+.viz-ytxt,.viz-xtxt{fill:var(--dim);font:500 10.5px var(--sans);
+  font-variant-numeric:tabular-nums}
+.viz-mtxt{fill:var(--gold);font:700 11px var(--sans)}
+.wf-val{font:700 11px var(--sans);font-variant-numeric:tabular-nums;fill:var(--mut)}
+.wf-bar{transition:opacity .15s}
+.wf-bar:hover{opacity:.8}
+.wf-start,.wf-end{fill:var(--mut);opacity:.55}
+.wf-plus{fill:var(--s1)}
+.wf-minus{fill:var(--s2)}
+.viz-crossline{stroke:var(--line2);stroke-width:1.5}
+.viz-dot{stroke:var(--ink2);stroke-width:2}
+.viz-dot.d1{fill:var(--s1)} .viz-dot.d2{fill:var(--s2)}
+.viz-cross{transition:opacity .12s;pointer-events:none}
+.viz-hit{fill:transparent;cursor:crosshair}
+.viz-bepdot{fill:var(--gold);stroke:var(--ink2);stroke-width:2.5}
+.viz-marker{stroke:var(--gold);stroke-width:1.5;stroke-dasharray:3 4;opacity:.7}
+.viz-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;
+  font-size:12px;color:var(--mut)}
+.viz-legend i{display:inline-block;width:14px;height:3px;border-radius:2px;
+  margin-right:7px;vertical-align:3px}
+.viz-legend .lg1{background:var(--s1)}
+.viz-legend .lg2{background:var(--s2);
+  background-image:linear-gradient(90deg,var(--s2) 60%,transparent 60%);
+  background-size:6px 3px}
+.viz-tip{position:absolute;z-index:5;pointer-events:none;min-width:150px;
+  background:var(--ink3);border:1px solid var(--line2);border-radius:12px;
+  padding:9px 12px;box-shadow:var(--shadow);transform:translate(-50%,-118%);
+  transition:opacity .12s}
+.viz-tip .tt-title{font:700 11.5px var(--sans);color:var(--txt);margin-bottom:6px}
+.viz-tip .tt-row{display:flex;align-items:center;gap:7px;font-size:12px;
+  color:var(--mut);white-space:nowrap;line-height:1.9}
+.viz-tip .tt-row i{width:9px;height:9px;border-radius:3px;flex:none}
+.viz-tip .tt-row b{margin-left:auto;color:var(--txt);
+  font-variant-numeric:tabular-nums}
+
+/* Reyting chiziqlari (bitta o'lchov — bitta rang shkalasi) */
+.rank{display:flex;flex-direction:column;gap:11px}
+.rank-head{display:flex;justify-content:space-between;font-size:12.5px;
+  color:var(--mut);margin-bottom:4px}
+.rank-head b{color:var(--txt);font-variant-numeric:tabular-nums}
+.rank-track{position:relative;height:24px;background:var(--track);
+  border-radius:7px;overflow:hidden;display:flex;align-items:center}
+.rank-track i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;
+  background:linear-gradient(90deg,var(--s1),color-mix(in srgb,var(--s1) 72%,var(--ink)));
+  animation:growx .7s cubic-bezier(.2,.8,.3,1) both}
+@keyframes growx{from{transform:scaleX(0);transform-origin:left}}
+.rank-track em{position:relative;margin-left:auto;padding-right:10px;
+  font:600 12px var(--sans);font-variant-numeric:tabular-nums;
+  font-style:normal;color:var(--txt)}
+.spark{width:76px;height:22px;vertical-align:middle;overflow:visible}
+@media(max-width:900px){
+  .viz-ytxt,.viz-xtxt{font-size:13px}
+  .wf-val{font-size:13px}
+  .viz-legend{font-size:12.5px}
+}
 
 /* ── Print (ДДС chop etish uchun) ── */
 @media print{
@@ -525,6 +590,49 @@ function countUp(){
 addEventListener("DOMContentLoaded", () => {
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches) countUp();
 });
+
+function initViz(){
+  document.querySelectorAll(".viz[data-viz]").forEach(function(box){
+    var svg = box.querySelector("svg"), tip = box.querySelector(".viz-tip"),
+        cross = box.querySelector(".viz-cross"),
+        dataEl = box.querySelector(".viz-data");
+    if (!svg || !dataEl) return;
+    var D = JSON.parse(dataEl.textContent);
+    var line = cross.querySelector(".viz-crossline");
+    var dots = cross.querySelectorAll(".viz-dot");
+    var slots = tip.querySelectorAll("[data-slot]");
+    var title = tip.querySelector(".tt-title");
+    function fmt(v){ return Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g," "); }
+    box.querySelectorAll(".viz-hit").forEach(function(hit){
+      function show(){
+        var i = +hit.dataset.i, x = D.cols[i];
+        line.setAttribute("x1", x); line.setAttribute("x2", x);
+        D.series.forEach(function(pts, k){
+          if (!pts[i] || !dots[k]) return;
+          dots[k].setAttribute("cx", pts[i].x);
+          dots[k].setAttribute("cy", pts[i].y);
+          if (slots[k]) slots[k].textContent = fmt(pts[i].v);
+        });
+        title.textContent = D.labels[i];
+        cross.style.opacity = 1;
+        tip.hidden = false;
+        var r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+        var px = (x / vb.width) * r.width;
+        var topY = Math.min.apply(null, D.series.map(function(p){
+          return p[i] ? p[i].y : 1e9; }));
+        tip.style.left = Math.max(78, Math.min(px, r.width - 78)) + "px";
+        tip.style.top = (topY / vb.height) * r.height + "px";
+      }
+      hit.addEventListener("mouseenter", show);
+      hit.addEventListener("touchstart", show, {passive:true});
+    });
+    box.addEventListener("mouseleave", function(){
+      cross.style.opacity = 0; tip.hidden = true;
+    });
+  });
+}
+addEventListener("DOMContentLoaded", initViz);
+
 function toggleSheet(open){
   var w = document.getElementById("msheet");
   if (!w) return;

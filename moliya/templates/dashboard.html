@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_charts.html" as viz %}
 {% block body %}
 <h1>Boshqaruv paneli</h1>
 <p class="sub">{{ d.today|dmy }} — bugungi holat bir qarashda</p>
@@ -51,22 +52,8 @@
 
 <div class="grid g2" style="margin-top:14px">
   <div class="card">
-    <h2>Oylar bo'yicha kirim va chiqim</h2>
-    <div class="chart">
-      {% for r in d.series %}
-      <div class="grp" title="{{ r.m }}-oy: kirim {{ r.inc|grp }}, chiqim {{ r.exp|grp }}">
-        <span class="b inc" style="height:{{ (r.inc / d.series_max * 100)|round(1) }}%"></span>
-        <span class="b exp" style="height:{{ (r.exp / d.series_max * 100)|round(1) }}%"></span>
-      </div>
-      {% endfor %}
-    </div>
-    <div class="chart-x">
-      {% for r in d.series %}<span>{{ r.m }}-oy</span>{% endfor %}
-    </div>
-    <div class="legend">
-      <span><i style="background:var(--green)"></i>Kirim</span>
-      <span><i style="background:var(--red)"></i>Chiqim</span>
-    </div>
+    <h2>Tushum va xarajat dinamikasi</h2>
+    {{ viz.area_chart(d.chart_main, 'main') }}
   </div>
 
   <div class="card m-hide">
@@ -85,30 +72,11 @@
 </div>
 
 <div class="grid g2" style="margin-top:14px">
-  {% if d.exp_top %}
   <div class="card m-hide">
-    <h2>Pul qayerga ketyapti — {{ d.today.year }}</h2>
-    {% set colors = ['var(--gold)', 'var(--blue)', 'var(--green)', 'var(--red)', '#8d95a5', 'var(--dim)'] %}
-    {% set ns = namespace(acc=0) %}
-    {% set stops = [] %}
-    <div class="donut-wrap">
-      <div class="donut" style="background:conic-gradient(
-        {%- for e in d.exp_top -%}
-          {{ colors[loop.index0 % 6] }} {{ ns.acc|round(1) }}% {{ (ns.acc + e.pct)|round(1) }}%{{ ',' if not loop.last }}
-          {%- set ns.acc = ns.acc + e.pct -%}
-        {%- endfor -%})">
-        <div class="dc"><b>100%</b><span>xarajat</span></div>
-      </div>
-      <div class="dlegend">
-        {% for e in d.exp_top %}
-        <div class="dl"><i style="background:{{ colors[loop.index0 % 6] }}"></i>
-          <span>{{ e.cat }}</span><b>{{ '%.0f'|format(e.pct) }}%</b></div>
-        {% endfor %}
-      </div>
-    </div>
-    <p class="sub" style="margin:14px 0 0;font-size:12px">Yil boshidan barcha chiqimlar tarkibi · <a href="/dds">to'liq ДДС →</a></p>
+    <h2>Pul yil davomida qanday harakatlandi</h2>
+    {{ viz.waterfall_chart(d.wf) }}
+    <p class="sub" style="margin:6px 0 0;font-size:12px">Yil boshidagi qoldiqdan bugungi holatgacha — nima qo'shdi, nima kamaytirdi</p>
   </div>
-  {% endif %}
 
   {% if d.overdue %}
   <div class="card">
@@ -128,5 +96,11 @@
   <p class="sub" style="margin:10px 0 0;font-size:12.5px">Eslatma yuborish uchun: <a href="/automation">Avtomatika → Kunni yopish</a></p>
   </div>
   {% endif %}
+</div>
+
+<div class="card m-hide" style="margin-top:14px">
+  <h2>Pul qayerga ketyapti — {{ d.today.year }}</h2>
+  {{ viz.rank_bars(d.rank) }}
+  <p class="sub" style="margin:14px 0 0;font-size:12px">Yil boshidan barcha xarajatlar, ulushi bo'yicha tartiblangan · <a href="/dds">to'liq ДДС →</a></p>
 </div>
 {% endblock %}
