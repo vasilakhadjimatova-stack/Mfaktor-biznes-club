@@ -476,12 +476,12 @@ main > *:nth-child(6){animation-delay:.25s}
 .whist .empty{padding:18px}
 
 /* ══ Namoz vaqtlari ══ */
-.pray{display:flex;align-items:center;gap:14px;padding:13px 16px;
-  border-radius:16px;border:1px solid var(--line);
+.pray{display:flex;align-items:center;gap:14px;padding:12px 15px;
+  border-radius:18px;border:1px solid var(--line);
   background:linear-gradient(120deg,rgba(62,229,154,.08),var(--card-faint) 60%);
-  margin-bottom:16px;flex-wrap:wrap}
+  margin:12px 0 0;flex-wrap:wrap}
 .pray-next{display:flex;align-items:center;gap:11px;min-width:170px}
-.pray-moon{width:38px;height:38px;border-radius:12px;flex:none;
+.pray-moon{width:36px;height:36px;border-radius:12px;flex:none;
   background:var(--green-dim);color:var(--green);
   display:flex;align-items:center;justify-content:center}
 .pray-moon svg{width:19px;height:19px}
@@ -503,13 +503,15 @@ main > *:nth-child(6){animation-delay:.25s}
 }
 
 /* ══ Bosh ekran: umumiy balans + katalog ══ */
-.hero-bal{display:flex;align-items:center;gap:14px;margin-bottom:12px;padding:20px 22px;
-  cursor:pointer;border-radius:22px;border:1px solid var(--line);
+.hero-bal{display:block;margin-bottom:12px;padding:18px 20px 14px;
+  cursor:pointer;border-radius:24px;border:1px solid var(--line);
   background:linear-gradient(160deg,var(--card-top),var(--card-bot));
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 8px 28px rgba(0,0,0,.22);
   transition:transform .15s;user-select:none;-webkit-tap-highlight-color:transparent}
 .hero-bal:active{transform:scale(.985)}
+.hb-top{display:flex;align-items:center;gap:14px}
+.hero-bal .mstat{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .hb-l{display:block;color:var(--mut);font:600 11px var(--sans);
   text-transform:uppercase;letter-spacing:.12em}
 .hb-v{font:700 31px var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em;
@@ -531,21 +533,24 @@ main > *:nth-child(6){animation-delay:.25s}
 .wcat.open{display:block;animation:catIn .35s cubic-bezier(.2,.9,.3,1)}
 @keyframes catIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 
-/* tez amallar */
-.qacts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
-.qact{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px 12px;
-  border-radius:16px;border:1px solid var(--line);
-  background:linear-gradient(160deg,var(--card-top),var(--card-bot));
-  color:var(--txt);font:600 11.5px var(--sans);text-align:center;
-  transition:transform .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.qact:active{transform:scale(.9)}
+/* tez amallar — ramkasiz, Click uslubida */
+.qacts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 2px}
+.qact{display:flex;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;
+  border-radius:16px;color:var(--txt);font:600 11px var(--sans);text-align:center;
+  line-height:1.25;transition:transform .15s;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.qact:active{transform:scale(.88)}
 .qact:hover{color:var(--txt)}
-.qact i{width:42px;height:42px;border-radius:14px;display:flex;align-items:center;
+.qact i{width:48px;height:48px;border-radius:16px;display:flex;align-items:center;
   justify-content:center;background:var(--gold-dim);color:var(--gold)}
-.qact i svg{width:20px;height:20px}
+.qact i svg{width:21px;height:21px}
 .qact.g i{background:var(--green-dim);color:var(--green)}
 .qact.r i{background:var(--red-dim);color:var(--red)}
 .qact.b i{background:rgba(130,185,255,.14);color:var(--blue)}
+
+/* bo'lim sarlavhasi — fonda, karta ichida emas */
+.sec-l{margin:18px 4px 8px;font:600 11px var(--sans);color:var(--mut);
+  text-transform:uppercase;letter-spacing:.11em}
 
 /* bo'limlar katalogi (mini-apps) */
 .apps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 4px;margin-top:4px}
@@ -568,13 +573,13 @@ main > *:nth-child(6){animation-delay:.25s}
 .ai7{background:linear-gradient(135deg,#87cc4a,#478f22)}
 .ai8{background:linear-gradient(135deg,#8b9bbd,#576685)}
 
-/* oy xulosasi */
+/* oy xulosasi (hero ichida) */
 .mstat{display:grid;grid-template-columns:repeat(3,1fr)}
-.mstat>div{padding:4px 8px;text-align:center}
+.mstat>div{padding:2px 8px;text-align:center}
 .mstat>div+div{border-left:1px solid var(--line)}
-.mstat .l{font-size:10.5px;color:var(--mut);text-transform:uppercase;
+.mstat .l{font-size:10px;color:var(--mut);text-transform:uppercase;
   letter-spacing:.08em;font-weight:600}
-.mstat .v{font:700 17px var(--sans);font-variant-numeric:tabular-nums;margin-top:4px}
+.mstat .v{font:600 15.5px var(--sans);font-variant-numeric:tabular-nums;margin-top:3px}
 .alert-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .alert-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;
   border-radius:99px;font:600 12.5px var(--sans);border:1px solid var(--line2);

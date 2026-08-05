@@ -5,16 +5,26 @@
 {# ══ Umumiy balans — bosilganda hamyonlar katalogi ochiladi ══ #}
 <div class="hero-bal" id="hero-bal" onclick="toggleWcat()" role="button" tabindex="0"
      onkeydown="if(event.key==='Enter')toggleWcat()">
-  <div>
-    <span class="hb-l">Umumiy balans</span>
-    <div class="hb-v" id="hb-v">{{ d.total_balance|grp }}<small>so'm</small></div>
-    <div class="hb-sub">{{ d.balances|length }} ta hisob — ko'rish uchun bosing</div>
+  <div class="hb-top">
+    <div>
+      <span class="hb-l">Umumiy balans</span>
+      <div class="hb-v" id="hb-v">{{ d.total_balance|grp }}<small>so'm</small></div>
+      <div class="hb-sub">{{ d.balances|length }} ta hisob</div>
+    </div>
+    <div class="hb-side">
+      <button class="hb-btn" onclick="toggleEye(event)" aria-label="Balansni yashirish">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <span class="hb-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+    </div>
   </div>
-  <div class="hb-side">
-    <button class="hb-btn" onclick="toggleEye(event)" aria-label="Balansni yashirish">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
-    </button>
-    <span class="hb-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+  <div class="mstat">
+    <div><span class="l">Bu oy kirdi</span>
+      <div class="v pos">{{ d.cashflow.income_total|grp }}</div></div>
+    <div><span class="l">Chiqdi</span>
+      <div class="v neg">{{ d.cashflow.expense_total|grp }}</div></div>
+    <div><span class="l">Natija</span>
+      <div class="v {{ 'pos' if d.cashflow.net >= 0 else 'neg' }}">{{ d.cashflow.net|grp }}</div></div>
   </div>
 </div>
 
@@ -72,6 +82,19 @@
   </a>
 </div>
 
+<div class="alert-row">
+  {% if d.overdue_total %}
+  <a class="alert-chip warn" href="/debtors">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+    Kechikkan: {{ d.overdue_total|grp }} · {{ d.overdue|length }} kishi
+  </a>
+  {% endif %}
+  <a class="alert-chip" href="/debtors">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>
+    Shu hafta kutilmoqda: {{ d.upcoming_total|grp }}
+  </a>
+</div>
+
 {# ── Namoz vaqtlari ── #}
 <div class="pray">
   <div class="pray-next">
@@ -89,35 +112,9 @@
 </div>
 <script type="application/json" id="pray-data">{{ {'times': pray.times}|tojson }}</script>
 
-{# ── Bu oy xulosasi ── #}
-<div class="card" style="margin-top:12px">
-  <div class="mstat">
-    <div><span class="l">Kirdi</span>
-      <div class="v pos">{{ d.cashflow.income_total|grp }}</div></div>
-    <div><span class="l">Chiqdi</span>
-      <div class="v neg">{{ d.cashflow.expense_total|grp }}</div></div>
-    <div><span class="l">Natija</span>
-      <div class="v {{ 'pos' if d.cashflow.net >= 0 else 'neg' }}">{{ d.cashflow.net|grp }}</div></div>
-  </div>
-</div>
-
-<div class="alert-row">
-  {% if d.overdue_total %}
-  <a class="alert-chip warn" href="/debtors">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-    Kechikkan: {{ d.overdue_total|grp }} · {{ d.overdue|length }} kishi
-  </a>
-  {% endif %}
-  <a class="alert-chip" href="/debtors">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>
-    Shu hafta kutilmoqda: {{ d.upcoming_total|grp }}
-  </a>
-</div>
-
 {# ── Bo'limlar katalogi ── #}
-<div class="card" style="margin-top:14px">
-  <h2>Bo'limlar</h2>
-  <div class="apps">
+<div class="sec-l">Bo'limlar</div>
+<div class="apps">
     <a class="app-t" href="/transactions">
       <span class="app-ic ai0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg></span>
       Kassa
@@ -154,7 +151,6 @@
       <span class="app-ic ai8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>
       Sozlamalar
     </a>
-  </div>
 </div>
 
 {# ── Grafiklar (kompyuterda) ── #}
