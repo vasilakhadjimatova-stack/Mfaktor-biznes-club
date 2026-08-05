@@ -502,6 +502,87 @@ main > *:nth-child(6){animation-delay:.25s}
   .pray-t span{letter-spacing:0}
 }
 
+/* ══ Bosh ekran: umumiy balans + katalog ══ */
+.hero-bal{display:flex;align-items:center;gap:14px;margin-bottom:12px;padding:20px 22px;
+  cursor:pointer;border-radius:22px;border:1px solid var(--line);
+  background:linear-gradient(160deg,var(--card-top),var(--card-bot));
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 8px 28px rgba(0,0,0,.22);
+  transition:transform .15s;user-select:none;-webkit-tap-highlight-color:transparent}
+.hero-bal:active{transform:scale(.985)}
+.hb-l{display:block;color:var(--mut);font:600 11px var(--sans);
+  text-transform:uppercase;letter-spacing:.12em}
+.hb-v{font:700 31px var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  margin-top:4px;background:linear-gradient(120deg,var(--gold2),var(--gold));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.hb-v small{font-size:15px;font-weight:600;margin-left:5px}
+.hb-sub{font-size:12px;color:var(--mut);margin-top:3px}
+.hb-side{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--mut)}
+.hb-btn,.hb-btn:hover{width:40px;height:40px;padding:0;border-radius:13px;
+  border:1px solid var(--line2);background:var(--card-faint);color:var(--mut);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:none;filter:none;transform:none;flex:none}
+.hb-btn:active{transform:scale(.9)}
+.hb-btn svg{width:19px;height:19px}
+.hb-chev{transition:transform .3s;display:flex}
+.hb-chev svg{width:20px;height:20px}
+.hero-bal.open .hb-chev{transform:rotate(180deg)}
+.wcat{display:none}
+.wcat.open{display:block;animation:catIn .35s cubic-bezier(.2,.9,.3,1)}
+@keyframes catIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+/* tez amallar */
+.qacts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.qact{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px 12px;
+  border-radius:16px;border:1px solid var(--line);
+  background:linear-gradient(160deg,var(--card-top),var(--card-bot));
+  color:var(--txt);font:600 11.5px var(--sans);text-align:center;
+  transition:transform .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.qact:active{transform:scale(.9)}
+.qact:hover{color:var(--txt)}
+.qact i{width:42px;height:42px;border-radius:14px;display:flex;align-items:center;
+  justify-content:center;background:var(--gold-dim);color:var(--gold)}
+.qact i svg{width:20px;height:20px}
+.qact.g i{background:var(--green-dim);color:var(--green)}
+.qact.r i{background:var(--red-dim);color:var(--red)}
+.qact.b i{background:rgba(130,185,255,.14);color:var(--blue)}
+
+/* bo'limlar katalogi (mini-apps) */
+.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 4px;margin-top:4px}
+@media(min-width:901px){.apps{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}}
+.app-t{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px 10px;
+  border-radius:16px;color:var(--txt);font:600 11px var(--sans);text-align:center;line-height:1.25;
+  transition:transform .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.app-t:active{transform:scale(.88)}
+.app-t:hover{color:var(--txt);background:var(--card-faint)}
+.app-ic{width:52px;height:52px;border-radius:17px;display:flex;align-items:center;
+  justify-content:center;color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.22)}
+.app-ic svg{width:24px;height:24px}
+.ai0{background:linear-gradient(135deg,#f0b03c,#d97a20)}
+.ai1{background:linear-gradient(135deg,#38c389,#0d8a5a)}
+.ai2{background:linear-gradient(135deg,#f87c8f,#d13e5c)}
+.ai3{background:linear-gradient(135deg,#57a4f7,#2d5ecb)}
+.ai4{background:linear-gradient(135deg,#ad84f5,#7343ce)}
+.ai5{background:linear-gradient(135deg,#3fc7ce,#1b87a0)}
+.ai6{background:linear-gradient(135deg,#f79c58,#da5c28)}
+.ai7{background:linear-gradient(135deg,#87cc4a,#478f22)}
+.ai8{background:linear-gradient(135deg,#8b9bbd,#576685)}
+
+/* oy xulosasi */
+.mstat{display:grid;grid-template-columns:repeat(3,1fr)}
+.mstat>div{padding:4px 8px;text-align:center}
+.mstat>div+div{border-left:1px solid var(--line)}
+.mstat .l{font-size:10.5px;color:var(--mut);text-transform:uppercase;
+  letter-spacing:.08em;font-weight:600}
+.mstat .v{font:700 17px var(--sans);font-variant-numeric:tabular-nums;margin-top:4px}
+.alert-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.alert-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;
+  border-radius:99px;font:600 12.5px var(--sans);border:1px solid var(--line2);
+  color:var(--txt);background:var(--card-faint);-webkit-tap-highlight-color:transparent}
+.alert-chip:active{transform:scale(.95)}
+.alert-chip.warn{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+.alert-chip svg{width:15px;height:15px}
+
 /* ── Print (ДДС chop etish uchun) ── */
 @media print{
   aside,.monthnav,details.adder,.flash,.hint{display:none!important}
@@ -735,9 +816,39 @@ function initViz(){
 addEventListener("DOMContentLoaded", initViz);
 
 
+function toggleWcat(){
+  var h = document.getElementById("hero-bal"), c = document.getElementById("wcat");
+  if (!h || !c) return;
+  var open = c.classList.toggle("open");
+  h.classList.toggle("open", open);
+  if (open && !c.dataset.init){ c.dataset.init = "1"; initDeck(); }
+}
+function toggleEye(e){
+  if (e) e.stopPropagation();
+  var v = document.getElementById("hb-v");
+  if (!v) return;
+  if (v.dataset.hid === "1"){
+    v.innerHTML = v.dataset.raw; v.dataset.hid = "0";
+    try{ localStorage.setItem("balhide", "0"); }catch(_){}
+  } else {
+    v.dataset.raw = v.innerHTML; v.innerHTML = "•• ••• •••"; v.dataset.hid = "1";
+    try{ localStorage.setItem("balhide", "1"); }catch(_){}
+  }
+}
+function applyEye(){
+  try{
+    if (localStorage.getItem("balhide") === "1"){
+      var v = document.getElementById("hb-v");
+      if (v && v.dataset.hid !== "1") toggleEye();
+    }
+  }catch(_){}
+}
 function initDeck(){
   var deck = document.querySelector(".wallet-deck");
   if (!deck) return;
+  // yopiq katalog ichida bo'lsa — ochilganda toggleWcat o'zi chaqiradi
+  var cat = deck.closest(".wcat");
+  if (cat && !cat.classList.contains("open")) return;
   var track = deck.querySelector(".wtrack");
   var cards = [].slice.call(track.querySelectorAll(".wcard"));
   var dots = [].slice.call(deck.parentElement.querySelectorAll(".wdots i"));
@@ -816,7 +927,7 @@ function initPray(){
   tick();
   setInterval(tick, 30000);
 }
-addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); });
+addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); applyEye(); });
 
 function toggleSheet(open){
   var w = document.getElementById("msheet");

@@ -1,10 +1,78 @@
 {% extends "base.html" %}
 {% import "_charts.html" as viz %}
 {% block body %}
-<h1>Boshqaruv paneli</h1>
-<p class="sub">{{ d.today|dmy }} — bugungi holat bir qarashda</p>
 
-{# ══ SUPER-APP: namoz vaqtlari + jonli hamyon kartalari ══ #}
+{# ══ Umumiy balans — bosilganda hamyonlar katalogi ochiladi ══ #}
+<div class="hero-bal" id="hero-bal" onclick="toggleWcat()" role="button" tabindex="0"
+     onkeydown="if(event.key==='Enter')toggleWcat()">
+  <div>
+    <span class="hb-l">Umumiy balans</span>
+    <div class="hb-v" id="hb-v">{{ d.total_balance|grp }}<small>so'm</small></div>
+    <div class="hb-sub">{{ d.balances|length }} ta hisob — ko'rish uchun bosing</div>
+  </div>
+  <div class="hb-side">
+    <button class="hb-btn" onclick="toggleEye(event)" aria-label="Balansni yashirish">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <span class="hb-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+  </div>
+</div>
+
+{# ── Hamyonlar katalogi (yashirin, hero bosilganda ochiladi) ── #}
+<div class="wcat" id="wcat">
+  <div class="wallet-deck">
+    <div class="wtrack">
+      {% for w in d.wcards.cards %}
+      <div class="wcard wg{{ w.grad }}" data-code="{{ w.code }}">
+        <div class="wtop">
+          <div class="wname">{{ w.name }}</div>
+          <div class="wlogo">◆ MFAKTOR</div>
+        </div>
+        <div class="wchip"></div>
+        <svg class="wwave" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8.5 8.5a5 5 0 0 1 0 7"/><path d="M11.5 5.5a9 9 0 0 1 0 13"/><path d="M14.5 2.5a13 13 0 0 1 0 19"/>
+        </svg>
+        <div class="wbal {{ 'neg' if w.balance < 0 }}">{{ w.balance|grp }}<small>so'm</small></div>
+        <div class="wnum">•••• {{ '%04d'|format(loop.index * 1379 % 10000) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="wdots">
+    {% for w in d.wcards.cards %}<i class="{{ 'on' if loop.first }}"></i>{% endfor %}
+  </div>
+  <script type="application/json" id="wcards-data">{{ d.wcards.cards|tojson }}</script>
+
+  <div class="card whist" style="margin-bottom:14px">
+    <div class="whist-head">
+      <h2 style="margin:0" id="whist-title">{{ d.wcards.cards[0].name if d.wcards.cards }}</h2>
+      <a class="chip" href="/transactions">Hammasi →</a>
+    </div>
+    <div id="whist-list"></div>
+  </div>
+</div>
+
+{# ── Tez amallar ── #}
+<div class="qacts">
+  <a class="qact g" href="/transactions">
+    <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7 7 7-7"/></svg></i>
+    Kirim / Chiqim
+  </a>
+  <a class="qact" href="/contracts">
+    <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg></i>
+    To'lov qabul
+  </a>
+  <a class="qact b" href="/automation">
+    <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg></i>
+    Kunni yopish
+  </a>
+  <a class="qact r" href="/debtors">
+    <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></i>
+    Qarzdorlar
+  </a>
+</div>
+
+{# ── Namoz vaqtlari ── #}
 <div class="pray">
   <div class="pray-next">
     <span class="pray-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></span>
@@ -21,101 +89,90 @@
 </div>
 <script type="application/json" id="pray-data">{{ {'times': pray.times}|tojson }}</script>
 
-<div class="wallet-deck">
-  <div class="wtrack">
-    {% for w in d.wcards.cards %}
-    <div class="wcard wg{{ w.grad }}" data-code="{{ w.code }}">
-      <div class="wtop">
-        <div class="wname">{{ w.name }}</div>
-        <div class="wlogo">◆ MFAKTOR</div>
-      </div>
-      <div class="wchip"></div>
-      <svg class="wwave" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M8.5 8.5a5 5 0 0 1 0 7"/><path d="M11.5 5.5a9 9 0 0 1 0 13"/><path d="M14.5 2.5a13 13 0 0 1 0 19"/>
-      </svg>
-      <div class="wbal {{ 'neg' if w.balance < 0 }}">{{ w.balance|grp }}<small>so'm</small></div>
-      <div class="wnum">•••• {{ '%04d'|format(loop.index * 1379 % 10000) }}</div>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-<div class="wdots">
-  {% for w in d.wcards.cards %}<i class="{{ 'on' if loop.first }}"></i>{% endfor %}
-</div>
-<script type="application/json" id="wcards-data">{{ d.wcards.cards|tojson }}</script>
-
-<div class="card whist">
-  <div class="whist-head">
-    <h2 style="margin:0" id="whist-title">{{ d.wcards.cards[0].name if d.wcards.cards }}</h2>
-    <a class="chip" href="/transactions">Hammasi →</a>
-  </div>
-  <div id="whist-list"></div>
-</div>
-
-
-<div class="grid g4">
-  <div class="card kpi">
-    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg></span><div class="l">Kassadagi jami pul</div>
-    <div class="v gold">{{ d.total_balance|grp }}</div>
-    <div class="h">{{ d.balances|length }} ta hisob bo'yicha</div>
-  </div>
-  <div class="card kpi">
-    <span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7 7 7-7"/></svg></span><div class="l">Bu oy kirdi</div>
-    <div class="v pos">{{ d.cashflow.income_total|grp }}{% if d.delta_inc is not none %}<span class="delta {{ 'up' if d.delta_inc >= 0 else 'down' }}">{{ '▲' if d.delta_inc >= 0 else '▼' }} {{ '%.0f'|format(d.delta_inc|abs) }}%</span>{% endif %}</div>
-    <div class="h">o'tgan oyga nisbatan</div>
-  </div>
-  <div class="card kpi">
-    <span class="ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg></span><div class="l">Bu oy chiqdi</div>
-    <div class="v neg">{{ d.cashflow.expense_total|grp }}{% if d.delta_exp is not none %}<span class="delta {{ 'down' if d.delta_exp >= 0 else 'up' }}">{{ '▲' if d.delta_exp >= 0 else '▼' }} {{ '%.0f'|format(d.delta_exp|abs) }}%</span>{% endif %}</div>
-    <div class="h">o'tgan oyga nisbatan</div>
-  </div>
-  <div class="card kpi">
-    <span class="ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span><div class="l">Bu oy natija</div>
-    <div class="v {{ 'pos' if d.cashflow.net >= 0 else 'neg' }}">{{ d.cashflow.net|grp }}</div>
-    <div class="h">{{ "foyda ko'rinmoqda" if d.cashflow.net >= 0 else "chiqim kirimdan ko'p" }}</div>
+{# ── Bu oy xulosasi ── #}
+<div class="card" style="margin-top:12px">
+  <div class="mstat">
+    <div><span class="l">Kirdi</span>
+      <div class="v pos">{{ d.cashflow.income_total|grp }}</div></div>
+    <div><span class="l">Chiqdi</span>
+      <div class="v neg">{{ d.cashflow.expense_total|grp }}</div></div>
+    <div><span class="l">Natija</span>
+      <div class="v {{ 'pos' if d.cashflow.net >= 0 else 'neg' }}">{{ d.cashflow.net|grp }}</div></div>
   </div>
 </div>
 
-<div class="grid g4" style="margin-top:14px">
-  <div class="card kpi {{ 'alert' if d.overdue_total }}">
-    <span class="ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><div class="l">Kechikkan to'lovlar</div>
-    <div class="v {{ 'neg' if d.overdue_total else 'pos' }}">{{ d.overdue_total|grp }}</div>
-    <div class="h">{{ d.overdue|length }} ta o'quvchidan kutilmoqda · <a href="/debtors">ro'yxat</a></div>
-  </div>
-  <div class="card kpi">
-    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg></span><div class="l">Shu hafta kelishi kerak</div>
-    <div class="v">{{ d.upcoming_total|grp }}</div>
-    <div class="h">{{ d.upcoming|length }} ta rejali to'lov</div>
-  </div>
-  <div class="card kpi m-hide">
-    <span class="ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><div class="l">O'qiyotgan o'quvchilar</div>
-    <div class="v">{{ d.active_contracts }}</div>
-    <div class="h">faol shartnomalar</div>
-  </div>
-  <div class="card kpi m-hide">
-    <span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Bu oy yangi o'quvchi</div>
-    <div class="v">{{ d.ue.new_students }}</div>
-    <div class="h"><a href="/reports">marketing tahlili →</a></div>
+<div class="alert-row">
+  {% if d.overdue_total %}
+  <a class="alert-chip warn" href="/debtors">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+    Kechikkan: {{ d.overdue_total|grp }} · {{ d.overdue|length }} kishi
+  </a>
+  {% endif %}
+  <a class="alert-chip" href="/debtors">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>
+    Shu hafta kutilmoqda: {{ d.upcoming_total|grp }}
+  </a>
+</div>
+
+{# ── Bo'limlar katalogi ── #}
+<div class="card" style="margin-top:14px">
+  <h2>Bo'limlar</h2>
+  <div class="apps">
+    <a class="app-t" href="/transactions">
+      <span class="app-ic ai0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg></span>
+      Kassa
+    </a>
+    <a class="app-t" href="/contracts">
+      <span class="app-ic ai1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg></span>
+      Shartnomalar
+    </a>
+    <a class="app-t" href="/debtors">
+      <span class="app-ic ai2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+      Qarzdorlar
+    </a>
+    <a class="app-t" href="/cohorts">
+      <span class="app-ic ai3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></span>
+      Kurslar
+    </a>
+    <a class="app-t" href="/dds">
+      <span class="app-ic ai4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 13h3v5H7zM12 9h3v9h-3zM17 5h3v13h-3z"/></svg></span>
+      ДДС
+    </a>
+    <a class="app-t" href="/reports">
+      <span class="app-ic ai5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span>
+      Tahlillar
+    </a>
+    <a class="app-t" href="/automation">
+      <span class="app-ic ai6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg></span>
+      Avtomatika
+    </a>
+    <a class="app-t" href="/planner">
+      <span class="app-ic ai7"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg></span>
+      Launch-hisob
+    </a>
+    <a class="app-t" href="/settings">
+      <span class="app-ic ai8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>
+      Sozlamalar
+    </a>
   </div>
 </div>
 
-<div class="grid g2" style="margin-top:14px">
+{# ── Grafiklar (kompyuterda) ── #}
+<div class="grid g2 m-hide" style="margin-top:14px">
   <div class="card">
     <h2>Tushum va xarajat dinamikasi</h2>
     {{ viz.area_chart(d.chart_main, 'main') }}
   </div>
-
-  <div class="card m-hide">
+  <div class="card">
     <h2>Pul yil davomida qanday harakatlandi</h2>
     {{ viz.waterfall_chart(d.wf) }}
     <p class="sub" style="margin:6px 0 0;font-size:12px">Yil boshidagi qoldiqdan bugungi holatgacha</p>
   </div>
 </div>
 
-<div class="grid g2" style="margin-top:14px">
-  {% if d.overdue %}
-  <div class="card">
-    <h2>Kim to'lovni kechiktiryapti</h2>
+{% if d.overdue %}
+<div class="card m-hide" style="margin-top:14px">
+  <h2>Kim to'lovni kechiktiryapti</h2>
   <div class="tablewrap">
   <table>
     <tr><th>O'quvchi</th><th class="r">Qancha</th><th class="r">Necha kun</th></tr>
@@ -129,9 +186,8 @@
   </table>
   </div>
   <p class="sub" style="margin:10px 0 0;font-size:12.5px">Eslatma yuborish uchun: <a href="/automation">Avtomatika → Kunni yopish</a></p>
-  </div>
-  {% endif %}
 </div>
+{% endif %}
 
 <div class="card m-hide" style="margin-top:14px">
   <h2>Pul qayerga ketyapti — {{ d.today.year }}</h2>
