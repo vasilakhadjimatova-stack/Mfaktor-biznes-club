@@ -547,6 +547,10 @@ main > *:nth-child(6){animation-delay:.25s}
   .arc-prog,.sky-orb{transition:none}
 }
 
+/* ECharts idishlari */
+.ech{width:100%;height:272px}
+@media(max-width:900px){.ech{height:232px}}
+
 /* ══ Bosh ekran: umumiy balans + katalog ══ */
 .hero-bal{display:block;margin-bottom:12px;padding:18px 20px 14px;
   cursor:pointer;border-radius:24px;border:1px solid var(--line);
@@ -825,7 +829,149 @@ main > *:nth-child(6){animation-delay:.25s}
     </div>
   </div>
 </div>
+<script src="{{ url_for('static', filename='echarts.min.js') }}"></script>
 <script>
+/* ══ ECharts — wow-grafiklar ══ */
+function echShort(v){
+  var a = Math.abs(v);
+  if (a >= 1e9) return (v/1e9).toFixed(1).replace(".0","").replace(".",",") + " mlrd";
+  if (a >= 1e6) return Math.round(v/1e6) + " mln";
+  if (a >= 1e3) return Math.round(v/1e3) + " ming";
+  return "" + Math.round(v);
+}
+function echFull(v){
+  return Math.round(v).toLocaleString("ru-RU").replace(/ /g," ") + " so'm";
+}
+function initCharts(){
+  if (typeof echarts === "undefined") return;
+  var dataEl = document.getElementById("ech-data");
+  if (!dataEl) return;
+  var D = JSON.parse(dataEl.textContent);
+  var css = getComputedStyle(document.documentElement);
+  var light = document.documentElement.dataset.theme === "light";
+  var C = {
+    s1: css.getPropertyValue("--s1").trim() || "#3987e5",
+    s2: css.getPropertyValue("--s2").trim() || "#d95926",
+    mut: css.getPropertyValue("--mut").trim() || "#9ba7c2",
+    gold: css.getPropertyValue("--gold").trim() || "#f5c15c",
+    green: light ? "#0d8a57" : "#3ee59a",
+    red: light ? "#cc3d4e" : "#ff7a88",
+    line: light ? "rgba(40,60,120,.12)" : "rgba(160,180,255,.12)",
+    tipBg: light ? "rgba(255,255,255,.96)" : "rgba(10,14,26,.94)",
+    tipTx: light ? "#1a2137" : "#f2f4fb"
+  };
+  var anim = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var FONT = "IBM Plex Sans, sans-serif";
+  function make(id){
+    var el = document.getElementById(id);
+    if (!el) return null;
+    var old = echarts.getInstanceByDom(el);
+    if (old) old.dispose();
+    return echarts.init(el);
+  }
+  var tip = {
+    trigger: "axis", padding: [10, 14],
+    backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+    textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+    extraCssText: "border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);backdrop-filter:blur(8px)",
+    valueFormatter: echFull
+  };
+  var main = make("ech-main");
+  if (main){
+    main.setOption({
+      animationDuration: anim ? 1100 : 0, animationEasing: "cubicOut",
+      grid: {left: 6, right: 14, top: 34, bottom: 4, containLabel: true},
+      legend: {top: 0, left: 0, icon: "roundRect", itemWidth: 16, itemHeight: 5, itemGap: 18,
+        textStyle: {color: C.mut, fontSize: 11.5, fontFamily: FONT}},
+      tooltip: tip,
+      xAxis: {type: "category", data: D.months, boundaryGap: false,
+        axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+        axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+      yAxis: {type: "value",
+        splitLine: {lineStyle: {color: C.line}},
+        axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT, formatter: echShort}},
+      series: [
+        {name: "Tushum", type: "line", data: D.inc, smooth: .45,
+          symbol: "circle", symbolSize: 8, showSymbol: false,
+          lineStyle: {width: 3.5, color: C.s1,
+            shadowColor: C.s1, shadowBlur: 16, shadowOffsetY: 8},
+          itemStyle: {color: C.s1, borderColor: "#fff", borderWidth: 2},
+          emphasis: {scale: 1.6},
+          areaStyle: {color: new echarts.graphic.LinearGradient(0, 0, 0, 1,
+            [{offset: 0, color: C.s1 + "5c"}, {offset: 1, color: C.s1 + "00"}])}},
+        {name: "Xarajat", type: "line", data: D.exp, smooth: .45,
+          symbol: "circle", symbolSize: 8, showSymbol: false,
+          lineStyle: {width: 3, color: C.s2, type: [7, 7],
+            shadowColor: C.s2, shadowBlur: 12, shadowOffsetY: 6},
+          itemStyle: {color: C.s2, borderColor: "#fff", borderWidth: 2},
+          emphasis: {scale: 1.6},
+          areaStyle: {color: new echarts.graphic.LinearGradient(0, 0, 0, 1,
+            [{offset: 0, color: C.s2 + "2e"}, {offset: 1, color: C.s2 + "00"}])}}
+      ]
+    });
+  }
+  var wfc = make("ech-wf");
+  if (wfc && D.wf){
+    // nol qadamlar ko'rsatilmaydi (masalan, dividend bo'lmagan yil)
+    var steps = D.wf.filter(function(s){
+      return s.value || s.kind === "start" || s.kind === "end";
+    });
+    var base = [], vals = [], run = 0;
+    steps.forEach(function(s){
+      if (s.kind === "start"){ base.push(0); vals.push({v: s.value, k: s.kind}); run = s.value; }
+      else if (s.kind === "end"){ base.push(0); vals.push({v: s.value, k: s.kind}); }
+      else if (s.kind === "plus"){ base.push(run); vals.push({v: s.value, k: s.kind}); run += s.value; }
+      else { run -= s.value; base.push(run); vals.push({v: s.value, k: s.kind}); }
+    });
+    function grad(c1, c2){
+      return new echarts.graphic.LinearGradient(0, 0, 0, 1,
+        [{offset: 0, color: c1}, {offset: 1, color: c2}]);
+    }
+    var colr = {start: grad("#ffe3a1", C.gold), end: grad("#ffe3a1", C.gold),
+                plus: grad(C.green, C.green + "88"), minus: grad(C.red, C.red + "88")};
+    var shad = {start: C.gold, end: C.gold, plus: C.green, minus: C.red};
+    wfc.setOption({
+      animationDuration: anim ? 1000 : 0, animationEasing: "elasticOut",
+      grid: {left: 6, right: 10, top: 30, bottom: 4, containLabel: true},
+      tooltip: {trigger: "item", padding: [10, 14],
+        backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+        textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+        extraCssText: "border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3)",
+        formatter: function(p){
+          if (p.seriesIndex === 0) return "";
+          return p.name + "<br><b>" + echFull(vals[p.dataIndex].v) + "</b>";
+        }},
+      xAxis: {type: "category", data: steps.map(function(s){ return s.name; }),
+        axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+        axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT, interval: 0}},
+      yAxis: {type: "value",
+        splitLine: {lineStyle: {color: C.line}},
+        axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT, formatter: echShort}},
+      series: [
+        {type: "bar", stack: "wf", data: base, barWidth: "52%",
+          itemStyle: {color: "transparent"}, tooltip: {show: false}, silent: true},
+        {type: "bar", stack: "wf",
+          data: vals.map(function(s){
+            return {value: s.v, itemStyle: {
+              color: colr[s.k], borderRadius: 7,
+              shadowColor: shad[s.k] + "66", shadowBlur: 12, shadowOffsetY: 4}};
+          }),
+          label: {show: true, position: "top", fontSize: 10.5, fontFamily: FONT,
+            color: C.mut, formatter: function(p){ return echShort(vals[p.dataIndex].v); }}}
+      ]
+    });
+  }
+  if (!initCharts._r){
+    initCharts._r = 1;
+    addEventListener("resize", function(){
+      ["ech-main", "ech-wf"].forEach(function(id){
+        var el = document.getElementById(id);
+        var i = el && echarts.getInstanceByDom(el);
+        if (i) i.resize();
+      });
+    });
+  }
+}
 function countUp(){
   document.querySelectorAll(".kpi .v").forEach(el => {
     const node = el.childNodes[0];
@@ -1063,7 +1209,7 @@ function initPray(){
   setInterval(tick, 30000);
   addEventListener("resize", function(){ layout(nowMin()); });
 }
-addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); applyEye(); });
+addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); applyEye(); initCharts(); });
 
 function toggleSheet(open){
   var w = document.getElementById("msheet");
@@ -1081,6 +1227,7 @@ function toggleTheme(){
   el.dataset.theme = next;
   localStorage.setItem("mf-theme", next);
   syncThemeColor(next);
+  if (typeof initCharts === "function") setTimeout(initCharts, 60);
 }
 if ("serviceWorker" in navigator) {
   addEventListener("load", function(){ navigator.serviceWorker.register("/sw.js"); });

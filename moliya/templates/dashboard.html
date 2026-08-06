@@ -174,15 +174,16 @@
     </a>
 </div>
 
-{# ── Grafiklar (kompyuterda) ── #}
-<div class="grid g2 m-hide" style="margin-top:14px">
+{# ── Grafiklar (ECharts) ── #}
+<script type="application/json" id="ech-data">{{ d.ech|tojson }}</script>
+<div class="grid g2" style="margin-top:14px">
   <div class="card">
     <h2>Tushum va xarajat dinamikasi</h2>
-    {{ viz.area_chart(d.chart_main, 'main') }}
+    <div class="ech" id="ech-main"></div>
   </div>
-  <div class="card">
+  <div class="card m-hide">
     <h2>Pul yil davomida qanday harakatlandi</h2>
-    {{ viz.waterfall_chart(d.wf) }}
+    <div class="ech" id="ech-wf"></div>
     <p class="sub" style="margin:6px 0 0;font-size:12px">Yil boshidagi qoldiqdan bugungi holatgacha</p>
   </div>
 </div>

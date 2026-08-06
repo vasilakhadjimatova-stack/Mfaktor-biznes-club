@@ -442,6 +442,19 @@ def dashboard_data(today=None):
         "delta_exp": delta(cf["expense_total"], prev["expense_total"]),
         "exp_top": exp_top,
         "chart_main": chart_main, "wf": wf, "rank": rank,
+        # ECharts uchun xom qatorlar (wow-grafiklar)
+        "ech": {
+            "months": MN[:m],
+            "inc": [round(v) for v in dm["inc_tot"][:m]],
+            "exp": [round(v) for v in dm["exp_tot"][:m]],
+            "wf": [
+                {"name": "Yil boshi", "value": round(dm["opens"][0]), "kind": "start"},
+                {"name": "Tushum", "value": round(sum(dm["inc_tot"])), "kind": "plus"},
+                {"name": "Xarajat", "value": round(sum(dm["exp_tot"])), "kind": "minus"},
+                {"name": "Dividend", "value": round(abs(dm["fin_year"])), "kind": "minus"},
+                {"name": "Hozir", "value": round(dm["closes"][m - 1]), "kind": "end"},
+            ],
+        },
         "wcards": wallet_cards(),
         "series": series,
         "series_max": max([max(r["inc"], r["exp"]) for r in series] or [1]) or 1,
