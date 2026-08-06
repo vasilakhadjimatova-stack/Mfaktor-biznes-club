@@ -13,10 +13,11 @@ from flask import Flask, flash, redirect, render_template, request, url_for
 
 import automation
 import core
+import kpi
 import planner
 import praytimes
 from database import db, init_db
-from models import (Budget, Cohort, Contract, Course, EXPENSE_CATS,
+from models import (Budget, Cohort, Contract, Course, EXPENSE_CATS, KpiCard,
                     INCOME_CATS, InstallmentLine, MARKETING_CHANNELS,
                     RecurringPayment, Student, Transaction, Wallet,
                     CONTRACT_STATUSES, income_cat_for_course)
@@ -396,6 +397,49 @@ def register_routes(app):
         return redirect(url_for("automation_page", closed=1))
 
     # ── Sozlamalar ───────────────────────────────────────────────
+    # ── KPI ──
+    @app.route("/kpi")
+    def kpi_page():
+        today = date.today()
+        y = int(request.args.get("y", today.year))
+        m = int(request.args.get("m", today.month))
+        cards = kpi.ensure_month(y, m)
+        data = [(c, kpi.compute(c)) for c in cards]
+        py, pm = (y - 1, 12) if m == 1 else (y, m - 1)
+        ny, nm = (y + 1, 1) if m == 12 else (y, m + 1)
+        oy = ["", "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul",
+              "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"]
+        return render_template("kpi.html", data=data, y=y, m=m,
+                               py=py, pm=pm, ny=ny, nm=nm, oy_nomi=oy[m])
+
+    @app.route("/kpi/<int:cid>/save", methods=["POST"])
+    def kpi_save(cid):
+        card = db.session.get(KpiCard, cid)
+        if not card:
+            flash("KPI kartasi topilmadi", "err")
+            return redirect(url_for("kpi_page"))
+        card.person = request.form.get("person", card.person).strip()
+        for it in card.items:
+            v = request.form.get(f"fact_{it.id}", "").strip()
+            v = v.replace(" ", "").replace("\u00a0", "").replace(",", ".")
+            it.fact = float(v) if v else None
+        db.session.commit()
+        flash(f"{card.role_name} — faktlar saqlandi", "ok")
+        return redirect(url_for("kpi_page", y=card.year, m=card.month))
+
+    @app.route("/kpi/<int:cid>/autofill", methods=["POST"])
+    def kpi_autofill(cid):
+        card = db.session.get(KpiCard, cid)
+        if not card:
+            flash("KPI kartasi topilmadi", "err")
+            return redirect(url_for("kpi_page"))
+        filled = kpi.autofill(card)
+        if filled:
+            flash("Moliyadan olindi: " + ", ".join(filled), "ok")
+        else:
+            flash("Bu kartada avtomatik ko'rsatkich yo'q", "err")
+        return redirect(url_for("kpi_page", y=card.year, m=card.month))
+
     @app.route("/settings")
     def settings():
         return render_template(

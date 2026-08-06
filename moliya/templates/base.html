@@ -847,6 +847,7 @@ main > *:nth-child(6){animation-delay:.25s}
   <span class="sep">Hisobot</span>
   <a class="{{ 'on' if p.startswith('/dds') }}" href="/dds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>ДДС (yillik)</a>
   <a class="{{ 'on' if p.startswith('/reports') }}" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Tahlillar</a>
+  <a class="{{ 'on' if p.startswith('/kpi') }}" href="/kpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>KPI</a>
   <a class="{{ 'on' if p.startswith('/settings') }}" href="/settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Sozlamalar</a>
   </nav>
   <div class="side-foot">
@@ -891,6 +892,7 @@ main > *:nth-child(6){animation-delay:.25s}
   <div class="msheet">
     <div class="msheet-grid">
       <a href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Tahlillar</a>
+      <a href="/kpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>KPI</a>
       <a href="/contracts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-5z"/><path d="M9 13h6M9 17h6"/></svg>Shartnomalar</a>
       <a href="/cohorts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Oqimlar</a>
       <a href="/planner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h3M13 10h3M8 14h3M13 14h3M8 18h3M13 18h3"/></svg>Launch-hisob</a>
@@ -915,8 +917,7 @@ function echFull(v){
 function initCharts(){
   if (typeof echarts === "undefined") return;
   var dataEl = document.getElementById("ech-data");
-  if (!dataEl) return;
-  var D = JSON.parse(dataEl.textContent);
+  var D = dataEl ? JSON.parse(dataEl.textContent) : null;
   var css = getComputedStyle(document.documentElement);
   var light = document.documentElement.dataset.theme === "light";
   var C = {
@@ -932,6 +933,29 @@ function initCharts(){
   };
   var anim = !matchMedia("(prefers-reduced-motion: reduce)").matches;
   var FONT = "IBM Plex Sans, sans-serif";
+  // KPI o'lchagichlari
+  document.querySelectorAll(".ech-gauge").forEach(function(el){
+    var old = echarts.getInstanceByDom(el);
+    if (old) old.dispose();
+    var val = parseFloat(el.dataset.val || "0");
+    var col = val < 70 ? C.red : (val < 90 ? C.gold : C.green);
+    var g = echarts.init(el);
+    g.setOption({
+      series: [{type: "gauge", startAngle: 210, endAngle: -30,
+        min: 0, max: 120, radius: "100%", center: ["50%", "62%"],
+        progress: {show: true, width: 9, roundCap: true,
+          itemStyle: {color: col, shadowColor: col, shadowBlur: 8}},
+        axisLine: {lineStyle: {width: 9, color: [[1, C.line]]}},
+        pointer: {show: false}, axisTick: {show: false},
+        splitLine: {show: false}, axisLabel: {show: false},
+        anchor: {show: false},
+        detail: {valueAnimation: anim, offsetCenter: [0, 0],
+          formatter: function(v){ return Math.round(v) + "%"; },
+          color: col, fontSize: 19, fontWeight: 700, fontFamily: FONT},
+        data: [{value: val}]}]
+    });
+  });
+  if (!D) return;
   function make(id){
     var el = document.getElementById(id);
     if (!el) return null;
@@ -1034,6 +1058,9 @@ function initCharts(){
   if (!initCharts._r){
     initCharts._r = 1;
     addEventListener("resize", function(){
+      document.querySelectorAll(".ech-gauge").forEach(function(el){
+        var i = echarts.getInstanceByDom(el); if (i) i.resize();
+      });
       ["ech-main", "ech-wf"].forEach(function(id){
         var el = document.getElementById(id);
         var i = el && echarts.getInstanceByDom(el);

@@ -254,3 +254,34 @@ class RecurringPayment(db.Model):
     pay_day  = db.Column(db.Integer, default=1)      # oyning kuni
     category = db.Column(db.String(100), default="")
     is_active = db.Column(db.Boolean, default=True)
+
+
+class KpiCard(db.Model):
+    """Xodim/lavozim uchun oylik KPI kartasi (MBM KPI jadvalidan)."""
+    __tablename__ = "kpi_cards"
+    id         = db.Column(db.Integer, primary_key=True)
+    year       = db.Column(db.Integer, nullable=False, index=True)
+    month      = db.Column(db.Integer, nullable=False, index=True)
+    role_key   = db.Column(db.String(40), nullable=False)     # rop/marketolog/kurator/hr
+    role_name  = db.Column(db.String(120), nullable=False)
+    person     = db.Column(db.String(120), default="")
+    garant     = db.Column(db.Float, default=0.0)             # kafolatlangan oylik
+    bonus_mode = db.Column(db.String(10), default="fixed")    # pct (tushumdan %) / fixed
+    items      = db.relationship("KpiItem", backref="card",
+                                 cascade="all, delete-orphan",
+                                 order_by="KpiItem.id")
+
+
+class KpiItem(db.Model):
+    """Bitta KPI ko'rsatkichi: reja, fakt, vazn."""
+    __tablename__ = "kpi_items"
+    id         = db.Column(db.Integer, primary_key=True)
+    card_id    = db.Column(db.Integer, db.ForeignKey("kpi_cards.id"), nullable=False)
+    name       = db.Column(db.String(200), nullable=False)
+    plan_value = db.Column(db.Float)                 # raqamli reja (bo'lsa)
+    plan_label = db.Column(db.String(60), default="")  # matnli reja ("<2 hafta")
+    unit       = db.Column(db.String(20), default="")  # so'm/ta/%/ball/$/kun
+    weight     = db.Column(db.Float, default=0.0)
+    fact       = db.Column(db.Float)                 # kiritilgan fakt
+    inverse    = db.Column(db.Boolean, default=False)  # kichigi yaxshi (CPL, churn)
+    auto_key   = db.Column(db.String(30), default="")  # moliyadan avto: sales_month/new_students
