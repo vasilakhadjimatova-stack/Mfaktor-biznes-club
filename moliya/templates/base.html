@@ -617,6 +617,23 @@ main > *:nth-child(6){animation-delay:.25s}
   .arc-prog,.arc-steps,.sky-orb,.sky-caravan{transition:none}
 }
 
+/* Tahlil xulosalari */
+.ins-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.ins{display:flex;gap:11px;padding:13px 15px;border-radius:16px;
+  border:1px solid var(--line);background:linear-gradient(160deg,var(--card-top),var(--card-bot))}
+.ins-ic{width:30px;height:30px;border-radius:10px;flex:none;display:flex;
+  align-items:center;justify-content:center}
+.ins-ic svg{width:16px;height:16px}
+.ins b{display:block;font:700 13.5px var(--sans);margin-bottom:2px}
+.ins p{margin:0;font-size:12.5px;color:var(--mut);line-height:1.5}
+.ins.bad{border-color:var(--red)}
+.ins.bad .ins-ic{background:var(--red-dim);color:var(--red)}
+.ins.bad b{color:var(--red)}
+.ins.warn .ins-ic{background:var(--gold-dim);color:var(--gold)}
+.ins.warn b{color:var(--gold)}
+.ins.good .ins-ic{background:var(--green-dim);color:var(--green)}
+.ins.good b{color:var(--green)}
+
 /* ECharts idishlari */
 .ech{width:100%;height:272px}
 @media(max-width:900px){.ech{height:232px}}
@@ -933,6 +950,13 @@ function initCharts(){
   };
   var anim = !matchMedia("(prefers-reduced-motion: reduce)").matches;
   var FONT = "IBM Plex Sans, sans-serif";
+  function make(id){
+    var el = document.getElementById(id);
+    if (!el) return null;
+    var old = echarts.getInstanceByDom(el);
+    if (old) old.dispose();
+    return echarts.init(el);
+  }
   // KPI o'lchagichlari
   document.querySelectorAll(".ech-gauge").forEach(function(el){
     var old = echarts.getInstanceByDom(el);
@@ -955,14 +979,227 @@ function initCharts(){
         data: [{value: val}]}]
     });
   });
-  if (!D) return;
-  function make(id){
-    var el = document.getElementById(id);
-    if (!el) return null;
-    var old = echarts.getInstanceByDom(el);
-    if (old) old.dispose();
-    return echarts.init(el);
+  // ══ Tahlillar sahifasi grafiklari ══
+  var anEl = document.getElementById("an-data");
+  if (anEl){
+    var A = JSON.parse(anEl.textContent);
+    function grad2(c1, c2){
+      return new echarts.graphic.LinearGradient(0, 0, 0, 1,
+        [{offset: 0, color: c1}, {offset: 1, color: c2}]);
+    }
+    // 1) P&L sharshara — custom render (musbat/manfiy to'g'ri chiziladi)
+    var pe = make("an-pnl");
+    if (pe && A.pnl){
+      var segs = [], run = 0;
+      A.pnl.forEach(function(s){
+        if (s.kind === "start"){ segs.push({n: s.name, a: 0, b: s.value, k: s.kind, v: s.value}); run = s.value; }
+        else if (s.kind === "end"){ segs.push({n: s.name, a: 0, b: s.value, k: s.kind, v: s.value}); }
+        else { segs.push({n: s.name, a: run, b: run - s.value, k: s.kind, v: s.value}); run -= s.value; }
+      });
+      function segColor(sg){
+        if (sg.k === "start") return grad2("#ffe3a1", C.gold);
+        if (sg.k === "end") return grad2(sg.v >= 0 ? C.green : C.red,
+                                         (sg.v >= 0 ? C.green : C.red) + "88");
+        return grad2(C.red, C.red + "88");
+      }
+      pe.setOption({
+        animationDuration: anim ? 900 : 0, animationEasing: "cubicOut",
+        grid: {left: 4, right: 12, top: 26, bottom: 16, containLabel: true},
+        tooltip: {trigger: "item", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){
+            var sg = segs[p.dataIndex];
+            return sg.n + "<br><b>" + echFull(sg.v) + "</b>";
+          }},
+        xAxis: {type: "category", data: segs.map(function(s){ return s.n; }),
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10, fontFamily: FONT, interval: 0, rotate: 22}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT, formatter: echShort}},
+        series: [{
+          type: "custom", data: segs.map(function(s, i){ return [i, s.a, s.b]; }),
+          renderItem: function(params, api){
+            var idx = api.value(0);
+            var p1 = api.coord([idx, api.value(1)]);
+            var p2 = api.coord([idx, api.value(2)]);
+            var w = api.size([1, 0])[0] * 0.55;
+            var top = Math.min(p1[1], p2[1]), h = Math.max(Math.abs(p2[1] - p1[1]), 2);
+            return {type: "rect",
+              shape: {x: p1[0] - w / 2, y: top, width: w, height: h, r: 6},
+              style: api.style({fill: segColor(segs[idx])})};
+          }
+        }]
+      });
+      // qiymat yorliqlarini ustidan grafik markerlar bilan qo'shamiz
+      pe.setOption({series: [{}, {
+        type: "scatter", symbolSize: 0.1, silent: true,
+        data: segs.map(function(s, i){ return [i, Math.max(s.a, s.b)]; }),
+        label: {show: true, position: "top", fontSize: 10, fontFamily: FONT,
+          color: C.mut, formatter: function(p){ return echShort(segs[p.dataIndex].v); }}
+      }]});
+    }
+    // 2) Trend + prognoz
+    var te = make("an-trend");
+    if (te && A.trend){
+      te.setOption({
+        animationDuration: anim ? 1100 : 0,
+        grid: {left: 4, right: 12, top: 32, bottom: 4, containLabel: true},
+        legend: {top: 0, left: 0, icon: "roundRect", itemWidth: 15, itemHeight: 5,
+          itemGap: 14, textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT},
+          data: ["Tushum", "Xarajat", "Prognoz"]},
+        tooltip: {trigger: "axis", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "category", data: A.trend.labels, boundaryGap: false,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10, fontFamily: FONT}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        series: [
+          {name: "Tushum", type: "line", data: A.trend.inc, smooth: .4,
+            showSymbol: false, lineStyle: {width: 3, color: C.s1,
+              shadowColor: C.s1, shadowBlur: 12, shadowOffsetY: 6},
+            itemStyle: {color: C.s1},
+            areaStyle: {color: grad2(C.s1 + "45", C.s1 + "00")}},
+          {name: "Xarajat", type: "line", data: A.trend.exp, smooth: .4,
+            showSymbol: false, lineStyle: {width: 2.5, color: C.s2, type: [6, 6]},
+            itemStyle: {color: C.s2}},
+          {name: "Prognoz", type: "line", data: A.trend.f_inc, smooth: .4,
+            symbol: "circle", symbolSize: 7,
+            lineStyle: {width: 2.5, color: C.gold, type: [3, 5]},
+            itemStyle: {color: C.gold, borderColor: "#fff", borderWidth: 1.5}},
+          {name: "Prognoz", type: "line", data: A.trend.f_exp, smooth: .4,
+            showSymbol: false, legendHoverLink: false,
+            lineStyle: {width: 1.6, color: C.gold, opacity: .5, type: [3, 5]},
+            tooltip: {show: false}}
+        ]
+      });
+    }
+    // 3) Yo'nalishlar
+    var de = make("an-dirs");
+    if (de && A.dirs && A.dirs.length){
+      de.setOption({
+        animationDuration: anim ? 900 : 0,
+        grid: {left: 4, right: 44, top: 26, bottom: 4, containLabel: true},
+        legend: {top: 0, left: 0, icon: "roundRect", itemWidth: 15, itemHeight: 5,
+          textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+        tooltip: {trigger: "axis", axisPointer: {type: "shadow"}, padding: [10, 14],
+          backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        yAxis: {type: "category", data: A.dirs.map(function(d){ return d.name; }).reverse(),
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.txt, fontSize: 12, fontWeight: 600, fontFamily: FONT}},
+        series: [
+          {name: "Tushum", type: "bar", barWidth: 13,
+            data: A.dirs.map(function(d){ return d.income; }).reverse(),
+            itemStyle: {color: new echarts.graphic.LinearGradient(0, 0, 1, 0,
+              [{offset: 0, color: C.s1 + "66"}, {offset: 1, color: C.s1}]),
+              borderRadius: [0, 6, 6, 0]}},
+          {name: "Marja", type: "bar", barWidth: 13,
+            data: A.dirs.map(function(d){ return d.margin; }).reverse(),
+            itemStyle: {color: new echarts.graphic.LinearGradient(0, 0, 1, 0,
+              [{offset: 0, color: C.green + "55"}, {offset: 1, color: C.green}]),
+              borderRadius: [0, 6, 6, 0]},
+            label: {show: true, position: "right", fontSize: 10.5, fontFamily: FONT,
+              color: C.mut, formatter: function(p){
+                var d = A.dirs.slice().reverse()[p.dataIndex];
+                return d.margin_pct + "%";
+              }}}
+        ]
+      });
+    }
+    // 4) Xarajat tarkibi — donut
+    var me = make("an-mix");
+    if (me && A.mix && A.mix.length){
+      var pal = [C.s2, C.gold, C.s1, "#b18cf2", "#4cc3cf", "#9fd06a",
+                 "#f29a5c", C.red, C.mut];
+      me.setOption({
+        animationDuration: anim ? 900 : 0,
+        tooltip: {trigger: "item", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){
+            return p.name + "<br><b>" + echFull(p.value) + "</b> · " + p.percent + "%";
+          }},
+        legend: {type: "scroll", orient: "vertical", right: 0, top: "middle",
+          itemWidth: 9, itemHeight: 9, itemGap: 9,
+          textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT},
+          formatter: function(n){ return n.length > 20 ? n.slice(0, 19) + "…" : n; }},
+        series: [{type: "pie", radius: ["46%", "72%"], center: ["30%", "50%"],
+          avoidLabelOverlap: true, padAngle: 2,
+          itemStyle: {borderRadius: 6, borderColor: "transparent", borderWidth: 0},
+          label: {show: false}, labelLine: {show: false},
+          emphasis: {scale: true, scaleSize: 6,
+            itemStyle: {shadowBlur: 16, shadowColor: "rgba(0,0,0,.35)"}},
+          data: A.mix.map(function(r, i){
+            return {name: r.cat, value: r.val,
+                    itemStyle: {color: pal[i % pal.length]}};
+          })}]
+      });
+    }
+    // 5) Qarzdorlik yoshi
+    var ae = make("an-aging");
+    if (ae && A.aging){
+      var acols = [C.gold, "#f0a24a", C.s2, C.red];
+      ae.setOption({
+        animationDuration: anim ? 900 : 0,
+        grid: {left: 4, right: 10, top: 18, bottom: 4, containLabel: true},
+        tooltip: {trigger: "item", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){
+            return p.name + "<br><b>" + echFull(p.value) + "</b> · " +
+                   A.aging[p.dataIndex].n + " kishi";
+          }},
+        xAxis: {type: "category", data: A.aging.map(function(b){ return b.label; }),
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        series: [{type: "bar", barWidth: "48%",
+          data: A.aging.map(function(b, i){
+            return {value: b.val, itemStyle: {
+              color: grad2(acols[i], acols[i] + "77"), borderRadius: 7,
+              shadowColor: acols[i] + "55", shadowBlur: 10, shadowOffsetY: 3}};
+          }),
+          label: {show: true, position: "top", fontSize: 10.5, fontFamily: FONT,
+            color: C.mut, formatter: function(p){ return echShort(p.value); }}}]
+      });
+    }
+    // 6) Qaytarishlar
+    var re = make("an-ref");
+    if (re && A.refunds){
+      var MN = ["Yan","Fev","Mar","Apr","May","Iyn","Iyl","Avg","Sen","Okt","Noy","Dek"];
+      re.setOption({
+        animationDuration: anim ? 900 : 0,
+        grid: {left: 4, right: 10, top: 18, bottom: 4, containLabel: true},
+        tooltip: {trigger: "axis", axisPointer: {type: "shadow"}, padding: [10, 14],
+          backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "category", data: MN,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10, fontFamily: FONT}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        series: [{type: "bar", barWidth: "52%", data: A.refunds,
+          itemStyle: {color: grad2(C.red, C.red + "66"), borderRadius: 5}}]
+      });
+    }
   }
+  if (!D) return;
   var tip = {
     trigger: "axis", padding: [10, 14],
     backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
@@ -1061,7 +1298,8 @@ function initCharts(){
       document.querySelectorAll(".ech-gauge").forEach(function(el){
         var i = echarts.getInstanceByDom(el); if (i) i.resize();
       });
-      ["ech-main", "ech-wf"].forEach(function(id){
+      ["ech-main", "ech-wf", "an-pnl", "an-trend", "an-dirs", "an-mix",
+       "an-aging", "an-ref"].forEach(function(id){
         var el = document.getElementById(id);
         var i = el && echarts.getInstanceByDom(el);
         if (i) i.resize();

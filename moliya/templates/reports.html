@@ -1,8 +1,7 @@
 {% extends "base.html" %}
-{% import "_charts.html" as viz %}
 {% block body %}
 <h1>Tahlillar</h1>
-<p class="sub">{{ '%02d'|format(m) }}.{{ y }} oyi bo'yicha</p>
+<p class="sub">Raqamlar ortidagi ma'no: foyda qayerdan, xavf qayerda, keyingi oy nima kutilyapti</p>
 
 <div class="monthnav">
   {% set py, pm = (y-1, 12) if m == 1 else (y, m-1) %}
@@ -12,41 +11,168 @@
   <a class="chip" href="?y={{ny}}&m={{nm}}">{{ '%02d'|format(nm) }}.{{ ny }} →</a>
 </div>
 
-<div class="grid g2">
-  <div class="card">
-    <h2>Pul qayerdan keldi</h2>
-    <div class="tablewrap">
-    <table>
-      {% for cat, v in cf.income.items() %}
-      <tr><td>{{ cat }}</td><td class="r pos">{{ v|grp }}</td></tr>
-      {% else %}<tr><td colspan="2"><div class="empty">Bu oyda kirim yo'q</div></td></tr>{% endfor %}
-      <tr><td><b>Jami kirdi</b></td><td class="r pos"><b>{{ cf.income_total|grp }}</b></td></tr>
-    </table>
-    </div>
+<script type="application/json" id="an-data">{{ cj|tojson }}</script>
+
+{# ── 1. Avtomatik xulosalar ── #}
+{% if an.insights %}
+<div class="sec-l">Diqqat talab qiladi</div>
+<div class="ins-grid">
+  {% for i in an.insights %}
+  <div class="ins {{ i.kind }}">
+    <span class="ins-ic">
+      {% if i.kind == 'bad' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      {% elif i.kind == 'warn' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      {% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>{% endif %}
+    </span>
+    <div><b>{{ i.title }}</b><p>{{ i.text }}</p></div>
   </div>
-  <div class="card">
-    <h2>Pul qayerga ketdi</h2>
-    <div class="tablewrap">
-    <table>
-      {% for cat, v in cf.expense.items() %}
-      <tr><td>{{ cat }}</td><td class="r neg">{{ v|grp }}</td></tr>
-      {% else %}<tr><td colspan="2"><div class="empty">Bu oyda chiqim yo'q</div></td></tr>{% endfor %}
-      <tr><td><b>Jami chiqdi</b></td><td class="r neg"><b>{{ cf.expense_total|grp }}</b></td></tr>
-    </table>
-    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── 2. Asosiy ko'rsatkichlar ── #}
+<div class="grid g4" style="margin-top:14px">
+  <div class="card kpi">
+    <div class="l">Sof tushum</div>
+    <div class="v pos">{{ an.pnl.net_rev|grp }}</div>
+    <div class="h">qaytarishlar chegirilgan</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Yalpi marja</div>
+    <div class="v">{{ '%.0f'|format(an.pnl.gross_pct) }}%</div>
+    <div class="h">{{ an.pnl.gross|grp }} so'm</div>
+  </div>
+  <div class="card kpi {{ 'alert' if an.pnl.op < 0 }}">
+    <div class="l">Operatsion foyda</div>
+    <div class="v {{ 'pos' if an.pnl.op >= 0 else 'neg' }}">{{ an.pnl.op|grp }}</div>
+    <div class="h">marja {{ '%.0f'|format(an.pnl.op_pct) }}%</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Kassa zaxirasi</div>
+    <div class="v {{ 'neg' if an.runway.months and an.runway.months < 3 }}">
+      {% if an.runway.months %}{{ '%.1f'|format(an.runway.months) }} oy
+      {% else %}<span class="pos">musbat</span>{% endif %}</div>
+    <div class="h">{{ an.runway.cash|grp }} so'm turibdi</div>
   </div>
 </div>
 
+{# ── 3. Foyda qanday shakllandi + trend/prognoz ── #}
 <div class="grid g2" style="margin-top:14px">
   <div class="card">
-    <h2>Reklama samarasi</h2>
+    <h2>Foyda qanday shakllandi</h2>
+    <div class="ech" id="an-pnl"></div>
+    <div class="tablewrap" style="margin-top:6px">
+    <table style="font-size:12.5px">
+      <tr><td>Tushum</td><td class="r pos">{{ an.pnl.income|grp }}</td></tr>
+      <tr><td>− Qaytarishlar</td><td class="r neg">{{ an.pnl.refunds|grp }}</td></tr>
+      <tr><td>− O'zgaruvchan (jamoa, komissiya, kofe-breyk)</td><td class="r neg">{{ an.pnl.var|grp }}</td></tr>
+      <tr><td><b>= Yalpi foyda</b></td><td class="r"><b>{{ an.pnl.gross|grp }}</b></td></tr>
+      <tr><td>− Marketing</td><td class="r neg">{{ an.pnl.mkt|grp }}</td></tr>
+      <tr><td>− Doimiy (ijara, ma'muriyat...)</td><td class="r neg">{{ an.pnl.fixed|grp }}</td></tr>
+      <tr><td><b>= Operatsion foyda</b></td>
+          <td class="r"><b class="{{ 'pos' if an.pnl.op >= 0 else 'neg' }}">{{ an.pnl.op|grp }}</b></td></tr>
+      {% if an.pnl.fin %}
+      <tr><td>− Dividend va soliqlar</td><td class="r neg">{{ an.pnl.fin|grp }}</td></tr>
+      <tr><td><b>= Egalarga qolgan</b></td>
+          <td class="r"><b class="{{ 'pos' if an.pnl.net >= 0 else 'neg' }}">{{ an.pnl.net|grp }}</b></td></tr>
+      {% endif %}
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Trend va keyingi 3 oy prognozi</h2>
+    <div class="ech" id="an-trend"></div>
+    <div class="mstat" style="margin-top:8px;padding-top:10px;border-top:1px solid var(--line)">
+      {% for i in range(3) %}
+      <div><span class="l">{{ an.trend.labels[an.trend.labels|length - 3 + i]|replace(' ·','') }}</span>
+        <div class="v {{ 'pos' if an.trend.next_net[i] >= 0 else 'neg' }}">{{ an.trend.next_net[i]|grp }}</div>
+        <div style="font-size:10px;color:var(--dim)">kutilayotgan natija</div></div>
+      {% endfor %}
+    </div>
+    <p class="hint" style="margin-top:10px">Prognoz oxirgi 3 oy o'rtachasi va o'sish sur'ati asosida. Uzuq chiziq — bashorat, to'liq chiziq — fakt.</p>
+  </div>
+</div>
+
+{# ── 4. Yo'nalishlar va xarajat tarkibi ── #}
+<div class="grid g2" style="margin-top:14px">
+  <div class="card">
+    <h2>Yo'nalishlar rentabelligi — {{ y }}</h2>
+    <div class="ech" id="an-dirs"></div>
+    <div class="tablewrap" style="margin-top:6px">
+    <table style="font-size:12.5px">
+      <tr><th>Yo'nalish</th><th class="r">Tushum</th><th class="r">Jamoa ish haqi</th>
+          <th class="r">Marja</th><th class="r">Ulush</th></tr>
+      {% for d in an.dirs_year %}
+      <tr>
+        <td><b>{{ d.name }}</b></td>
+        <td class="r pos">{{ d.income|grp }}</td>
+        <td class="r neg">{{ d.salary|grp }}</td>
+        <td class="r"><span class="badge {{ 'b-green' if d.margin_pct >= 60 else ('b-gold' if d.margin_pct >= 30 else 'b-red') }}">{{ '%.0f'|format(d.margin_pct) }}%</span></td>
+        <td class="r" style="color:var(--mut)">{{ '%.0f'|format(d.share) }}%</td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    <p class="hint" style="margin-top:10px">Marja = tushum − shu yo'nalish jamoasining ish haqi. Umumiy (ma'muriy) xarajatlar bu yerga kirmaydi.</p>
+  </div>
+
+  <div class="card">
+    <h2>Pul qayerga ketdi — {{ '%02d'|format(m) }}.{{ y }}</h2>
+    <div class="ech" id="an-mix"></div>
+  </div>
+</div>
+
+{# ── 5. Qarzdorlik yoshi va qaytarishlar ── #}
+<div class="grid g2" style="margin-top:14px">
+  <div class="card {{ 'alert' if an.aging.risk_pct > 40 }}">
+    <h2>Qarzlar qancha vaqtdan beri turibdi</h2>
+    <div class="ech" id="an-aging" style="height:210px"></div>
+    <div class="mstat" style="margin-top:6px;padding-top:10px;border-top:1px solid var(--line)">
+      <div><span class="l">Jami kechikkan</span>
+        <div class="v neg">{{ an.aging.total|grp }}</div></div>
+      <div><span class="l">Odamlar</span><div class="v">{{ an.aging.count }}</div></div>
+      <div><span class="l">60+ kun xavfi</span>
+        <div class="v {{ 'neg' if an.aging.risk else 'pos' }}">{{ '%.0f'|format(an.aging.risk_pct) }}%</div></div>
+    </div>
+    <p class="hint" style="margin-top:10px">Qarz qancha eskisa, qaytish ehtimoli shuncha kamayadi. 60 kundan oshganlarni shaxsan qo'ng'iroq bilan hal qilish kerak — <a href="/debtors">ro'yxat</a>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Qaytarilgan pullar — {{ y }}</h2>
+    <div class="ech" id="an-ref" style="height:210px"></div>
+    <div class="mstat" style="margin-top:6px;padding-top:10px;border-top:1px solid var(--line)">
+      <div><span class="l">Yil bo'yicha</span><div class="v neg">{{ an.refunds.total|grp }}</div></div>
+      <div><span class="l">Tushumdan</span><div class="v">{{ '%.1f'|format(an.refunds.pct) }}%</div></div>
+      <div><span class="l">Hodisalar</span><div class="v">{{ an.refunds.count }}</div></div>
+    </div>
+    {% if an.refunds.big %}
+    <p class="hint" style="margin-top:10px">Eng yirik 5 ta qaytarish jami summaning
+      <b>{{ '%.0f'|format(an.refunds.big_share) }}%</b> ini tashkil qiladi —
+      demak muammo ommaviy emas, aniq holatlarda. Ularni alohida tahlil qilish kerak.</p>
+    <div class="tablewrap">
+    <table style="font-size:12px">
+      {% for t in an.refunds.big %}
+      <tr><td>{{ t.tdate|dmy }}</td><td>{{ t.counterparty or '—' }}</td>
+          <td class="r neg">{{ t.amount|grp }}</td></tr>
+      {% endfor %}
+    </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── 6. Unit-ekonomika va zararsizlik ── #}
+<div class="grid g2" style="margin-top:14px">
+  <div class="card">
+    <h2>Marketing samarasi</h2>
     <div class="tablewrap">
     <table>
       <tr><td>Bu oy yangi o'quvchilar</td><td class="r">{{ ue.new_students }}</td></tr>
       <tr><td>Reklamaga sarflandi</td><td class="r">{{ ue.marketing_spend|grp }}</td></tr>
-      <tr><td><b>1 o'quvchini jalb qilish narxi</b></td><td class="r"><b>{{ ue.cac|grp }}</b></td></tr>
-      <tr><td>1 o'quvchi o'rtacha to'laydigan summa</td><td class="r">{{ ue.avg_check|grp }}</td></tr>
-      <tr><td>1 o'quvchi umri davomida keltiradigan pul</td><td class="r">{{ ue.ltv|grp }}</td></tr>
+      <tr><td><b>1 o'quvchini jalb qilish narxi (CAC)</b></td><td class="r"><b>{{ ue.cac|grp }}</b></td></tr>
+      <tr><td>1 o'quvchi o'rtacha to'lovi</td><td class="r">{{ ue.avg_check|grp }}</td></tr>
+      <tr><td>1 o'quvchi umrbod qiymati (LTV)</td><td class="r">{{ ue.ltv|grp }}</td></tr>
     </table>
     </div>
     <p class="hint" style="margin-top:12px">
@@ -59,7 +185,7 @@
     <h2>Qaysi kanal qancha o'quvchi berdi</h2>
     <div class="tablewrap">
     <table>
-      <tr><th>Kanal</th><th class="r">Sarflandi</th><th class="r">O'quvchi</th><th class="r">1 o'quvchi narxi</th></tr>
+      <tr><th>Kanal</th><th class="r">Sarflandi</th><th class="r">O'quvchi</th><th class="r">1 ta narxi</th></tr>
       {% for ch, r in ue.cac_by_channel.items() %}
       <tr><td>{{ ch }}</td><td class="r">{{ r.spend|grp }}</td>
           <td class="r">{{ r.students }}</td>
@@ -92,10 +218,35 @@
       <tr><td>O'quvchilardan kutilayotgan qarz</td><td class="r {{ 'neg' if acc.receivable }}">{{ acc.receivable|grp }}</td></tr>
     </table>
     </div>
-    <p class="hint" style="margin-top:12px">Muhim tamoyil: o'quvchi to'lagan pul kurs tugagunicha to'liq "bizniki" emas — kurs davomida asta "ishlanadi". «Hali ishlanmagan avans» — bu kelajakdagi majburiyatimiz: shu pulga hali dars berishimiz kerak.</p>
+    <p class="hint" style="margin-top:12px">O'quvchi to'lagan pul kurs tugagunicha to'liq "bizniki" emas — kurs davomida asta "ishlanadi". «Hali ishlanmagan avans» — bu kelajakdagi majburiyat: shu pulga hali dars berishimiz kerak.</p>
   </div>
 </div>
 
+{# ── 7. Oqimlar rentabelligi ── #}
+{% if cohorts %}
+<div class="card m-hide" style="margin-top:14px">
+  <h2>Oqimlar bo'yicha natija</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Oqim</th><th class="r">O'quvchi</th><th class="r">To'ldirildi</th>
+        <th class="r">Tushum</th><th class="r">To'g'ridan-to'g'ri xarajat</th>
+        <th class="r">Marja</th></tr>
+    {% for r in cohorts[:10] %}
+    <tr>
+      <td>{{ r.cohort.name }}</td>
+      <td class="r">{{ r.students }}</td>
+      <td class="r">{{ '%.0f'|format(r.fill_rate) }}%</td>
+      <td class="r pos">{{ r.revenue|grp }}</td>
+      <td class="r neg">{{ r.direct_cost|grp }}</td>
+      <td class="r"><span class="badge {{ 'b-green' if r.margin_pct >= 50 else ('b-gold' if r.margin_pct >= 20 else 'b-red') }}">{{ '%.0f'|format(r.margin_pct) }}%</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── 8. Reja-fakt ── #}
 <div class="card" style="margin-top:14px">
   <h2>Reja va amal (plan-fakt)</h2>
   <details class="adder" style="margin:0 0 12px">

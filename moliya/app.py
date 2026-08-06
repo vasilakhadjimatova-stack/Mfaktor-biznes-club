@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 
+import analytics
 import automation
 import core
 import kpi
@@ -344,11 +345,35 @@ def register_routes(app):
     @app.route("/reports")
     def reports():
         y, m = _ym()
-        return render_template("reports.html", y=y, m=m,
+        an = {
+            "pnl": analytics.pnl(y, m),
+            "trend": analytics.trend(y, m),
+            "runway": analytics.runway(y, m),
+            "dirs": analytics.directions(y, m),
+            "dirs_year": analytics.directions(y),
+            "aging": analytics.aging(),
+            "refunds": analytics.refunds(y),
+            "mix": analytics.expense_mix(y, m),
+            "insights": analytics.insights(y, m),
+        }
+        chart_json = {
+            "pnl": an["pnl"]["steps"],
+            "trend": an["trend"],
+            "dirs": [{"name": d["name"], "income": round(d["income"]),
+                      "margin": round(d["margin"]),
+                      "margin_pct": round(d["margin_pct"], 1)}
+                     for d in an["dirs_year"]],
+            "mix": [{"cat": r["cat"], "val": round(r["val"])} for r in an["mix"]],
+            "aging": [{"label": k, "val": round(v["sum"]), "n": v["n"]}
+                      for k, v in an["aging"]["buckets"].items()],
+            "refunds": an["refunds"]["by_month"],
+        }
+        return render_template("reports.html", y=y, m=m, an=an, cj=chart_json,
                                cf=core.month_cashflow(y, m),
                                acc=core.accrual_summary(),
                                ue=core.unit_economics(y, m),
                                bep=core.break_even(y, m),
+                               cohorts=core.cohort_report(),
                                planfact=core.budget_planfact(y, m))
 
     @app.route("/budget/add", methods=["POST"])
