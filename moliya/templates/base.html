@@ -544,18 +544,18 @@ main > *:nth-child(6){animation-delay:.25s}
 .sky-dot.next::after{content:"";position:absolute;inset:-7px;border-radius:50%;
   border:2px solid var(--green);animation:ringp 2s ease-out infinite}
 @keyframes ringp{0%{transform:scale(.45);opacity:.9}100%{transform:scale(1.35);opacity:0}}
-/* ufqdagi masjid silueti — tabiiy nisbatda markazda, devor ufq bo'ylab */
-.sky-city{position:absolute;left:0;right:0;bottom:-1px;height:54px;z-index:1;pointer-events:none}
-.sky-city .mimg{width:100%;height:100%;background:rgba(8,12,24,.88);transition:background 1.2s;
-  --mm:url(/static/img/mosque.svg);
-  -webkit-mask:var(--mm) center bottom/auto 100% no-repeat;
-  mask:var(--mm) center bottom/auto 100% no-repeat}
-.sky-city .mwall{position:absolute;left:0;right:0;bottom:0;height:9px;
-  background:rgba(8,12,24,.88);transition:background 1.2s}
+/* ufqdagi JONLI rangli masjid (Registon uslubi) — faza CSS-filtr bilan */
+.sky-city{position:absolute;left:0;right:0;bottom:-1px;height:58px;z-index:1;pointer-events:none}
+.sky-city .cfade{position:absolute;inset:0;transition:filter 1.2s}
+.ph-dawn .sky-city .cfade{filter:brightness(.82) saturate(.85)}
+.ph-dusk .sky-city .cfade{filter:brightness(.55) saturate(.75) sepia(.15)}
+.ph-night .sky-city .cfade{filter:brightness(.34) saturate(.55)}
+.sky-city .mimg{position:absolute;inset:0;
+  --mm:url(/static/img/mosque_color.svg);
+  background:var(--mm) center bottom/auto 100% no-repeat}
+.sky-city .mwall{position:absolute;left:0;right:0;bottom:0;height:8px;background:#c9a55e}
 .sky-city .mwall::before{content:"";position:absolute;left:0;right:0;top:-4px;height:4px;
-  background:repeating-linear-gradient(90deg,rgba(8,12,24,.85) 0 9px,transparent 9px 15px)}
-.ph-night .sky-city .mimg,.ph-night .sky-city .mwall{background:rgba(3,5,12,.96)}
-.ph-day .sky-city .mimg,.ph-day .sky-city .mwall{background:rgba(36,50,82,.92)}
+  background:repeating-linear-gradient(90deg,#c9a55e 0 9px,transparent 9px 15px)}
 /* derazalar — qorong'uda chiroq yonadi */
 .city-win{position:absolute;inset:0}
 .city-win i{position:absolute;width:3px;height:5px;border-radius:1.5px;
