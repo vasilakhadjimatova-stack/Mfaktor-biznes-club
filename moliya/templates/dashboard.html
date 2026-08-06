@@ -95,12 +95,33 @@
   </a>
 </div>
 
-{# ── Namoz vaqtlari ── #}
-<div class="pray">
-  <div class="pray-next">
-    <span class="pray-moon"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M240,96a8,8,0,0,1-8,8H216v16a8,8,0,0,1-16,0V104H184a8,8,0,0,1,0-16h16V72a8,8,0,0,1,16,0V88h16A8,8,0,0,1,240,96ZM144,56h8v8a8,8,0,0,0,16,0V56h8a8,8,0,0,0,0-16h-8V32a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16Zm65.14,94.33A88.07,88.07,0,0,1,105.67,46.86a8,8,0,0,0-10.6-9.06A96,96,0,1,0,218.2,160.93a8,8,0,0,0-9.06-10.6Z"/></svg></span>
-    <div><b>{{ pray.next.name }} · {{ pray.next.time }}</b>
-      <span>{{ (pray.left_h ~ ' soat ') if pray.left_h else '' }}{{ pray.left_m }} daqiqa qoldi</span></div>
+{# ── Namoz vaqtlari — jonli osmon manzarasi ── #}
+<div class="pray ph-day">
+  <div class="sky-canvas">
+    <div class="sky-bg"></div>
+    <div class="sky-stars" aria-hidden="true">
+      <i style="left:9%;top:24%"></i><i style="left:16%;top:58%;animation-delay:.7s"></i>
+      <i style="left:26%;top:18%;animation-delay:1.4s"></i><i style="left:34%;top:44%;animation-delay:.3s"></i>
+      <i style="left:45%;top:12%;animation-delay:2.1s"></i><i style="left:54%;top:34%;animation-delay:1s"></i>
+      <i style="left:63%;top:20%;animation-delay:2.6s"></i><i style="left:71%;top:52%;animation-delay:.5s"></i>
+      <i style="left:79%;top:15%;animation-delay:1.8s"></i><i style="left:87%;top:38%;animation-delay:2.3s"></i>
+      <i style="left:93%;top:60%;animation-delay:1.2s"></i><i style="left:40%;top:66%;animation-delay:2.9s"></i>
+    </div>
+    <svg class="sky-arc" viewBox="0 0 360 118" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="skyg" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#f5c15c"/>
+          <stop offset="1" stop-color="#3ee59a"/>
+        </linearGradient>
+      </defs>
+      <path class="arc-base" d="M16,102 Q180,-34 344,102" pathLength="100"/>
+      <path class="arc-prog" d="M16,102 Q180,-34 344,102" pathLength="100"/>
+    </svg>
+    <span class="sky-orb sun" aria-hidden="true"></span>
+    <div class="pray-next">
+      <div><b>{{ pray.next.name }} · {{ pray.next.time }}</b>
+        <span>{{ (pray.left_h ~ ' soat ') if pray.left_h else '' }}{{ pray.left_m }} daqiqa qoldi</span></div>
+    </div>
   </div>
   <div class="pray-times">
     {% for t in pray.times if t.key != 'quyosh' %}
