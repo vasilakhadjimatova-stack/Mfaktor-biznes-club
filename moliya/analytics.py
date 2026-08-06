@@ -13,6 +13,14 @@ import core
 from models import (Contract, Cohort, Course, InstallmentLine,
                     RecurringPayment, Student, Transaction)
 
+def _n(v):
+    """Raqamni bo'shliq bilan ajratib formatlash: 1 234 567."""
+    try:
+        return f"{float(v):,.0f}".replace(",", "\u00a0")
+    except (TypeError, ValueError):
+        return str(v)
+
+
 MN = ["", "Yan", "Fev", "Mar", "Apr", "May", "Iyn",
       "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"]
 
@@ -249,8 +257,8 @@ def insights(year, month):
     # operatsion foyda
     if p["op"] < 0:
         add("bad", "Oy zarar bilan yopilmoqda",
-            f"Operatsion natija {p['op']:,.0f} so'm. Doimiy xarajat "
-            f"{p['fixed']:,.0f} so'm — bu tushumning "
+            f"Operatsion natija {_n(p['op'])} so'm. Doimiy xarajat "
+            f"{_n(p['fixed'])} so'm — bu tushumning "
             f"{p['fixed']/p['net_rev']*100 if p['net_rev'] else 0:.0f}% i.")
     elif p["op_pct"] < 15:
         add("warn", "Foyda marjasi past",
@@ -275,25 +283,25 @@ def insights(year, month):
         if ue["ltv_cac"] < 3:
             add("warn", "Jalb qilish narxi qimmat",
                 f"LTV/CAC = {ue['ltv_cac']:.1f} (3 dan yuqori bo'lishi kerak). "
-                f"1 o'quvchi {ue['cac']:,.0f} so'mga tushmoqda.")
+                f"1 o'quvchi {_n(ue['cac'])} so'mga tushmoqda.")
         else:
             add("good", "Marketing samarali",
                 f"LTV/CAC = {ue['ltv_cac']:.1f} — 1 so'm reklama "
                 f"{ue['ltv_cac']:.1f} so'm qiymat keltirmoqda.")
     elif ue["marketing_spend"] and not ue["new_students"]:
         add("bad", "Reklama pul yemoqda, natija yo'q",
-            f"Bu oy {ue['marketing_spend']:,.0f} so'm sarflandi, yangi "
+            f"Bu oy {_n(ue['marketing_spend'])} so'm sarflandi, yangi "
             f"shartnoma esa yo'q.")
 
     # qarzdorlik
     if ag["risk"] > 0:
         add("bad" if ag["risk_pct"] > 40 else "warn", "Eski qarzlar xavfi",
-            f"60 kundan oshgan qarz {ag['risk']:,.0f} so'm — bu barcha "
+            f"60 kundan oshgan qarz {_n(ag['risk'])} so'm — bu barcha "
             f"kechikkanlarning {ag['risk_pct']:.0f}% i. Bunday qarzlar "
             f"odatda qaytmaydi, darhol ishlash kerak.")
     elif ag["total"]:
         add("warn", "Kechikkan to'lovlar bor",
-            f"Jami {ag['total']:,.0f} so'm, {ag['count']} kishi — hammasi "
+            f"Jami {_n(ag['total'])} so'm, {ag['count']} kishi — hammasi "
             f"60 kungacha, hali qaytarish oson.")
 
     # kassa zaxirasi
@@ -304,7 +312,7 @@ def insights(year, month):
                 f"Xavfsiz daraja — 3–6 oy.")
         else:
             add("warn", "Kassa kamayib bormoqda",
-                f"Oxirgi 3 oyda o'rtacha oyiga {abs(rw['avg_net']):,.0f} so'm "
+                f"Oxirgi 3 oyda o'rtacha oyiga {_n(abs(rw['avg_net']))} so'm "
                 f"kamaymoqda, zaxira {rw['months']:.1f} oyga yetadi.")
 
     # yo'nalishlar
@@ -312,8 +320,8 @@ def insights(year, month):
     if weak:
         w = weak[0]
         add("bad", f"{w['name']} yo'nalishi zarar keltirmoqda",
-            f"Tushum {w['income']:,.0f}, jamoa ish haqi {w['salary']:,.0f} — "
-            f"marja {w['margin']:,.0f} so'm.")
+            f"Tushum {_n(w['income'])}, jamoa ish haqi {_n(w['salary'])} — "
+            f"marja {_n(w['margin'])} so'm.")
     lead = dirs[0] if dirs and dirs[0]["income"] else None
     if lead and lead["share"] > 65:
         add("warn", "Bitta yo'nalishga bog'liqlik",

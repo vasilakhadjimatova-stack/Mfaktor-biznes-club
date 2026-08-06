@@ -25,6 +25,14 @@ from models import (Contract, Course, RecurringPayment, Transaction,
                     DIRECTION_INCOME, DIRECTION_SALARY)
 
 # tushumga qarab taqsimlanadigan umumiy o'zgaruvchan statyalar
+def _n(v):
+    """Raqamni bo'shliq bilan ajratib formatlash: 1 234 567."""
+    try:
+        return f"{float(v):,.0f}".replace(",", "\u00a0")
+    except (TypeError, ValueError):
+        return str(v)
+
+
 SHARED_VAR_CATS = ["Премия", "Кофе-брейк", "Выпускные расходы",
                    "Комиссия банка"]
 REFUND_CAT = "Возврат клиенту"
@@ -365,8 +373,8 @@ def _verdict(contribution, bep_full, capacity, at_full, safety,
                        f"lekin guruhga faqat {capacity} kishi sig'adi.")
         if min_price:
             reasons.append(f"30% marja uchun narx kamida "
-                           f"{min_price:,.0f} so'm bo'lishi kerak "
-                           f"(hozir {price:,.0f}).")
+                           f"{_n(min_price)} so'm bo'lishi kerak "
+                           f"(hozir {_n(price)}).")
         return {"ok": False, "level": "bad",
                 "title": "Kurs joriy shartlarda zarar keltiradi",
                 "reasons": reasons}
@@ -385,7 +393,7 @@ def _verdict(contribution, bep_full, capacity, at_full, safety,
                 "reasons": [
                     f"Zararsizlik {bep_full:.0f} o'quvchida — bu sig'imning "
                     f"{bep_full/capacity*100:.0f}% i.",
-                    f"To'liq guruhda foyda {at_full['profit']:,.0f} so'm "
+                    f"To'liq guruhda foyda {_n(at_full['profit'])} so'm "
                     f"({at_full['margin_pct']:.0f}% marja).",
                     f"Xavfsizlik zaxirasi {safety:.0f}% — guruh to'lmasa ham "
                     f"chidaydi."]}

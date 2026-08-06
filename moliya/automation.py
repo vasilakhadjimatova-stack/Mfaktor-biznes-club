@@ -26,6 +26,14 @@ from models import (AutoEvent, Contract, InstallmentLine, RecurringPayment,
 import core
 
 
+def _n(v):
+    """Raqamni bo'shliq bilan ajratib formatlash: 1 234 567."""
+    try:
+        return f"{float(v):,.0f}".replace(",", "\u00a0")
+    except (TypeError, ValueError):
+        return str(v)
+
+
 def log_event(kind, title, detail="", contract_id=None):
     db.session.add(AutoEvent(kind=kind, title=title, detail=detail,
                              contract_id=contract_id))
@@ -64,7 +72,7 @@ def on_payment(contract, amount, wallet_code):
 
     # 6) jurnal
     log_event("payment",
-              f"To'lov: {contract.student.name} — {amount:,.0f} so'm",
+              f"To'lov: {contract.student.name} — {_n(amount)} so'm",
               " → ".join(steps), contract.id)
     return steps, receipt
 
@@ -76,14 +84,14 @@ def receipt_text(contract, amount):
         "✅ To'lov qabul qilindi — MFAKTOR BIZNES MAKTABI",
         f"O'quvchi: {c.student.name}",
         f"Kurs: {c.cohort.course.name} ({c.cohort.name})",
-        f"Summa: {amount:,.0f} so'm",
-        f"Jami to'landi: {c.paid_total():,.0f} / {c.net_price:,.0f} so'm",
+        f"Summa: {_n(amount)} so'm",
+        f"Jami to'landi: {_n(c.paid_total())} / {_n(c.net_price)} so'm",
     ]
     if left > 0.01:
         nxt = next((l for l in c.lines if l.paid < l.amount - 0.01), None)
         if nxt:
             lines.append(f"Keyingi to'lov: {nxt.due_date.strftime('%d.%m.%Y')} "
-                         f"— {nxt.amount - nxt.paid:,.0f} so'm")
+                         f"— {_n(nxt.amount - nxt.paid)} so'm")
     else:
         lines.append("Shartnoma to'liq to'landi. Rahmat! 🎉")
     return "\n".join(lines).replace(",", " ")
@@ -98,7 +106,7 @@ def welcome_text(contract):
             f"Siz {contract.cohort.course.name} ({contract.cohort.name}) "
             f"oqimiga qabul qilindingiz. Boshlanish: "
             f"{contract.cohort.start_date.strftime('%d.%m.%Y')}.\n"
-            f"Shartnoma summasi: {contract.net_price:,.0f} so'm, "
+            f"Shartnoma summasi: {_n(contract.net_price)} so'm, "
             f"{n_parts} qismga bo'lib to'lanadi. Ilk to'lov: "
             f"{contract.lines[0].due_date.strftime('%d.%m.%Y') if contract.lines else '—'}."
             ).replace(",", " ")
@@ -118,7 +126,7 @@ def on_contract_created(contract, n_parts):
 
 def on_refund(contract, amount):
     log_event("refund",
-              f"Pul qaytarildi: {contract.student.name} — {amount:,.0f} so'm",
+              f"Pul qaytarildi: {contract.student.name} — {_n(amount)} so'm",
               "Chiqim yozildi → shartnoma holati yangilandi → "
               "tan olingan daromad qayta hisoblandi", contract.id)
 
@@ -132,7 +140,7 @@ def reminder_text(item):
     return (f"Assalomu alaykum, {c.student.name}!\n"
             f"MFAKTOR: {c.cohort.course.name} kursi bo'yicha "
             f"{item['line'].due_date.strftime('%d.%m.%Y')} dagi to'lovingiz "
-            f"({item['rest']:,.0f} so'm) {item['days']} kun kechikdi.\n"
+            f"({_n(item['rest'])} so'm) {item['days']} kun kechikdi.\n"
             f"Iltimos, imkon qadar tez to'lab qo'ying. Savollar bo'lsa shu "
             f"raqamga yozing. Rahmat!").replace(",", " ")
 
@@ -177,7 +185,7 @@ def close_day(today=None):
 
     log_event("day",
               f"Kun yopildi: {today.strftime('%d.%m.%Y')}",
-              f"Kirim {inc:,.0f} · Chiqim {exp:,.0f} · "
+              f"Kirim {_n(inc)} · Chiqim {_n(exp)} · "
               f"{len(reminders)} eslatma tayyorlandi · "
               f"{len(rec_due)} takroriy to'lov kutilmoqda")
     return {"today": today, "reminders": reminders, "rec_due": rec_due,
@@ -194,7 +202,7 @@ def mark_reminded(line_id, channel="manual", today=None):
             log_event("reminder",
                       f"Eslatma yuborildi: {line.contract.student.name}",
                       f"{line.due_date.strftime('%d.%m.%Y')} qatori, "
-                      f"qoldiq {line.amount - line.paid:,.0f} so'm",
+                      f"qoldiq {_n(line.amount - line.paid)} so'm",
                       line.contract_id)
 
 
@@ -209,5 +217,5 @@ def book_recurring(rec_id, wallet_code, today=None):
         amount=r.amount, category=r.category, counterparty=r.name,
         comment="Takrorlanuvchi to'lov (avtomatika)"))
     log_event("payment", f"Takroriy to'lov yozildi: {r.name}",
-              f"{r.amount:,.0f} so'm → {r.category}")
+              f"{_n(r.amount)} so'm → {r.category}")
     return r

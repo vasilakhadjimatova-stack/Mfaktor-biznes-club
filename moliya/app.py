@@ -165,7 +165,8 @@ def register_routes(app):
         amin, amax = args.get("amin", ""), args.get("amax", "")
         def _f(v):
             try:
-                return float(str(v).replace(" ", "").replace(",", "."))
+                return float(str(v).replace(" ", "").replace("\u00a0", "")
+                             .replace(",", "."))
             except (ValueError, TypeError):
                 return None
         if _f(amin) is not None:
@@ -311,7 +312,8 @@ def register_routes(app):
         f = request.args
 
         def num(key, default=0.0):
-            v = (f.get(key, "") or "").replace(" ", "").replace(",", ".")
+            v = ((f.get(key, "") or "").replace(" ", "")
+                 .replace("\u00a0", "").replace(",", "."))
             try:
                 return float(v)
             except ValueError:
