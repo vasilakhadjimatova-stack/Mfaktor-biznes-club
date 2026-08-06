@@ -309,27 +309,57 @@ def register_routes(app):
     def launch_planner():
         courses = Course.query.filter_by(is_active=True).all()
         f = request.args
+
+        def num(key, default=0.0):
+            v = (f.get(key, "") or "").replace(" ", "").replace(",", ".")
+            try:
+                return float(v)
+            except ValueError:
+                return default
+
+        sel = {k: f.get(k, v) for k, v in [
+            ("course_id", ""), ("new_name", ""), ("price", ""),
+            ("capacity", "40"), ("duration", "60"),
+            ("discount", "0"), ("sales", "10"), ("material", "150000"),
+            ("teacher_mode", "hourly"), ("hours", "24"), ("cat", "A"),
+            ("teacher_fix", ""), ("extra", "0"),
+            ("cac_mode", "funnel"), ("cpl", "35000"), ("cac", ""),
+            ("cr1", "50"), ("cr2", "48"), ("cr3", "33"),
+            ("share", ""), ("target", "0")]}
+
         result = None
-        sel = {"course_id": f.get("course_id", ""),
-               "price": f.get("price", ""),
-               "capacity": f.get("capacity", "30"),
-               "duration": f.get("duration", "60"),
-               "cac": f.get("cac", "")}
         if f.get("price"):
             course = db.session.get(Course, int(f.get("course_id") or 0))
-            cname = course.name if course else f.get("new_name", "Yangi kurs")
+            cname = course.name if course else (f.get("new_name") or "Yangi kurs")
+            # o'qituvchi to'lovi: soatbay yoki qat'iy
+            if sel["teacher_mode"] == "hourly":
+                rate = planner.MENTOR_RATES.get(sel["cat"], 150_000)
+                teacher = num("hours", 24) * rate
+            else:
+                teacher = num("teacher_fix", 0)
+            share = num("share", -1)
             try:
-                result = planner.launch_plan(
-                    cname,
-                    price=float(f.get("price")),
-                    capacity=int(f.get("capacity") or 30),
-                    duration_days=int(f.get("duration") or 60),
-                    cac=float(f["cac"]) if f.get("cac") else None)
+                result = planner.plan_v2(
+                    price=num("price"), capacity=int(num("capacity", 40)),
+                    duration_days=int(num("duration", 60)),
+                    discount_pct=num("discount") / 100,
+                    sales_pct=num("sales") / 100,
+                    material_per_student=num("material"),
+                    teacher_cost=teacher, extra_fixed=num("extra"),
+                    fixed_share=(share / 100) if share >= 0 else None,
+                    cac=(num("cac") if sel["cac_mode"] == "direct" and f.get("cac") else None),
+                    cpl=(num("cpl") if sel["cac_mode"] == "funnel" else None),
+                    funnel={"cr_quality": num("cr1", 50) / 100,
+                            "cr_demo": num("cr2", 48) / 100,
+                            "cr_sale": num("cr3", 33) / 100},
+                    target_profit=num("target"),
+                    course_name=cname)
                 result["course_name"] = cname
-            except (ValueError, ZeroDivisionError):
-                flash("Kiritilgan qiymatlarni tekshiring", "error")
-        return render_template("planner.html", courses=courses,
-                               sel=sel, r=result)
+                result["teacher_cost_calc"] = teacher
+            except (ValueError, ZeroDivisionError) as e:
+                flash(f"Kiritilgan qiymatlarni tekshiring: {e}", "err")
+        return render_template("planner.html", courses=courses, sel=sel,
+                               r=result, rates=planner.MENTOR_RATES)
 
     # ── Shartnomalar ─────────────────────────────────────────────
     @app.route("/contracts")

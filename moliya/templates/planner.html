@@ -1,125 +1,193 @@
 {% extends "base.html" %}
-{% import "_charts.html" as viz %}
 {% block body %}
 <h1>Launch-kalkulyator</h1>
-<p class="sub">Yangi kurs ochishdan oldin: qancha o'quvchi kerak va qancha foyda bo'ladi — real raqamlar asosida</p>
+<p class="sub">Yangi kurs ochishdan oldin: zararsizlik nuqtasi, xavfsizlik zaxirasi, sezuvchanlik va tavsiya — real moliya tarixi asosida</p>
 
-<div class="card">
-  <form class="inline" method="get" action="/planner">
-    <div><label>Kurs</label>
-      <select name="course_id">
-        <option value="">— Yangi kurs —</option>
-        {% for c in courses %}<option value="{{ c.id }}" {{ 'selected' if sel.course_id == c.id|string }}>{{ c.name }}</option>{% endfor %}
-      </select></div>
-    <div><label>Narx (1 o'quvchi)</label><input name="price" type="number" step="any" value="{{ sel.price }}" required placeholder="12 000 000"></div>
-    <div><label>O'rinlar (sig'im)</label><input name="capacity" type="number" value="{{ sel.capacity }}"></div>
-    <div><label>Davomiylik (kun)</label><input name="duration" type="number" value="{{ sel.duration }}"></div>
-    <div><label>CAC (bo'sh = real tarix)</label><input name="cac" type="number" step="any" value="{{ sel.cac }}" placeholder="avto"></div>
-    <div><button>Hisoblash</button></div>
+<div class="card filt">
+  <form method="get" action="/planner">
+    <div class="sec-l" style="margin:0 0 8px">Kurs va narx</div>
+    <div class="filt-grid">
+      <div><label>Kurs</label>
+        <select name="course_id">
+          <option value="">— Yangi kurs —</option>
+          {% for c in courses %}<option value="{{ c.id }}" {{ 'selected' if sel.course_id == c.id|string }}>{{ c.name }}</option>{% endfor %}
+        </select></div>
+      <div><label>Yangi kurs nomi</label><input name="new_name" value="{{ sel.new_name }}" placeholder="Masalan: РОП Pro"></div>
+      <div><label>Narx (1 o'quvchi)</label><input name="price" type="number" step="any" value="{{ sel.price }}" required placeholder="12000000"></div>
+      <div><label>Chegirma, %</label><input name="discount" type="number" step="any" value="{{ sel.discount }}"></div>
+      <div><label>O'rinlar soni</label><input name="capacity" type="number" value="{{ sel.capacity }}"></div>
+      <div><label>Davomiylik, kun</label><input name="duration" type="number" value="{{ sel.duration }}"></div>
+    </div>
+
+    <div class="sec-l" style="margin:16px 0 8px">O'qituvchi va xarajatlar</div>
+    <div class="filt-grid">
+      <div><label>To'lov turi</label>
+        <select name="teacher_mode">
+          <option value="hourly" {{ 'selected' if sel.teacher_mode == 'hourly' }}>Soatbay</option>
+          <option value="fix" {{ 'selected' if sel.teacher_mode == 'fix' }}>Qat'iy summa</option>
+        </select></div>
+      <div><label>Soatlar</label><input name="hours" type="number" step="any" value="{{ sel.hours }}"></div>
+      <div><label>Mentor toifasi</label>
+        <select name="cat">
+          {% for k, v in rates.items() %}<option value="{{ k }}" {{ 'selected' if sel.cat == k }}>{{ k }} — {{ v|grp }}/soat</option>{% endfor %}
+        </select></div>
+      <div><label>Qat'iy summa</label><input name="teacher_fix" type="number" step="any" value="{{ sel.teacher_fix }}" placeholder="0"></div>
+      <div><label>1 o'quvchi materiallari</label><input name="material" type="number" step="any" value="{{ sel.material }}" placeholder="kofe-breyk, sertifikat"></div>
+      <div><label>Sotuvchi ulushi, %</label><input name="sales" type="number" step="any" value="{{ sel.sales }}"></div>
+      <div><label>Qo'shimcha qat'iy xarajat</label><input name="extra" type="number" step="any" value="{{ sel.extra }}" placeholder="zal, texnika"></div>
+      <div><label>Ofis xarajati ulushi, %</label><input name="share" type="number" step="any" value="{{ sel.share }}" placeholder="avto (tarixdan)"></div>
+    </div>
+
+    <div class="sec-l" style="margin:16px 0 8px">Marketing</div>
+    <div class="filt-grid">
+      <div><label>Hisoblash usuli</label>
+        <select name="cac_mode">
+          <option value="funnel" {{ 'selected' if sel.cac_mode == 'funnel' }}>Voronka orqali (lid narxidan)</option>
+          <option value="direct" {{ 'selected' if sel.cac_mode == 'direct' }}>To'g'ridan-to'g'ri CAC</option>
+        </select></div>
+      <div><label>1 lid narxi (CPL)</label><input name="cpl" type="number" step="any" value="{{ sel.cpl }}"></div>
+      <div><label>Lid → sifatli, %</label><input name="cr1" type="number" step="any" value="{{ sel.cr1 }}"></div>
+      <div><label>Sifatli → demo, %</label><input name="cr2" type="number" step="any" value="{{ sel.cr2 }}"></div>
+      <div><label>Demo → sotuv, %</label><input name="cr3" type="number" step="any" value="{{ sel.cr3 }}"></div>
+      <div><label>CAC (to'g'ridan)</label><input name="cac" type="number" step="any" value="{{ sel.cac }}" placeholder="avto (tarixdan)"></div>
+      <div><label>Maqsadli foyda</label><input name="target" type="number" step="any" value="{{ sel.target }}" placeholder="0"></div>
+      <div class="acts"><button type="submit">Hisoblash</button></div>
+    </div>
   </form>
 </div>
 
 {% if r %}
-{% set m = r.main %}
+<script type="application/json" id="lp-data">{{ {'curve': r.curve, 'matrix': r.matrix, 'drivers': r.drivers, 'bep_full': r.bep_full, 'bep_cash': r.bep_cash, 'cost': {'sales': r.at_full.sales, 'refunds': r.at_full.refunds, 'materials': r.at_full.materials, 'marketing': r.at_full.marketing, 'teacher': r.at_full.teacher, 'extra': r.at_full.extra, 'fixed_alloc': r.at_full.fixed_alloc, 'profit': r.at_full.profit}}|tojson }}</script>
+
+{# ── Xulosa ── #}
+<div class="ins {{ r.verdict.level }}" style="margin-top:14px">
+  <span class="ins-ic">
+    {% if r.verdict.level == 'bad' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+    {% elif r.verdict.level == 'warn' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    {% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>{% endif %}
+  </span>
+  <div><b>{{ r.verdict.title }} — {{ r.course_name }}</b>
+    {% for x in r.verdict.reasons %}<p>{{ x }}</p>{% endfor %}</div>
+</div>
+
+{# ── Asosiy raqamlar ── #}
 <div class="grid g4" style="margin-top:14px">
   <div class="card kpi">
-    <div class="l">Zarar ko'rmaslik chegarasi</div>
-    <div class="v gold">{{ '%.1f'|format(m.bep_full) if m.bep_full is not none else '∞' }}</div>
-    <div class="h">o'quvchi yig'ilishi shart</div>
+    <div class="l">Zararsizlik (to'liq)</div>
+    <div class="v gold">{{ '%.1f'|format(r.bep_full) if r.bep_full is not none else '∞' }}</div>
+    <div class="h">o'quvchi · sig'imning {{ '%.0f'|format(r.bep_full / r.inputs.capacity * 100) if r.bep_full else '—' }}%</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Kurs o'zini oqlaydi</div>
+    <div class="v">{{ '%.1f'|format(r.bep_cash) if r.bep_cash is not none else '∞' }}</div>
+    <div class="h">ofis xarajatisiz</div>
   </div>
   <div class="card kpi">
     <div class="l">1 o'quvchi hissasi</div>
-    <div class="v {{ 'pos' if m.contribution_after_cac > 0 else 'neg' }}">{{ m.contribution_after_cac|grp }}</div>
-    <div class="h">narx − xarajatlar − qaytarish − reklama</div>
+    <div class="v {{ 'pos' if r.contribution > 0 else 'neg' }}">{{ r.contribution|grp }}</div>
+    <div class="h">narxning {{ '%.0f'|format(r.contr_pct) }}% i</div>
   </div>
-  <div class="card kpi">
-    <div class="l">To'liq guruhda foyda</div>
-    {% set full = m.fills[-1] %}
-    <div class="v {{ 'pos' if full.margin_full > 0 else 'neg' }}">{{ full.margin_full|grp }}</div>
-    <div class="h">{{ full.students }} o'quvchida · {{ '%.0f'|format(full.margin_full_pct) }}% marja</div>
-  </div>
-  <div class="card kpi">
+  <div class="card kpi {{ 'alert' if r.safety is not none and r.safety < 25 }}">
     <div class="l">Xavfsizlik zaxirasi</div>
-    {% if m.bep_full is not none and m.bep_full > 0 %}
-    {% set safety = (r.capacity - m.bep_full) / r.capacity * 100 %}
-    <div class="v {{ 'pos' if safety > 30 else ('gold' if safety > 0 else 'neg') }}">{{ '%.0f'|format(safety) }}%</div>
-    <div class="h">o'rinlar chegaradan qancha yuqori</div>
-    {% else %}<div class="v neg">—</div><div class="h">hissa musbat emas!</div>{% endif %}
+    <div class="v {{ 'pos' if r.safety and r.safety >= 25 else 'neg' }}">
+      {{ '%.0f'|format(r.safety) ~ '%' if r.safety is not none else '—' }}</div>
+    <div class="h">guruh shuncha to'lmasa ham chidaydi</div>
   </div>
 </div>
 
-<div class="card" style="margin-top:14px">
-  <h2>Foyda o'quvchilar soniga qarab</h2>
-  {{ viz.bep_chart(r.bep_viz) }}
-  <p class="sub" style="margin:8px 0 0;font-size:12px">Chiziq nolni kesib o'tgan joy — zararsizlik nuqtasi. Undan o'ngda foyda, chapda zarar.</p>
-</div>
-
+{# ── Foyda egri chizig'i + xarajat tarkibi ── #}
 <div class="grid g2" style="margin-top:14px">
   <div class="card">
-    <h2>Tahlil asosi — real tarixdan</h2>
-    <table>
-      <tr><td>Yo'nalish</td><td class="r">{{ r.dir.income_cat }}</td></tr>
-      <tr><td>O'zgaruvchan xarajat ulushi <span style="color:var(--dim)">(fakt)</span></td>
-          <td class="r">{{ '%.0f'|format(r.dir.var_ratio * 100) }}%</td></tr>
-      <tr><td>Qaytarish foizi <span style="color:var(--dim)">(fakt)</span></td>
-          <td class="r">{{ '%.1f'|format(r.base.refund_rate * 100) }}%</td></tr>
-      <tr><td>CAC <span style="color:var(--dim)">({{ 'siz kiritgan' if sel.cac else 'fakt, ' ~ r.base.n_payers ~ ' to`lovchi' }})</span></td>
-          <td class="r">{{ r.cac|grp }}</td></tr>
-      <tr><td>Doimiy xarajat (oy, TB 2026)</td><td class="r">{{ r.base.fixed_monthly|grp }}</td></tr>
-      <tr><td>Oqimga tushadigan doimiy ulush</td>
-          <td class="r">{{ '%.0f'|format(r.share * 100) }}% × {{ '%.1f'|format(m.months) }} oy = {{ m.fixed_alloc|grp }}</td></tr>
-    </table>
-    <p class="hint" style="margin-top:12px">Ulushlar {{ r.dir.income_cat }} yo'nalishining 2026 yildagi haqiqiy tushum-xarajatidan olindi — taxmin emas.</p>
+    <h2>Foyda o'quvchilar soniga qarab</h2>
+    <div class="ech" id="lp-curve"></div>
+    <p class="hint" style="margin-top:8px">Qizil zona — zarar, yashil — foyda. Oltin chiziq: to'liq zararsizlik nuqtasi (ofis xarajati ulushi bilan), ko'k: kurs faqat o'zini oqlaydigan nuqta.</p>
   </div>
-
   <div class="card">
-    <h2>To'ldirilish ssenariylari</h2>
-    <table>
-      <tr><th>O'quvchi</th><th class="r">Tushum</th><th class="r">Barcha xarajat</th>
-          <th class="r">Marja</th><th class="r">%</th></tr>
-      {% for o in m.fills %}
-      <tr>
-        <td><b>{{ o.students }}</b> <span style="color:var(--dim)">({{ '%.0f'|format(o.students / r.capacity * 100) }}%)</span></td>
-        <td class="r">{{ o.revenue|grp }}</td>
-        <td class="r">{{ (o.var_cost + o.refunds + o.marketing + o.fixed_alloc)|grp }}</td>
-        <td class="r {{ 'pos' if o.margin_full > 0 else 'neg' }}"><b>{{ o.margin_full|grp }}</b></td>
-        <td class="r {{ 'pos' if o.margin_full > 0 else 'neg' }}">{{ '%.0f'|format(o.margin_full_pct) }}%</td>
-      </tr>
-      {% endfor %}
-    </table>
-    <h2>Sezuvchanlik — «agar» ssenariylari</h2>
-    <table>
-      <tr><th>Ssenariy</th><th class="r">BEP (o'quvchi)</th><th class="r">To'liq guruh marjasi</th></tr>
-      {% for s in r.scenarios %}
-      {% set sf = s.sim.fills[-1] %}
-      <tr>
-        <td>{{ s.name }}</td>
-        <td class="r">{{ '%.1f'|format(s.sim.bep_full) if s.sim.bep_full is not none else '∞' }}</td>
-        <td class="r {{ 'pos' if sf.margin_full > 0 else 'neg' }}">{{ sf.margin_full|grp }}</td>
-      </tr>
-      {% endfor %}
-    </table>
+    <h2>To'liq guruhda pul qayerga ketadi</h2>
+    <div class="ech" id="lp-cost"></div>
   </div>
 </div>
 
+{# ── Ssenariylar ── #}
 <div class="card" style="margin-top:14px">
-  <h2>Xulosa</h2>
-  {% set full = m.fills[-1] %}
-  <ul style="margin:0;padding-left:20px;line-height:2">
-    {% if m.contribution_after_cac <= 0 %}
-    <li class="neg"><b>Diqqat:</b> bir o'quvchi hissasi manfiy — bu narx/CAC bilan kurs o'zini hech qachon oqlamaydi. Narxni oshiring yoki CAC'ni kamaytiring.</li>
+  <h2>To'lish darajasi bo'yicha natija</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>To'lish</th><th class="r">O'quvchi</th><th class="r">Tushum</th>
+        <th class="r">Reklama</th>{% if r.funnel %}<th class="r">Kerakli lidlar</th>{% endif %}
+        <th class="r">Kurs foydasi</th><th class="r">To'liq foyda</th><th class="r">Marja</th></tr>
+    {% for o in r.fills %}
+    <tr>
+      <td>{{ ['50%','75%','100%'][loop.index0] }}</td>
+      <td class="r">{{ o.n }}</td>
+      <td class="r pos">{{ o.revenue|grp }}</td>
+      <td class="r neg">{{ o.marketing|grp }}</td>
+      {% if r.funnel %}<td class="r">{{ '%.0f'|format(o.leads) }}</td>{% endif %}
+      <td class="r {{ 'pos' if o.profit_direct > 0 else 'neg' }}">{{ o.profit_direct|grp }}</td>
+      <td class="r {{ 'pos' if o.profit > 0 else 'neg' }}"><b>{{ o.profit|grp }}</b></td>
+      <td class="r"><span class="badge {{ 'b-green' if o.margin_pct >= 25 else ('b-gold' if o.margin_pct >= 10 else 'b-red') }}">{{ '%.0f'|format(o.margin_pct) }}%</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% if r.min_price_30 %}
+    {% if r.at_full.margin_pct < 30 %}
+    <p class="hint warn" style="margin-top:12px">30% marjaga chiqish uchun to'liq guruhda narx kamida
+      <b>{{ r.min_price_30|grp }} so'm</b> bo'lishi kerak — hozirgi narx {{ r.inputs.price|grp }},
+      ya'ni <b>{{ (r.min_price_30 - r.inputs.price)|grp }} so'm</b> yetishmaydi.</p>
     {% else %}
-    <li>Zararsizlik uchun kamida <b class="gold">{{ '%.0f'|format(m.bep_full) }} o'quvchi</b> kerak ({{ '%.0f'|format(m.bep_full / r.capacity * 100) }}% to'ldirilish).</li>
-    <li>To'liq guruhda kutilayotgan marja: <b class="{{ 'pos' if full.margin_full > 0 else 'neg' }}">{{ full.margin_full|grp }} so'm ({{ '%.0f'|format(full.margin_full_pct) }}%)</b>.</li>
-    {% set worst = r.scenarios[-1].sim %}
-    {% if worst.bep_full is not none and worst.bep_full > r.capacity %}
-    <li class="neg">CAC 2 baravar oshsa, BEP ({{ '%.0f'|format(worst.bep_full) }}) sig'imdan katta — marketing samaradorligi bu kurs uchun hal qiluvchi.</li>
+    <p class="hint" style="margin-top:12px">Narx zaxirasi: to'liq guruhda narxni
+      <b>{{ r.min_price_30|grp }} so'm</b>gacha tushirsangiz ham 30% marja saqlanadi
+      (hozirgi narxdan {{ (r.inputs.price - r.min_price_30)|grp }} so'm past).
+      Chegirma yoki aksiya rejalashtirishda shu chegaradan pastga tushmang.</p>
     {% endif %}
-    {% if r.base.refund_rate > 0.04 %}
-    <li>Qaytarish fakti {{ '%.1f'|format(r.base.refund_rate * 100) }}% — har 1 foiz punkt pasayishi to'liq guruhda ~{{ (full.revenue * 0.01)|grp }} so'm qo'shimcha marja beradi.</li>
-    {% endif %}
-    {% endif %}
-  </ul>
+  {% endif %}
+</div>
+
+{# ── Sezuvchanlik ── #}
+<div class="grid g2" style="margin-top:14px">
+  <div class="card">
+    <h2>Sezuvchanlik: narx × to'lish</h2>
+    <div class="ech" id="lp-heat" style="height:260px"></div>
+    <p class="hint" style="margin-top:8px">Har katak — shu narx va to'lish darajasidagi foyda. Yashil — foyda, qizil — zarar.</p>
+  </div>
+  <div class="card">
+    <h2>Qaysi omil natijaga eng ko'p ta'sir qiladi</h2>
+    <div class="ech" id="lp-tornado" style="height:260px"></div>
+    <p class="hint" style="margin-top:8px">Har omil ±20% o'zgarganda foyda qanchaga tebranadi. Eng uzun chiziq — eng xavfli va eng foydali richag.</p>
+  </div>
+</div>
+
+{# ── Hisob asoslari ── #}
+<div class="card m-hide" style="margin-top:14px">
+  <h2>Hisob nimaga asoslangan</h2>
+  <div class="grid g2">
+    <div class="tablewrap">
+    <table style="font-size:12.5px">
+      <tr><td>Narx (chegirmadan keyin)</td><td class="r">{{ r.inputs.net_price|grp }}</td></tr>
+      <tr><td>Sotuvchi ulushi</td><td class="r neg">−{{ (r.inputs.net_price * r.inputs.sales_pct)|grp }}</td></tr>
+      <tr><td>Qaytarish zaxirasi ({{ '%.1f'|format(r.inputs.refund_pct * 100) }}%)</td>
+          <td class="r neg">−{{ (r.inputs.net_price * r.inputs.refund_pct)|grp }}</td></tr>
+      <tr><td>Materiallar</td><td class="r neg">−{{ r.inputs.material|grp }}</td></tr>
+      <tr><td>Reklama (CAC)</td><td class="r neg">−{{ r.inputs.cac|grp }}</td></tr>
+      <tr><td><b>1 o'quvchi hissasi</b></td><td class="r"><b class="pos">{{ r.contribution|grp }}</b></td></tr>
+    </table>
+    </div>
+    <div class="tablewrap">
+    <table style="font-size:12.5px">
+      <tr><td>O'qituvchi to'lovi</td><td class="r">{{ r.inputs.teacher_cost|grp }}</td></tr>
+      <tr><td>Qo'shimcha qat'iy</td><td class="r">{{ r.inputs.extra_fixed|grp }}</td></tr>
+      <tr><td>Ofis xarajati ulushi ({{ '%.0f'|format(r.inputs.fixed_share * 100) }}% × {{ '%.1f'|format(r.inputs.months) }} oy)</td>
+          <td class="r">{{ r.fixed_alloc|grp }}</td></tr>
+      <tr><td><b>Jami qoplanishi kerak</b></td><td class="r"><b>{{ r.fixed_total|grp }}</b></td></tr>
+      {% if r.funnel %}
+      <tr><td>1 o'quvchi uchun lidlar</td><td class="r">{{ '%.0f'|format(r.funnel.leads_per_student) }} ta</td></tr>
+      <tr><td>Voronka konversiyasi</td><td class="r">{{ '%.1f'|format(r.funnel.conv * 100) }}%</td></tr>
+      {% endif %}
+    </table>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:12px">Qaytarish foizi, ofis xarajati va standart CAC — dasturga yuklangan real moliya tarixidan olinadi, qo'lda kiritilmagan bo'lsa.</p>
 </div>
 {% endif %}
 {% endblock %}

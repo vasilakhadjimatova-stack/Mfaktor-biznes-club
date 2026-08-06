@@ -617,6 +617,9 @@ main > *:nth-child(6){animation-delay:.25s}
   .arc-prog,.arc-steps,.sky-orb,.sky-caravan{transition:none}
 }
 
+.hint.warn{border-color:var(--gold);background:var(--gold-dim)}
+.hint.warn::before{color:var(--gold)}
+
 /* Kassa filtr paneli */
 .filt{padding:14px 16px}
 .filt-grid{display:grid;gap:10px 12px;
@@ -1215,6 +1218,168 @@ function initCharts(){
       });
     }
   }
+  // ══ Launch-kalkulyator grafiklari ══
+  var lpEl = document.getElementById("lp-data");
+  if (lpEl){
+    var L = JSON.parse(lpEl.textContent);
+    function lgrad(c1, c2){
+      return new echarts.graphic.LinearGradient(0, 0, 0, 1,
+        [{offset: 0, color: c1}, {offset: 1, color: c2}]);
+    }
+    // 1) Foyda egri chizig'i + BEP markerlari
+    var ce = make("lp-curve");
+    if (ce && L.curve){
+      var marks = [];
+      var last = L.curve.x[L.curve.x.length - 1];
+      var bepIdx = (L.bep_full != null && L.bep_full >= 0)
+        ? Math.min(Math.round(L.bep_full), last) : 0;
+      if (L.bep_full != null && L.bep_full >= 0)
+        marks.push({xAxis: Math.round(L.bep_full), lineStyle: {color: C.gold, width: 2, type: "dashed"},
+          label: {formatter: "BEP " + L.bep_full.toFixed(1), color: C.gold,
+                  fontSize: 11, fontFamily: FONT, position: "insideEndTop"}});
+      if (L.bep_cash != null && L.bep_cash >= 0)
+        marks.push({xAxis: Math.round(L.bep_cash), lineStyle: {color: C.s1, width: 1.6, type: "dotted"},
+          label: {formatter: "o'zini oqlaydi", color: C.s1, fontSize: 10,
+                  fontFamily: FONT, position: "insideEndBottom"}});
+      marks.push({xAxis: L.curve.capacity, lineStyle: {color: C.mut, width: 1.4},
+        label: {formatter: "sig'im", color: C.mut, fontSize: 10, fontFamily: FONT}});
+      ce.setOption({
+        animationDuration: anim ? 1000 : 0,
+        grid: {left: 4, right: 14, top: 26, bottom: 4, containLabel: true},
+        tooltip: {trigger: "axis", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(ps){
+            var n = ps[0].axisValue;
+            var out = n + " o'quvchi<br>";
+            ps.forEach(function(p){
+              out += p.marker + p.seriesName + ": <b>" + echFull(p.value) + "</b><br>";
+            });
+            return out;
+          }},
+        xAxis: {type: "category", data: L.curve.x, boundaryGap: false,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            interval: Math.max(1, Math.round(L.curve.x.length / 12))}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT, formatter: echShort}},
+        series: [
+          {name: "To'liq foyda", type: "line", data: L.curve.profit, smooth: false,
+            showSymbol: false,
+            lineStyle: {width: 3, color: C.gold, shadowColor: C.gold,
+              shadowBlur: 10, shadowOffsetY: 5},
+            itemStyle: {color: C.gold},
+            areaStyle: {color: lgrad(C.gold + "3a", C.gold + "00")},
+            markArea: {silent: true, data: [
+              [{xAxis: 0, itemStyle: {color: C.red + "16"}},
+               {xAxis: bepIdx}],
+              [{xAxis: bepIdx, itemStyle: {color: C.green + "14"}},
+               {xAxis: L.curve.x[L.curve.x.length - 1]}]
+            ]},
+            markLine: {silent: true, symbol: "none", data: marks}},
+          {name: "Kurs o'z foydasi", type: "line", data: L.curve.direct,
+            showSymbol: false, lineStyle: {width: 1.6, color: C.s1, type: [5, 5]}}
+        ]
+      });
+    }
+    // 2) Xarajat tarkibi
+    var xe = make("lp-cost");
+    if (xe && L.cost){
+      var items = [
+        {name: "Sotuvchi ulushi", value: L.cost.sales, color: "#b18cf2"},
+        {name: "Qaytarish zaxirasi", value: L.cost.refunds, color: C.red},
+        {name: "Materiallar", value: L.cost.materials, color: "#4cc3cf"},
+        {name: "Reklama", value: L.cost.marketing, color: C.s2},
+        {name: "O'qituvchi", value: L.cost.teacher, color: C.gold},
+        {name: "Qo'shimcha", value: L.cost.extra, color: "#f29a5c"},
+        {name: "Ofis ulushi", value: L.cost.fixed_alloc, color: C.mut},
+        {name: "FOYDA", value: Math.max(L.cost.profit, 0), color: C.green}
+      ].filter(function(i){ return i.value > 0; });
+      xe.setOption({
+        animationDuration: anim ? 900 : 0,
+        tooltip: {trigger: "item", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){ return p.name + "<br><b>" + echFull(p.value) + "</b> · " + p.percent + "%"; }},
+        legend: {type: "scroll", orient: "vertical", right: 0, top: "middle",
+          itemWidth: 9, itemHeight: 9, itemGap: 9,
+          textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+        series: [{type: "pie", radius: ["45%", "72%"], center: ["32%", "50%"],
+          padAngle: 2, itemStyle: {borderRadius: 6},
+          label: {show: false}, labelLine: {show: false},
+          emphasis: {scale: true, scaleSize: 6},
+          data: items.map(function(i){
+            return {name: i.name, value: i.value, itemStyle: {color: i.color}};
+          })}]
+      });
+    }
+    // 3) Sezuvchanlik matritsasi (heatmap)
+    var he = make("lp-heat");
+    if (he && L.matrix){
+      var data = [], vals = [];
+      L.matrix.rows.forEach(function(row, ri){
+        row.vals.forEach(function(v, ci){ data.push([ci, ri, v]); vals.push(v); });
+      });
+      var mx = Math.max.apply(null, vals.map(Math.abs)) || 1;
+      he.setOption({
+        animationDuration: anim ? 700 : 0,
+        grid: {left: 4, right: 8, top: 10, bottom: 26, containLabel: true},
+        tooltip: {position: "top", padding: [9, 12], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){
+            return "Narx " + L.matrix.price_steps[p.value[1]] +
+                   " · to'lish " + L.matrix.fill_steps[p.value[0]] +
+                   "<br><b>" + echFull(p.value[2]) + "</b>";
+          }},
+        xAxis: {type: "category", data: L.matrix.fill_steps, splitArea: {show: false},
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT},
+          name: "to'lish", nameLocation: "middle", nameGap: 24,
+          nameTextStyle: {color: C.mut, fontSize: 10.5, fontFamily: FONT}},
+        yAxis: {type: "category", data: L.matrix.price_steps, splitArea: {show: false},
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+        visualMap: {show: false, min: -mx, max: mx,
+          inRange: {color: [C.red, "#3a3f52", C.green]}},
+        series: [{type: "heatmap", data: data, itemStyle: {borderRadius: 5,
+            borderWidth: 3, borderColor: "transparent"},
+          label: {show: true, fontSize: 10, fontFamily: FONT,
+            formatter: function(p){ return echShort(p.value[2]); },
+            color: "#fff"},
+          emphasis: {itemStyle: {shadowBlur: 10, shadowColor: "rgba(0,0,0,.4)"}}}]
+      });
+    }
+    // 4) Tornado — omillar ta'siri
+    var to = make("lp-tornado");
+    if (to && L.drivers && L.drivers.length){
+      var names = L.drivers.map(function(d){ return d.name; }).reverse();
+      var lows = L.drivers.map(function(d){ return d.low; }).reverse();
+      var highs = L.drivers.map(function(d){ return d.high; }).reverse();
+      to.setOption({
+        animationDuration: anim ? 800 : 0,
+        grid: {left: 4, right: 16, top: 10, bottom: 4, containLabel: true},
+        tooltip: {trigger: "axis", axisPointer: {type: "shadow"}, padding: [10, 14],
+          backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT, formatter: echShort}},
+        yAxis: {type: "category", data: names,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.txt, fontSize: 11.5, fontFamily: FONT}},
+        series: [
+          {name: "−20%", type: "bar", stack: "t", data: lows, barWidth: 15,
+            itemStyle: {color: lgrad(C.red + "aa", C.red + "55"), borderRadius: [6, 0, 0, 6]}},
+          {name: "+20%", type: "bar", stack: "t", data: highs, barWidth: 15,
+            itemStyle: {color: lgrad(C.green + "aa", C.green + "55"), borderRadius: [0, 6, 6, 0]}}
+        ]
+      });
+    }
+  }
   if (!D) return;
   var tip = {
     trigger: "axis", padding: [10, 14],
@@ -1315,7 +1480,8 @@ function initCharts(){
         var i = echarts.getInstanceByDom(el); if (i) i.resize();
       });
       ["ech-main", "ech-wf", "an-pnl", "an-trend", "an-dirs", "an-mix",
-       "an-aging", "an-ref"].forEach(function(id){
+       "an-aging", "an-ref", "lp-curve", "lp-cost", "lp-heat",
+       "lp-tornado"].forEach(function(id){
         var el = document.getElementById(id);
         var i = el && echarts.getInstanceByDom(el);
         if (i) i.resize();
