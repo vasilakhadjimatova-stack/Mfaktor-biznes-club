@@ -117,9 +117,19 @@
       <path class="arc-base" d="M16,102 Q180,-34 344,102" pathLength="100"/>
       <path class="arc-prog" d="M16,102 Q180,-34 344,102" pathLength="100"/>
     </svg>
+    <div class="sky-clouds" aria-hidden="true"><i class="c1"></i><i class="c2"></i></div>
+    <span class="sky-shoot" aria-hidden="true"></span>
     <span class="sky-orb sun" aria-hidden="true"></span>
+    <svg class="sky-city" viewBox="0 0 360 40" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,40 L0,33 L38,33 L38,29 L52,29 L52,12 L54.5,7 L57,12 L57,29 L71,29 L71,33
+               L118,33 L118,29 L136,29 Q138,26 140,25.5 Q180,4 220,25.5 Q222,26 224,29
+               L242,29 L242,33 L289,33 L289,29 L303,29 L303,12 L305.5,7 L308,12 L308,29
+               L322,29 L322,33 L360,33 L360,40 Z
+               M178,10 L180,3 L182,10 Z"/>
+    </svg>
     <div class="pray-next">
-      <div><b>{{ pray.next.name }} · {{ pray.next.time }}</b>
+      <div><em>Keyingi namoz</em>
+        <b>{{ pray.next.name }} · {{ pray.next.time }}</b>
         <span>{{ (pray.left_h ~ ' soat ') if pray.left_h else '' }}{{ pray.left_m }} daqiqa qoldi</span></div>
     </div>
   </div>
