@@ -1,17 +1,77 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Kassa — pul harakati</h1>
-<p class="sub">{{ '%02d'|format(m) }}.{{ y }} · Kirim <b class="pos num">{{ cf.income_total|grp }}</b> · Chiqim <b class="neg num">{{ cf.expense_total|grp }}</b> · Sof <b class="num {{ 'pos' if cf.net>=0 else 'neg' }}">{{ cf.net|grp }}</b></p>
+<p class="sub">Sana, hamyon, statya, summa va matn bo'yicha filtr; natijani Excel'ga chiqarish</p>
 
-<div class="monthnav">
-  {% set py, pm = (y-1, 12) if m == 1 else (y, m-1) %}
-  {% set ny, nm = (y+1, 1) if m == 12 else (y, m+1) %}
-  <a class="chip" href="?y={{py}}&m={{pm}}">← {{ '%02d'|format(pm) }}.{{ py }}</a>
-  <span class="chip on">{{ '%02d'|format(m) }}.{{ y }}</span>
-  <a class="chip" href="?y={{ny}}&m={{nm}}">{{ '%02d'|format(nm) }}.{{ ny }} →</a>
+{# ── Tez tanlovlar ── #}
+<div class="monthnav" style="flex-wrap:wrap">
+  {% set presets = [('today','Bugun'), ('week','Shu hafta'), ('month','Shu oy'),
+                    ('prev','O\'tgan oy'), ('year','Yil boshidan')] %}
+  {% for key, label in presets %}
+  <a class="chip {{ 'on' if f.preset == key }}" href="?p={{ key }}">{{ label }}</a>
+  {% endfor %}
+  {% if f.q or f.w or f.op or f.cat or f.ch or f.amin or f.amax %}
+  <a class="chip" href="/transactions" style="color:var(--red);border-color:var(--red)">✕ Filtrni tozalash</a>
+  {% endif %}
 </div>
 
-<details class="adder">
+{# ── Filtr paneli ── #}
+<div class="card filt">
+  <form method="get" action="/transactions" id="filt">
+    <div class="filt-grid">
+      <div><label>Sanadan</label><input type="date" name="from" value="{{ f.d_from }}"></div>
+      <div><label>Sanagacha</label><input type="date" name="to" value="{{ f.d_to }}"></div>
+      <div><label>Hamyon</label>
+        <select name="w"><option value="">Barchasi</option>
+          {% for w in wallets %}<option value="{{ w.code }}" {{ 'selected' if f.w == w.code }}>{{ w.name }}</option>{% endfor %}
+        </select></div>
+      <div><label>Amal</label>
+        <select name="op"><option value="">Barchasi</option>
+          <option value="kirim" {{ 'selected' if f.op == 'kirim' }}>Kirim</option>
+          <option value="chiqim" {{ 'selected' if f.op == 'chiqim' }}>Chiqim</option>
+          <option value="transfer" {{ 'selected' if f.op == 'transfer' }}>Transfer</option>
+        </select></div>
+      <div><label>Statya</label>
+        <select name="cat"><option value="">Barchasi</option>
+          {% for c in cats %}<option {{ 'selected' if f.cat == c }}>{{ c }}</option>{% endfor %}
+        </select></div>
+      <div><label>Kanal</label>
+        <select name="ch"><option value="">Barchasi</option>
+          {% for c in CHANNELS %}<option {{ 'selected' if f.ch == c }}>{{ c }}</option>{% endfor %}
+        </select></div>
+      <div><label>Summa dan</label><input name="amin" type="number" step="any" value="{{ f.amin }}" placeholder="0"></div>
+      <div><label>Summa gacha</label><input name="amax" type="number" step="any" value="{{ f.amax }}" placeholder="∞"></div>
+      <div class="wide"><label>Qidiruv (kontragent, izoh, statya)</label>
+        <input name="q" value="{{ f.q }}" placeholder="Masalan: Feruza yoki Аренда"></div>
+      <div><label>Tartib</label>
+        <select name="sort">
+          <option value="date_desc" {{ 'selected' if f.sort == 'date_desc' }}>Sana ↓ (yangi)</option>
+          <option value="date_asc" {{ 'selected' if f.sort == 'date_asc' }}>Sana ↑ (eski)</option>
+          <option value="amount_desc" {{ 'selected' if f.sort == 'amount_desc' }}>Summa ↓ (katta)</option>
+          <option value="amount_asc" {{ 'selected' if f.sort == 'amount_asc' }}>Summa ↑ (kichik)</option>
+        </select></div>
+      <div class="acts">
+        <button type="submit">Filtrlash</button>
+        <a class="btn ghost" href="/transactions/export?{{ request.query_string.decode() }}">⇩ Excel</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+{# ── Filtrlangan natija jamlamasi ── #}
+<div class="grid g4" style="margin-top:12px">
+  <div class="card kpi"><div class="l">Topildi</div>
+    <div class="v">{{ total }}</div><div class="h">yozuv</div></div>
+  <div class="card kpi"><div class="l">Kirim</div>
+    <div class="v pos">{{ sum_inc|grp }}</div><div class="h">transferlarsiz</div></div>
+  <div class="card kpi"><div class="l">Chiqim</div>
+    <div class="v neg">{{ sum_exp|grp }}</div><div class="h">transferlarsiz</div></div>
+  <div class="card kpi"><div class="l">Sof natija</div>
+    <div class="v {{ 'pos' if sum_net >= 0 else 'neg' }}">{{ sum_net|grp }}</div>
+    <div class="h">{{ f.d_from|default('—') }} … {{ f.d_to|default('—') }}</div></div>
+</div>
+
+<details class="adder" style="margin-top:14px">
   <summary>Yangi yozuv kiritish</summary>
   <div class="body">
   <form class="inline" method="post" action="/transactions/add">
@@ -40,7 +100,7 @@
   </div>
 </details>
 
-<div class="card">
+<div class="card" style="margin-top:14px">
   <div class="tablewrap">
   <table>
     <tr><th>Sana</th><th>Amal</th><th>Hamyon</th><th class="r">Summa</th>
@@ -60,8 +120,19 @@
       <td><form method="post" action="/transactions/{{ t.id }}/delete"
                 onsubmit="return confirm('O\'chirilsinmi?')"><button class="danger">✕</button></form></td>
     </tr>
-    {% else %}<tr><td colspan="8"><div class="empty">Bu oyda yozuv yo'q — yuqoridagi «+» bilan qo'shing</div></td></tr>{% endfor %}
+    {% else %}<tr><td colspan="8"><div class="empty">Bu shartlarga mos yozuv topilmadi — filtrni kengaytiring</div></td></tr>{% endfor %}
   </table>
   </div>
+
+  {% if pages > 1 %}
+  {% set base = request.args.to_dict() %}
+  <div class="pager">
+    {% set _ = base.pop('page', None) %}
+    {% set qs = base|urlencode %}
+    {% if page > 1 %}<a class="chip" href="?{{ qs }}&page={{ page - 1 }}">← Oldingi</a>{% endif %}
+    <span class="chip on">{{ page }} / {{ pages }}</span>
+    {% if page < pages %}<a class="chip" href="?{{ qs }}&page={{ page + 1 }}">Keyingi →</a>{% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

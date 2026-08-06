@@ -9,7 +9,8 @@ Ishga tushirish:
 import os
 from datetime import date, datetime, timedelta
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import (Flask, Response, flash, redirect, render_template,
+                   request, url_for)
 
 import analytics
 import automation
@@ -93,17 +94,142 @@ def register_routes(app):
                                pray=praytimes.today_with_next())
 
     # ── Tranzaksiyalar ───────────────────────────────────────────
+    def _tx_filters():
+        """URL parametrlaridan filtr yig'adi: (query, ctx)."""
+        today = date.today()
+        args = request.args
+        preset = args.get("p", "")
+        d_from = args.get("from", "")
+        d_to = args.get("to", "")
+
+        # tez tanlovlar sanalarni belgilaydi
+        if preset == "today":
+            d_from = d_to = today.isoformat()
+        elif preset == "week":
+            d_from = (today - timedelta(days=today.weekday())).isoformat()
+            d_to = today.isoformat()
+        elif preset == "month":
+            d_from = today.replace(day=1).isoformat()
+            d_to = today.isoformat()
+        elif preset == "prev":
+            first = today.replace(day=1)
+            last_prev = first - timedelta(days=1)
+            d_from = last_prev.replace(day=1).isoformat()
+            d_to = last_prev.isoformat()
+        elif preset == "year":
+            d_from = date(today.year, 1, 1).isoformat()
+            d_to = today.isoformat()
+        elif not d_from and not d_to:
+            # standart: joriy oy
+            d_from = today.replace(day=1).isoformat()
+            d_to = today.isoformat()
+
+        def _d(v):
+            try:
+                return date.fromisoformat(v)
+            except (ValueError, TypeError):
+                return None
+
+        q = Transaction.query
+        df, dt = _d(d_from), _d(d_to)
+        if df:
+            q = q.filter(Transaction.tdate >= df)
+        if dt:
+            q = q.filter(Transaction.tdate <= dt)
+        d_from, d_to = (df.isoformat() if df else ""), (dt.isoformat() if dt else "")
+
+        w = args.get("w", "")
+        if w:
+            q = q.filter(db.or_(Transaction.wallet_code == w,
+                                Transaction.transfer_to_wallet == w))
+        op = args.get("op", "")
+        if op == "transfer":
+            q = q.filter(db.or_(Transaction.is_transfer.is_(True),
+                                Transaction.activity == "tech"))
+        elif op in ("kirim", "chiqim"):
+            q = q.filter(Transaction.operation == op,
+                         Transaction.is_transfer.is_(False),
+                         Transaction.activity != "tech")
+        cat = args.get("cat", "")
+        if cat:
+            q = q.filter(Transaction.category == cat)
+        ch = args.get("ch", "")
+        if ch:
+            q = q.filter(Transaction.channel == ch)
+        text = args.get("q", "").strip()
+        if text:
+            like = f"%{text}%"
+            q = q.filter(db.or_(Transaction.counterparty.ilike(like),
+                                Transaction.comment.ilike(like),
+                                Transaction.category.ilike(like)))
+        amin, amax = args.get("amin", ""), args.get("amax", "")
+        def _f(v):
+            try:
+                return float(str(v).replace(" ", "").replace(",", "."))
+            except (ValueError, TypeError):
+                return None
+        if _f(amin) is not None:
+            q = q.filter(Transaction.amount >= _f(amin))
+        if _f(amax) is not None:
+            q = q.filter(Transaction.amount <= _f(amax))
+
+        sort = args.get("sort", "date_desc")
+        order = {
+            "date_desc": (Transaction.tdate.desc(), Transaction.id.desc()),
+            "date_asc": (Transaction.tdate.asc(), Transaction.id.asc()),
+            "amount_desc": (Transaction.amount.desc(),),
+            "amount_asc": (Transaction.amount.asc(),),
+        }.get(sort, (Transaction.tdate.desc(), Transaction.id.desc()))
+        q = q.order_by(*order)
+
+        ctx = {"d_from": d_from, "d_to": d_to, "w": w, "op": op, "cat": cat,
+               "ch": ch, "q": text, "amin": amin, "amax": amax,
+               "sort": sort, "preset": preset}
+        return q, ctx
+
     @app.route("/transactions")
     def transactions():
-        y, m = _ym()
-        q = (Transaction.query
-             .filter(db.func.extract("year", Transaction.tdate) == y)
-             .filter(db.func.extract("month", Transaction.tdate) == m)
-             .order_by(Transaction.tdate.desc(), Transaction.id.desc()))
+        q, ctx = _tx_filters()
+        rows = q.all()
+        # filtrlangan natija bo'yicha jamlama (transferlar hisobga olinmaydi)
+        real = [t for t in rows if not t.is_transfer and t.activity != "tech"]
+        inc = sum(t.amount for t in real if t.operation == "kirim")
+        exp = sum(t.amount for t in real if t.operation == "chiqim")
+        # sahifalash
+        try:
+            page = max(1, int(request.args.get("page", 1)))
+        except ValueError:
+            page = 1
+        per = 60
+        pages = max(1, (len(rows) + per - 1) // per)
+        page = min(page, pages)
+        chunk = rows[(page - 1) * per: page * per]
+
         wallets = Wallet.query.filter_by(is_active=True).order_by(Wallet.sort).all()
-        return render_template("transactions.html", txs=q.all(), y=y, m=m,
-                               wallets=wallets,
-                               cf=core.month_cashflow(y, m))
+        cats = sorted({t.category for t in Transaction.query
+                       .with_entities(Transaction.category).distinct()
+                       if t.category})
+        return render_template("transactions.html", txs=chunk, f=ctx,
+                               wallets=wallets, cats=cats,
+                               total=len(rows), page=page, pages=pages,
+                               sum_inc=inc, sum_exp=exp, sum_net=inc - exp)
+
+    @app.route("/transactions/export")
+    def transactions_export():
+        q, ctx = _tx_filters()
+        out = ["Sana;Amal;Hamyon;Summa;Statya;Kanal;Kontragent;Izoh"]
+        for t in q.all():
+            op = "Transfer" if t.is_transfer else ("Kirim" if t.operation == "kirim" else "Chiqim")
+            row = [t.tdate.strftime("%d.%m.%Y"), op,
+                   t.wallet_code + (f"→{t.transfer_to_wallet}" if t.is_transfer else ""),
+                   f"{t.amount:.0f}", t.category or "", t.channel or "",
+                   (t.counterparty or "").replace(";", ","),
+                   (t.comment or "").replace(";", ",")]
+            out.append(";".join(row))
+        csv = "\ufeff" + "\r\n".join(out)
+        name = f"kassa_{ctx['d_from']}_{ctx['d_to']}.csv"
+        return Response(csv, mimetype="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.route("/transactions/add", methods=["POST"])
     def add_transaction():
