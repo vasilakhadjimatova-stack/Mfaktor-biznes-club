@@ -8,6 +8,7 @@ Ishga tushirish:
 """
 import os
 from datetime import date, datetime, timedelta
+from urllib.parse import urlencode
 
 from flask import (Flask, Response, flash, redirect, render_template,
                    request, url_for)
@@ -19,7 +20,8 @@ import kpi
 import planner
 import praytimes
 from database import db, init_db
-from models import (Budget, Cohort, Contract, Course, EXPENSE_CATS, KpiCard,
+from models import (Budget, Cohort, Contract, Course, DdsRow, DDS_LOOKUP,
+                    DDS_SPRAVOCHNIK, DDS_WALLET2, DDS_WALLETS, EXPENSE_CATS, KpiCard,
                     INCOME_CATS, InstallmentLine, MARKETING_CHANNELS,
                     RecurringPayment, Student, Transaction, Wallet,
                     CONTRACT_STATUSES, income_cat_for_course)
@@ -41,6 +43,24 @@ def create_app():
     @app.template_filter("dmy")
     def dmy(d):
         return d.strftime("%d.%m.%Y") if d else ""
+
+    @app.template_global("qs")
+    def qs(**kw):
+        """Joriy URL query'sini saqlab, faqat berilgan kalitlarni almashtiradi.
+
+        qs(sort='date')   -> ?...&sort=date
+        qs(a=None)        -> «a» filtrini olib tashlaydi
+        """
+        args = request.args.to_dict(flat=False)
+        for k, v in kw.items():
+            if v is None:
+                args.pop(k, None)
+            elif isinstance(v, (list, tuple)):
+                args[k] = list(v)
+            else:
+                args[k] = [v]
+        pairs = [(k, x) for k, vs in args.items() for x in vs if x != ""]
+        return (request.path + "?" + urlencode(pairs)) if pairs else request.path
 
     @app.context_processor
     def ctx():
@@ -498,6 +518,174 @@ def register_routes(app):
         except ValueError:
             year = date.today().year
         return render_template("dds.html", d=core.dds_matrix(year))
+
+    # ── «ДДС данные» — Excel varag'ining 1:1 nusxasi ──────────────
+    @app.route("/ddsdata")
+    def ddsdata():
+        a = request.args
+        q = DdsRow.query
+        # ustun filtrlari (Google Sheets filtrlari kabi)
+        fm = a.getlist("m")            # Мсц
+        fy = a.getlist("y")            # Год
+        fw = a.getlist("w")            # Кошелек
+        fw2 = a.getlist("w2")          # Кошелек 2
+        fa = a.getlist("a")            # Статья
+        ff = a.getlist("f")            # Платеж/поступл
+        fv = a.getlist("v")            # Вид д-ти
+        txt = (a.get("q") or "").strip()
+        d1, d2 = a.get("d1", ""), a.get("d2", "")
+        s1, s2 = a.get("s1", ""), a.get("s2", "")
+
+        if fw:
+            q = q.filter(DdsRow.wallet.in_(fw))
+        if fw2:
+            q = q.filter(DdsRow.wallet2.in_(fw2))
+        if fa:
+            q = q.filter(DdsRow.article.in_(fa))
+        if txt:
+            like = f"%{txt}%"
+            q = q.filter(db.or_(DdsRow.purpose.ilike(like),
+                                DdsRow.article.ilike(like)))
+
+        def _d(v):
+            try:
+                return date.fromisoformat(v)
+            except (ValueError, TypeError):
+                return None
+        if _d(d1):
+            q = q.filter(DdsRow.ddate >= _d(d1))
+        if _d(d2):
+            q = q.filter(DdsRow.ddate <= _d(d2))
+
+        def _f(v):
+            try:
+                return float(str(v).replace(" ", "").replace("\u00a0", "")
+                             .replace(",", "."))
+            except (ValueError, TypeError):
+                return None
+        if _f(s1) is not None:
+            q = q.filter(DdsRow.amount >= _f(s1))
+        if _f(s2) is not None:
+            q = q.filter(DdsRow.amount <= _f(s2))
+
+        # saralash — ustun sarlavhasidagi «А→Я / Я→А» (Sheets kabi)
+        sort = a.get("sort", "row")
+        order = {
+            "row": DdsRow.rownum.asc(),
+            "row_d": DdsRow.rownum.desc(),
+            "date": DdsRow.ddate.asc(),
+            "date_d": DdsRow.ddate.desc(),
+            "sum": DdsRow.amount.asc(),
+            "sum_d": DdsRow.amount.desc(),
+            "w": DdsRow.wallet.asc(),
+            "w_d": DdsRow.wallet.desc(),
+            "w2": DdsRow.wallet2.asc(),
+            "w2_d": DdsRow.wallet2.desc(),
+            "purpose": DdsRow.purpose.asc(),
+            "purpose_d": DdsRow.purpose.desc(),
+            "a": DdsRow.article.asc(),
+            "a_d": DdsRow.article.desc(),
+        }.get(sort, DdsRow.rownum.asc())
+        rows = q.order_by(order).all()
+
+        # formula ustunlari bo'yicha filtrlash (Python tomonda)
+        if fm:
+            rows = [r for r in rows if str(r.month) in fm]
+        if fy:
+            rows = [r for r in rows if str(r.year) in fy]
+        if ff:
+            rows = [r for r in rows if r.flow in ff]
+        if fv:
+            rows = [r for r in rows if r.activity in fv]
+
+        # formula ustunlari — saralash ham Python tomonda
+        _pysort = {
+            "m": (lambda r: r.month or 0, False),
+            "m_d": (lambda r: r.month or 0, True),
+            "y": (lambda r: r.year or 0, False),
+            "y_d": (lambda r: r.year or 0, True),
+            "f": (lambda r: r.flow, False),
+            "f_d": (lambda r: r.flow, True),
+            "v": (lambda r: r.activity, False),
+            "v_d": (lambda r: r.activity, True),
+        }.get(sort)
+        if _pysort:
+            rows.sort(key=_pysort[0], reverse=_pysort[1])
+
+        inc = sum(r.amount for r in rows if r.flow == "Поступление")
+        exp = sum(r.amount for r in rows if r.flow == "Выбытие")
+
+        # filtr ro'yxatlari uchun noyob qiymatlar (butun jadvaldan)
+        allr = DdsRow.query.all()
+        uniq = {
+            "m": sorted({str(r.month) for r in allr if r.month != ""},
+                        key=lambda x: int(x)),
+            "y": sorted({str(r.year) for r in allr if r.year != ""}),
+            "w": [w for w in DDS_WALLETS if any(r.wallet == w for r in allr)],
+            "w2": [w for w in DDS_WALLET2 if any(r.wallet2 == w for r in allr)],
+            "a": sorted({r.article for r in allr if r.article}),
+            "f": ["Поступление", "Выбытие"],
+            "v": ["Операционная", "Техническая операция", "Финансовая",
+                  "Инвестиционная"],
+        }
+        sel = {"m": fm, "y": fy, "w": fw, "w2": fw2, "a": fa, "f": ff, "v": fv,
+               "q": txt, "d1": d1, "d2": d2, "s1": s1, "s2": s2, "sort": sort}
+        return render_template("ddsdata.html", rows=rows, uniq=uniq, sel=sel,
+                               total=len(rows), all_total=len(allr),
+                               inc=inc, exp=exp,
+                               wallets=DDS_WALLETS, wallets2=DDS_WALLET2,
+                               articles=[a for a, _, _ in DDS_SPRAVOCHNIK],
+                               lookup=DDS_LOOKUP)
+
+    @app.route("/ddsdata/add", methods=["POST"])
+    def ddsdata_add():
+        f = request.form
+        try:
+            d = date.fromisoformat(f.get("ddate"))
+        except (ValueError, TypeError):
+            flash("Sanani tekshiring", "err")
+            return redirect(url_for("ddsdata"))
+        amt = (f.get("amount") or "0").replace(" ", "").replace("\u00a0", "")
+        try:
+            amt = float(amt.replace(",", "."))
+        except ValueError:
+            amt = 0.0
+        last = db.session.query(db.func.max(DdsRow.rownum)).scalar() or 2
+        db.session.add(DdsRow(rownum=last + 1, ddate=d, amount=amt,
+                              wallet=f.get("wallet", ""),
+                              wallet2=f.get("wallet2", ""),
+                              purpose=f.get("purpose", "").strip(),
+                              article=f.get("article", "")))
+        db.session.commit()
+        flash("Qator qo'shildi", "ok")
+        return redirect(url_for("ddsdata"))
+
+    @app.route("/ddsdata/<int:rid>/delete", methods=["POST"])
+    def ddsdata_delete(rid):
+        row = db.session.get(DdsRow, rid)
+        if row:
+            db.session.delete(row)
+            db.session.commit()
+            flash("Qator o'chirildi", "ok")
+        return redirect(request.referrer or url_for("ddsdata"))
+
+    @app.route("/ddsdata/export")
+    def ddsdata_export():
+        rows = DdsRow.query.order_by(DdsRow.rownum).all()
+        out = ["Мсц (цифрой);Год (цифрой);Дата;Сумма;Кошелек;Кошелек;"
+               "Назначение платежа;Статья;Платеж/поступл;Вид д-ти"]
+        for r in rows:
+            out.append(";".join([
+                str(r.month), str(r.year),
+                r.ddate.strftime("%d.%m.%Y") if r.ddate else "",
+                f"{r.amount:.2f}".replace(".", ","),
+                r.wallet, r.wallet2,
+                (r.purpose or "").replace(";", ","),
+                r.article, r.flow, r.activity]))
+        csv = "\ufeff" + "\r\n".join(out)
+        return Response(csv, mimetype="text/csv; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 'attachment; filename="DDS_dannie.csv"'})
 
     # ── Hisobotlar ───────────────────────────────────────────────
     @app.route("/reports")

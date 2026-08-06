@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="xl-top">
+  <h1 style="margin:0">ДДС данные</h1>
+  <span class="xl-badge">Excel varag'ining 1:1 nusxasi</span>
+</div>
+<p class="sub">Ustun sarlavhasidagi <b>▼</b> belgisini bosib filtrlang — Google Sheets'dagi kabi. «Мсц», «Год», «Платеж/поступл» va «Вид д-ти» ustunlari formulalar bilan avtomatik to'ladi.</p>
+
+{# ── Yuqori panel: qidiruv, sana/summa oralig'i, eksport ── #}
+<form method="get" action="/ddsdata" id="xlf" class="card filt" style="padding:12px 14px">
+  {% for k in ['m','y','w','w2','a','f','v'] %}
+    {% for v in sel[k] %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  {% endfor %}
+  <input type="hidden" name="sort" value="{{ sel.sort }}">
+  <div class="filt-grid">
+    <div class="wide"><label>Поиск (назначение, статья)</label>
+      <input name="q" value="{{ sel.q }}" placeholder="Masalan: prixod klient"></div>
+    <div><label>Дата с</label><input type="date" name="d1" value="{{ sel.d1 }}"></div>
+    <div><label>Дата по</label><input type="date" name="d2" value="{{ sel.d2 }}"></div>
+    <div><label>Сумма от</label><input name="s1" value="{{ sel.s1 }}" placeholder="0"></div>
+    <div><label>Сумма до</label><input name="s2" value="{{ sel.s2 }}" placeholder="∞"></div>
+    <div class="acts">
+      <button type="submit">Фильтр</button>
+      <a class="btn ghost" href="/ddsdata">Сброс</a>
+      <a class="btn ghost" href="/ddsdata/export">⇩ CSV</a>
+    </div>
+  </div>
+</form>
+
+{# ── Holat qatori ── #}
+<div class="xl-status">
+  <span><b>{{ total|grp }}</b> из {{ all_total|grp }} строк</span>
+  <span class="xl-sep"></span>
+  <span>Поступление: <b class="pos">{{ inc|grp }}</b></span>
+  <span>Выбытие: <b class="neg">{{ exp|grp }}</b></span>
+  <span>Итого: <b class="{{ 'pos' if (inc - exp) >= 0 else 'neg' }}">{{ (inc - exp)|grp }}</b></span>
+</div>
+
+{# ── Jadval — Excel ko'rinishida ── #}
+<div class="xl-wrap">
+  <table class="xl">
+    <thead>
+      <tr class="xl-head">
+        <th class="rn">№</th>
+        {# key = filtr ro'yxati bo'lgan ustunlar, srt = saralash kaliti #}
+        {% set cols = [
+          ('m','Мсц (цифрой)','A','m'), ('y','Год (цифрой)','B','y'),
+          (none,'Дата','C','date'), (none,'Сумма','D','sum'),
+          ('w','Кошелек','E','w'), ('w2','Кошелек','F','w2'),
+          (none,'Назначение платежа','G','purpose'), ('a','Статья','H','a'),
+          ('f','Платеж/поступл','I','f'), ('v','Вид д-ти','J','v')] %}
+        {% for key, label, letter, srt in cols %}
+        {% set mid = key or ('s' ~ letter) %}
+        <th class="c{{ letter }}">
+          <div class="xl-th">
+            <span>{{ label }}</span>
+            <button type="button" class="xl-fbtn {{ 'on' if key and sel[key] }}"
+                    onclick="xlMenu(event,'{{ mid }}')"
+                    title="Фильтр и сортировка">▼</button>
+          </div>
+          <div class="xl-menu" id="fm-{{ mid }}">
+            <div class="xl-menu-sort">
+              <a href="{{ qs(sort=srt) }}">Сортировать А → Я</a>
+              <a href="{{ qs(sort=srt ~ '_d') }}">Сортировать Я → А</a>
+            </div>
+            {% if key %}
+            <div class="xl-menu-ttl">Фильтр по значениям</div>
+            <div class="xl-menu-head">
+              <a href="#" onclick="xlAll('{{ key }}',true);return false">Выделить всё</a>
+              <a href="#" onclick="xlAll('{{ key }}',false);return false">Очистить</a>
+            </div>
+            <div class="xl-menu-src">
+              <input type="search" placeholder="Поиск" autocomplete="off"
+                     oninput="xlFind(this,'{{ key }}')">
+            </div>
+            <div class="xl-menu-body">
+              {% for v in uniq[key] %}
+              <label><input type="checkbox" name="{{ key }}" value="{{ v }}"
+                     form="xlf" {{ 'checked' if v in sel[key] }}>
+                <span>{{ v if v else '(пусто)' }}</span></label>
+              {% endfor %}
+            </div>
+            <div class="xl-menu-foot">
+              <a class="gh" href="{{ qs(**{key: none}) }}">Сбросить</a>
+              <button type="submit" form="xlf">Применить</button>
+            </div>
+            {% endif %}
+          </div>
+        </th>
+        {% endfor %}
+        <th style="width:34px"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="rn">{{ loop.index }}</td>
+        <td class="cA">{{ r.month }}</td>
+        <td class="cB">{{ r.year }}</td>
+        <td class="cC">{{ r.ddate.strftime('%d.%m.%Y') if r.ddate }}</td>
+        <td class="cD">{{ '{:,.2f}'.format(r.amount).replace(',', ' ').replace('.', ',') }}</td>
+        <td class="cE">{{ r.wallet }}</td>
+        <td class="cF">{{ r.wallet2 }}</td>
+        <td class="cG">{{ r.purpose }}</td>
+        <td class="cH">{{ r.article }}</td>
+        <td class="cI">{{ r.flow }}</td>
+        <td class="cJ">{{ r.activity }}</td>
+        <td class="cX">
+          <form method="post" action="/ddsdata/{{ r.id }}/delete"
+                onsubmit="return confirm('Удалить строку?')">
+            <button class="xl-del" title="Удалить">✕</button></form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="12"><div class="empty">Нет строк по этому фильтру</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Yangi qator ── #}
+<details class="adder" style="margin-top:14px">
+  <summary>Добавить строку</summary>
+  <div class="body">
+  <form class="inline" method="post" action="/ddsdata/add">
+    <div><label>Дата</label><input type="date" name="ddate" value="{{ today.isoformat() }}" required></div>
+    <div><label>Сумма</label><input name="amount" required placeholder="0,00"></div>
+    <div><label>Кошелек</label>
+      <select name="wallet">{% for w in wallets %}<option>{{ w }}</option>{% endfor %}</select></div>
+    <div><label>Кошелек (2)</label>
+      <select name="wallet2"><option value=""></option>{% for w in wallets2 %}<option>{{ w }}</option>{% endfor %}</select></div>
+    <div style="flex:1;min-width:220px"><label>Назначение платежа</label><input name="purpose"></div>
+    <div><label>Статья</label>
+      <select name="article">{% for a in articles %}<option>{{ a }}</option>{% endfor %}</select></div>
+    <div><button>Сохранить</button></div>
+  </form>
+  <p class="hint" style="margin-top:10px">«Платеж/поступл» и «Вид д-ти» подставятся автоматически из справочника — как формулы VLOOKUP в таблице.</p>
+  </div>
+</details>
+{% endblock %}

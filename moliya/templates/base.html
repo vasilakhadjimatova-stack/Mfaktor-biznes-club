@@ -620,6 +620,104 @@ main > *:nth-child(6){animation-delay:.25s}
 .hint.warn{border-color:var(--gold);background:var(--gold-dim)}
 .hint.warn::before{color:var(--gold)}
 
+/* ══ «ДДС данные» — Excel varag'i ko'rinishi ══ */
+.xl-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.xl-badge{font:600 11px var(--sans);color:#8a5a1a;background:#ffe9b8;
+  border:1px solid #e8c98a;padding:4px 10px;border-radius:99px}
+.xl-status{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  margin:12px 0 8px;padding:9px 14px;border-radius:12px;
+  background:var(--card-faint);border:1px solid var(--line);
+  font:500 12.5px var(--sans);color:var(--mut)}
+.xl-status b{font-variant-numeric:tabular-nums;color:var(--txt)}
+.xl-sep{flex:1}
+.xl-wrap{overflow:auto;max-height:74vh;border:1px solid #c9ccd1;
+  border-radius:8px;background:#fff;color-scheme:light;
+  box-shadow:0 6px 22px rgba(0,0,0,.28)}
+.xl{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;
+  font:400 12px/1.35 Arial,Helvetica,sans-serif;color:#202124;background:#fff}
+.xl th,.xl td{border-right:1px solid #d7d9dd;border-bottom:1px solid #d7d9dd;
+  padding:3px 6px;vertical-align:middle;white-space:nowrap;background:#fff;
+  text-transform:none;letter-spacing:normal}
+/* sarlavha — Google Sheets qizil (E06666) */
+.xl thead th{position:sticky;top:0;z-index:3;background:#e06666;color:#fff;
+  font:700 12px Arial,sans-serif;text-align:left;padding:6px 6px;
+  border-right:1px solid #cf5252;border-bottom:1px solid #cf5252;
+  white-space:normal;vertical-align:middle;
+  text-transform:none;letter-spacing:normal}
+/* qator raqami — Sheets'dagi kulrang chap ustun */
+.xl th.rn,.xl td.rn{background:#f8f9fa;color:#666;text-align:center;
+  font:400 11px Arial,sans-serif;width:46px;min-width:46px;
+  position:sticky;left:0;z-index:2;border-right:1px solid #c9ccd1}
+.xl thead th.rn{z-index:4;background:#e06666;color:#fff}
+.xl tbody tr:hover td.rn{background:#e8eaed}
+.xl-th{display:flex;align-items:center;gap:6px;justify-content:space-between}
+.xl-fbtn{background:rgba(255,255,255,.22);border:0;color:#fff;cursor:pointer;
+  font-size:9px;line-height:1;padding:3px 5px;border-radius:3px;
+  box-shadow:none;transform:none;flex:none}
+.xl-fbtn:hover{background:rgba(255,255,255,.42);filter:none;transform:none}
+.xl-fbtn.on{background:#fff;color:#e06666}
+/* ustun ranglari — Excel bilan bir xil */
+.xl td.cC,.xl td.cE,.xl td.cF,.xl td.cG,.xl td.cH{background:#fff2cc}
+.xl td.cD{background:#f4c7c3;text-align:right;font-variant-numeric:tabular-nums}
+.xl td.cA,.xl td.cB{background:#fff;text-align:center;color:#5f6368}
+.xl td.cI,.xl td.cJ{background:#fff;color:#3c4043}
+.xl td.cG{max-width:330px;overflow:hidden;text-overflow:ellipsis}
+.xl td.cH{max-width:270px;overflow:hidden;text-overflow:ellipsis}
+.xl tbody tr:hover td{background:#e8f0fe}
+.xl tbody tr:hover td.cD{background:#f6d5d1}
+.xl-del{background:transparent;border:0;color:#b3261e;cursor:pointer;
+  font-size:12px;padding:2px 5px;box-shadow:none;transform:none}
+.xl-del:hover{background:#fce8e6;filter:none;transform:none}
+.xl td.cX{background:#fff;text-align:center;padding:0}
+/* filtr menyusi — Google Sheets menyusining nusxasi
+   position:fixed => .xl-wrap ning overflow'i uni qirqmaydi */
+.xl-menu{display:none;position:fixed;z-index:400;
+  width:288px;background:#fff;color:#202124;
+  border:1px solid #dadce0;border-radius:8px;overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.30),0 2px 6px rgba(0,0,0,.15);
+  font:400 12.5px Arial,sans-serif;text-align:left;font-weight:400;
+  white-space:normal}
+.xl-menu,.xl-menu *{text-transform:none;letter-spacing:normal}
+.xl-menu .xl-menu-ttl{text-transform:uppercase;letter-spacing:.4px}
+.xl-menu.open{display:block}
+.xl-menu-sort{padding:5px 0;border-bottom:1px solid #e8eaed}
+.xl-menu-sort a{display:block;padding:7px 14px;color:#202124;font-size:12.5px;
+  text-decoration:none}
+.xl-menu-sort a:hover{background:#f1f3f4}
+.xl-menu-ttl{padding:9px 14px 4px;font:700 11px Arial,sans-serif;color:#5f6368;
+  text-transform:uppercase;letter-spacing:.4px}
+.xl-menu-head{display:flex;gap:14px;padding:2px 14px 8px}
+.xl-menu-head a{color:#1a73e8;font-size:12px;text-decoration:none}
+.xl-menu-head a:hover{text-decoration:underline}
+.xl-menu-src{padding:0 10px 8px}
+.xl-menu-src input{width:100%;box-sizing:border-box;border:1px solid #dadce0;
+  border-radius:4px;padding:6px 9px;font:400 12.5px Arial,sans-serif;
+  color:#202124;background:#fff;color-scheme:light}
+.xl-menu-src input:focus{outline:0;border-color:#1a73e8}
+.xl-menu-body{max-height:252px;overflow:auto;padding:2px 4px 6px;
+  border-top:1px solid #e8eaed}
+.xl-menu-body label{display:flex;align-items:center;gap:9px;padding:5px 10px;
+  border-radius:5px;cursor:pointer;color:#202124;font-weight:400}
+.xl-menu-body label:hover{background:#f1f3f4}
+.xl-menu-body label.hid{display:none}
+.xl-menu-body input{width:14px;height:14px;accent-color:#1a73e8;margin:0;flex:none;
+  color-scheme:light}
+.xl-menu-body span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xl-menu-foot{display:flex;justify-content:flex-end;gap:8px;
+  padding:9px 12px;border-top:1px solid #e8eaed;background:#fff}
+.xl-menu-foot button,.xl-menu-foot a{background:#1a73e8;color:#fff;border:0;
+  border-radius:5px;padding:6px 16px;font:600 12px Arial,sans-serif;
+  cursor:pointer;box-shadow:none;text-decoration:none;line-height:1.5}
+.xl-menu-foot .gh{background:#fff;color:#1a73e8;border:1px solid #dadce0}
+.xl-menu-foot button:hover{background:#1765cc;filter:none;transform:none}
+.xl-menu-foot .gh:hover{background:#f1f3f4;filter:none;transform:none}
+@media(max-width:900px){
+  .xl-wrap{max-height:66vh}
+  .xl td.cG{max-width:190px}
+  .xl td.cH{max-width:170px}
+  .xl-menu{width:min(288px,calc(100vw - 24px))}
+}
+
 /* Kassa filtr paneli */
 .filt{padding:14px 16px}
 .filt-grid{display:grid;gap:10px 12px;
@@ -881,7 +979,8 @@ main > *:nth-child(6){animation-delay:.25s}
   <a class="{{ 'on' if p.startswith('/cohorts') }}" href="/cohorts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Oqimlar</a>
   <a class="{{ 'on' if p.startswith('/planner') }}" href="/planner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h3M13 10h3M8 14h3M13 14h3M8 18h3M13 18h3"/></svg>Launch-hisob</a>
   <span class="sep">Hisobot</span>
-  <a class="{{ 'on' if p.startswith('/dds') }}" href="/dds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>ДДС (yillik)</a>
+  <a class="{{ 'on' if p.startswith('/ddsdata') }}" href="/ddsdata"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>ДДС данные</a>
+  <a class="{{ 'on' if p == '/dds' }}" href="/dds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>ДДС (yillik)</a>
   <a class="{{ 'on' if p.startswith('/reports') }}" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Tahlillar</a>
   <a class="{{ 'on' if p.startswith('/kpi') }}" href="/kpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>KPI</a>
   <a class="{{ 'on' if p.startswith('/settings') }}" href="/settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Sozlamalar</a>
@@ -927,6 +1026,7 @@ main > *:nth-child(6){animation-delay:.25s}
   <div class="msheet-ovl" onclick="toggleSheet(false)"></div>
   <div class="msheet">
     <div class="msheet-grid">
+      <a href="/ddsdata"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>ДДС данные</a>
       <a href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Tahlillar</a>
       <a href="/kpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>KPI</a>
       <a href="/contracts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-5z"/><path d="M9 13h6M9 17h6"/></svg>Shartnomalar</a>
@@ -1756,6 +1856,68 @@ function initPray(){
   addEventListener("resize", function(){ layout(nowMin()); });
 }
 addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); applyEye(); initCharts(); });
+
+/* ══ «ДДС данные» filtr menyulari ══ */
+function xlClose(){
+  document.querySelectorAll(".xl-menu.open").forEach(function(x){
+    x.classList.remove("open");
+    // portal'dan o'z <th> iga qaytaramiz
+    if (x._home && x.parentNode !== x._home) x._home.appendChild(x);
+  });
+}
+function xlPlace(m, btn){
+  var b = btn.getBoundingClientRect();
+  m.style.left = "0px"; m.style.top = "0px";      // o'lchash uchun
+  var w = m.offsetWidth, h = m.offsetHeight, pad = 8;
+  var left = Math.min(Math.max(pad, b.left), innerWidth - w - pad);
+  var top = b.bottom + 4;
+  if (top + h > innerHeight - pad) top = Math.max(pad, b.top - h - 4);
+  m.style.left = left + "px"; m.style.top = top + "px";
+}
+function xlMenu(ev, key){
+  ev.stopPropagation();
+  var m = document.getElementById("fm-" + key);
+  if (!m) return;
+  var open = m.classList.contains("open");
+  xlClose();
+  if (open) return;
+  // ba'zi ota-elementlarda transform/filter bor — position:fixed ularga bog'lanib
+  // qolmasligi uchun menyuni vaqtincha <body> ga ko'chiramiz
+  if (!m._home) m._home = m.parentNode;
+  if (m.parentNode !== document.body) document.body.appendChild(m);
+  m.classList.add("open");
+  m._btn = ev.currentTarget;
+  xlPlace(m, ev.currentTarget);
+  var s = m.querySelector(".xl-menu-src input");
+  if (s) s.focus();
+}
+function xlAll(key, on){
+  document.querySelectorAll('#fm-' + key + ' .xl-menu-body label')
+    .forEach(function(l){
+      if (l.classList.contains("hid")) return;    // qidiruvdan yashiringanlarga tegmaydi
+      var c = l.querySelector("input[type=checkbox]");
+      if (c) c.checked = on;
+    });
+}
+/* menyu ichidagi qidiruv — Sheets'dagi «Поиск» kabi */
+function xlFind(inp, key){
+  var t = (inp.value || "").trim().toLowerCase();
+  document.querySelectorAll('#fm-' + key + ' .xl-menu-body label')
+    .forEach(function(l){
+      var v = (l.textContent || "").trim().toLowerCase();
+      l.classList.toggle("hid", t !== "" && v.indexOf(t) < 0);
+    });
+}
+document.addEventListener("click", function(e){
+  if (!e.target.closest(".xl-menu") && !e.target.closest(".xl-fbtn")) xlClose();
+});
+document.addEventListener("keydown", function(e){ if (e.key === "Escape") xlClose(); });
+addEventListener("resize", xlClose);
+/* jadval gorizontal siljiganda menyu tugma bilan birga yursin */
+addEventListener("scroll", function(){
+  var m = document.querySelector(".xl-menu.open");
+  if (m && m._btn) xlPlace(m, m._btn);
+}, true);
 
 function toggleSheet(open){
   var w = document.getElementById("msheet");
