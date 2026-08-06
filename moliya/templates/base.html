@@ -492,7 +492,6 @@ main > *:nth-child(6){animation-delay:.25s}
 .ph-day .pray-next span{background:rgba(255,255,255,.6);border-color:rgba(30,50,90,.18);color:#17253f}
 .ph-day .arc-base{stroke:rgba(23,37,63,.38)}
 .ph-day .sky-dot{background:#e5eefb;border-color:#5b6c8f}
-.ph-day .sky-city path{fill:rgba(36,50,82,.88)}
 .ph-day .sky-clouds i{background:rgba(255,255,255,.8);filter:blur(8px)}
 .ph-dawn .sky-clouds i{background:rgba(255,235,215,.35)}
 .ph-day .sky-caravan path,.ph-day .sky-caravan rect,
@@ -521,7 +520,8 @@ main > *:nth-child(6){animation-delay:.25s}
   box-shadow:0 0 5px rgba(245,193,92,.7)}
 /* tuyalar karvoni */
 .sky-caravan{position:absolute;width:74px;z-index:3;pointer-events:none;
-  transition:left 1.2s,top 1.2s;transform:translate(-50%,-94%)}
+  transition:left 1.2s,top 1.2s;transform:translate(-88%,-94%);
+  transform-origin:88% 96%}
 @media(max-width:900px){.sky-caravan{width:60px}}
 .sky-caravan svg{display:block;width:100%;height:auto;overflow:visible}
 .sky-caravan path,.sky-caravan rect,.sky-caravan use,.sky-caravan circle{fill:#e6cf9d}
@@ -546,9 +546,16 @@ main > *:nth-child(6){animation-delay:.25s}
   border:2px solid var(--green);animation:ringp 2s ease-out infinite}
 @keyframes ringp{0%{transform:scale(.45);opacity:.9}100%{transform:scale(1.35);opacity:0}}
 /* ufqdagi masjid silueti */
-.sky-city{position:absolute;left:0;right:0;bottom:0;width:100%;height:36px;z-index:1}
-.sky-city path{fill:rgba(6,9,20,.82);transition:fill 1.2s}
-.ph-night .sky-city path{fill:rgba(3,5,12,.94)}
+.sky-city{position:absolute;left:0;right:0;bottom:0;width:100%;height:40px;z-index:1}
+.sky-city .sil{fill:rgba(6,9,20,.82);transition:fill 1.2s}
+.ph-night .sky-city .sil{fill:rgba(3,5,12,.94)}
+.ph-day .sky-city .sil{fill:rgba(36,50,82,.88)}
+/* masjid derazalari — qorong'uda chiroq yonadi */
+.city-win rect,.city-win path{fill:#f7c96b;opacity:0;transition:opacity 1.2s}
+.ph-night .city-win rect,.ph-night .city-win path{opacity:.95}
+.ph-dusk .city-win rect,.ph-dusk .city-win path,
+.ph-dawn .city-win rect,.ph-dawn .city-win path{opacity:.7}
+.ph-night .city-win{filter:drop-shadow(0 0 3px rgba(247,201,107,.8))}
 /* kunduzgi bulutlar */
 .sky-clouds i{position:absolute;border-radius:50%;filter:blur(9px);
   background:rgba(255,255,255,.15);opacity:0;transition:opacity 1.2s}
@@ -1237,8 +1244,9 @@ function initPray(){
       var dx = (2*(1-f)*(180-16) + 2*f*(344-180)) * W/360;
       var dy = (2*(1-f)*(-34-102) + 2*f*(102+34)) * H/118;
       var ang = Math.atan2(dy, dx) * 180 / Math.PI;
+      // sarban (old tomon) aynan joriy vaqt nuqtasida turadi
       car.style.left = p[0] + "px"; car.style.top = (p[1] + 3) + "px";
-      car.style.transform = "translate(-50%,-94%) rotate(" + ang.toFixed(1) + "deg)";
+      car.style.transform = "translate(-88%,-94%) rotate(" + ang.toFixed(1) + "deg)";
     }
     // bosib o'tilgan yo'l: Bezyeni f nuqtada bo'lib, qism-egri chizamiz
     if (prog){
