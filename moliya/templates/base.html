@@ -518,23 +518,22 @@ main > *:nth-child(6){animation-delay:.25s}
 .sky-foot{position:absolute;width:4px;height:4px;margin:-2px 0 0 -2px;
   border-radius:50%;background:var(--gold);opacity:.75;z-index:1;
   box-shadow:0 0 5px rgba(245,193,92,.7)}
-/* tuyalar karvoni */
-.sky-caravan{position:absolute;width:74px;z-index:3;pointer-events:none;
-  transition:left 1.2s,top 1.2s;transform:translate(-88%,-94%);
-  transform-origin:88% 96%}
-@media(max-width:900px){.sky-caravan{width:60px}}
-.sky-caravan svg{display:block;width:100%;height:auto;overflow:visible}
-.sky-caravan path,.sky-caravan rect,.sky-caravan use,.sky-caravan circle{fill:#e6cf9d}
-.sky-caravan svg{filter:drop-shadow(0 0 4px rgba(245,193,92,.35)) drop-shadow(0 2px 3px rgba(0,0,0,.45))}
-.cam{animation:camwalk 1.15s ease-in-out infinite;transform-origin:50% 100%}
-.cam.k2{animation-delay:.2s}
-.cam.k3{animation-delay:.42s}
-@keyframes camwalk{0%,100%{transform:translateY(0) rotate(0deg)}
-  50%{transform:translateY(-1.3px) rotate(-1.2deg)}}
-.sky-caravan .leg{transform-box:fill-box;transform-origin:top center;
-  animation:legswing 1.15s ease-in-out infinite}
-.sky-caravan .leg.b{animation-delay:-.575s}
-@keyframes legswing{0%,100%{transform:rotate(8deg)}50%{transform:rotate(-8deg)}}
+/* tuyalar karvoni — professional siluet (SVG-maska, rang fazadan) */
+.sky-caravan{position:absolute;width:96px;aspect-ratio:1127/287;z-index:3;
+  pointer-events:none;transition:left 1.2s,top 1.2s;
+  transform:translate(-88%,-100%);transform-origin:88% 100%;
+  filter:drop-shadow(0 0 5px rgba(245,193,92,.3)) drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+@media(max-width:900px){.sky-caravan{width:78px}}
+.sky-caravan .cimg{width:100%;height:100%;background:#e8d29e;
+  --cm:url(/static/img/caravan.svg);
+  -webkit-mask:var(--cm) center/contain no-repeat;
+  mask:var(--cm) center/contain no-repeat;
+  animation:camwalk 1.7s ease-in-out infinite}
+.ph-day .sky-caravan{filter:drop-shadow(0 2px 3px rgba(30,50,90,.35))}
+.ph-day .sky-caravan .cimg{background:#31405f}
+/* rasm chapga qaragan — yo'nalishga ko'zgu, yurish tebranishi bilan */
+@keyframes camwalk{0%,100%{transform:scaleX(-1) translateY(0)}
+  50%{transform:scaleX(-1) translateY(-1.6px)}}
 /* namoz nuqtalari yoy ustida */
 .sky-dot{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;
   background:var(--ink3);border:2px solid var(--dim);z-index:2;transition:.4s}
@@ -545,17 +544,24 @@ main > *:nth-child(6){animation-delay:.25s}
 .sky-dot.next::after{content:"";position:absolute;inset:-7px;border-radius:50%;
   border:2px solid var(--green);animation:ringp 2s ease-out infinite}
 @keyframes ringp{0%{transform:scale(.45);opacity:.9}100%{transform:scale(1.35);opacity:0}}
-/* ufqdagi masjid silueti */
-.sky-city{position:absolute;left:0;right:0;bottom:0;width:100%;height:40px;z-index:1}
-.sky-city .sil{fill:rgba(6,9,20,.82);transition:fill 1.2s}
-.ph-night .sky-city .sil{fill:rgba(3,5,12,.94)}
-.ph-day .sky-city .sil{fill:rgba(36,50,82,.88)}
-/* masjid derazalari — qorong'uda chiroq yonadi */
-.city-win rect,.city-win path{fill:#f7c96b;opacity:0;transition:opacity 1.2s}
-.ph-night .city-win rect,.ph-night .city-win path{opacity:.95}
-.ph-dusk .city-win rect,.ph-dusk .city-win path,
-.ph-dawn .city-win rect,.ph-dawn .city-win path{opacity:.7}
-.ph-night .city-win{filter:drop-shadow(0 0 3px rgba(247,201,107,.8))}
+/* ufqdagi masjid silueti — tabiiy nisbatda markazda, devor ufq bo'ylab */
+.sky-city{position:absolute;left:0;right:0;bottom:-1px;height:54px;z-index:1;pointer-events:none}
+.sky-city .mimg{width:100%;height:100%;background:rgba(8,12,24,.88);transition:background 1.2s;
+  --mm:url(/static/img/mosque.svg);
+  -webkit-mask:var(--mm) center bottom/auto 100% no-repeat;
+  mask:var(--mm) center bottom/auto 100% no-repeat}
+.sky-city .mwall{position:absolute;left:0;right:0;bottom:0;height:9px;
+  background:rgba(8,12,24,.88);transition:background 1.2s}
+.sky-city .mwall::before{content:"";position:absolute;left:0;right:0;top:-4px;height:4px;
+  background:repeating-linear-gradient(90deg,rgba(8,12,24,.85) 0 9px,transparent 9px 15px)}
+.ph-night .sky-city .mimg,.ph-night .sky-city .mwall{background:rgba(3,5,12,.96)}
+.ph-day .sky-city .mimg,.ph-day .sky-city .mwall{background:rgba(36,50,82,.92)}
+/* derazalar — qorong'uda chiroq yonadi */
+.city-win{position:absolute;inset:0}
+.city-win i{position:absolute;width:3px;height:5px;border-radius:1.5px;
+  background:#f7c96b;opacity:0;transition:opacity 1.2s}
+.ph-night .city-win i{opacity:.95;box-shadow:0 0 5px 1px rgba(247,201,107,.75)}
+.ph-dusk .city-win i,.ph-dawn .city-win i{opacity:.6}
 /* kunduzgi bulutlar */
 .sky-clouds i{position:absolute;border-radius:50%;filter:blur(9px);
   background:rgba(255,255,255,.15);opacity:0;transition:opacity 1.2s}
