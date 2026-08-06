@@ -983,6 +983,12 @@ function initPray(){
   var prog = el.querySelector(".arc-prog");
   var byKey = {};
   data.times.forEach(function(t){ byKey[t.key] = t.minutes; });
+  // Toshkent vaqti — qurilma soat mintaqasidan mustaqil (UTC + tz)
+  function nowMin(){
+    var n = new Date();
+    return (n.getUTCHours()*60 + n.getUTCMinutes()
+            + Math.round((data.tz || 5) * 60)) % 1440;
+  }
   // yoy ustidagi namoz nuqtalari
   var dots = [];
   if (canvas && !canvas.querySelector(".sky-dot")){
@@ -1029,8 +1035,7 @@ function initPray(){
     el.classList.add(ph);
   }
   function tick(){
-    var now = new Date();
-    var cur = now.getHours()*60 + now.getMinutes();
+    var cur = nowMin();
     var keys = {bomdod:1, peshin:1, asr:1, shom:1, xufton:1};
     var nxt = null;
     data.times.forEach(function(t){
@@ -1056,9 +1061,7 @@ function initPray(){
   }
   tick();
   setInterval(tick, 30000);
-  addEventListener("resize", function(){
-    layout(new Date().getHours()*60 + new Date().getMinutes());
-  });
+  addEventListener("resize", function(){ layout(nowMin()); });
 }
 addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); applyEye(); });
 

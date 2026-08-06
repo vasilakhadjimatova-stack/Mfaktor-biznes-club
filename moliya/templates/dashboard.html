@@ -131,7 +131,7 @@
     {% endfor %}
   </div>
 </div>
-<script type="application/json" id="pray-data">{{ {'times': pray.times}|tojson }}</script>
+<script type="application/json" id="pray-data">{{ {'times': pray.times, 'tz': pray.tz}|tojson }}</script>
 
 {# ── Bo'limlar katalogi ── #}
 <div class="sec-l">Bo'limlar</div>

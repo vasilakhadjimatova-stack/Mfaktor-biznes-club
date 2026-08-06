@@ -80,8 +80,12 @@ def times_for(day=None):
 
 
 def today_with_next(now=None):
-    """Bugungi vaqtlar + keyingi namoz belgilangan holda."""
-    now = now or datetime.now()
+    """Bugungi vaqtlar + keyingi namoz belgilangan holda.
+
+    Server soati/mintaqasidan qat'i nazar Toshkent vaqti ishlatiladi
+    (UTC + TZ), aks holda hisob serverning joylashuviga bog'lanib qoladi.
+    """
+    now = now or (datetime.utcnow() + timedelta(hours=TZ))
     times = times_for(now.date())
     cur = now.hour * 60 + now.minute
     # "Quyosh" namoz emas — keyingi hisobida o'tkaziladi
@@ -100,4 +104,4 @@ def today_with_next(now=None):
         t["is_next"] = (t["key"] == nxt["key"] and t["minutes"] % (24 * 60) == nxt["minutes"] % (24 * 60))
     return {"times": times, "next": nxt,
             "left_h": left // 60, "left_m": left % 60,
-            "date_str": now.strftime("%d.%m.%Y")}
+            "tz": TZ, "date_str": now.strftime("%d.%m.%Y")}
