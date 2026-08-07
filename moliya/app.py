@@ -524,6 +524,10 @@ def register_routes(app):
             year = int(request.args.get("year", date.today().year))
         except ValueError:
             year = date.today().year
+        view = request.args.get("view", "xl")     # xl — Sheets ko'rinishi
+        if view == "xl":
+            return render_template("dds_excel.html", x=core.dds_excel(year),
+                                   year=year)
         return render_template("dds.html", d=core.dds_matrix(year))
 
     # ── «ДДС данные» — Excel varag'ining 1:1 nusxasi ──────────────

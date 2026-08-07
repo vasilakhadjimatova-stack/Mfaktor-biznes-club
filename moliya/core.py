@@ -372,6 +372,113 @@ def dds_matrix(year):
 
 
 # ══════════════════════════════════════════════════════════════════
+#  «ДДС_2026» — Excel varag'ining 1:1 nusxasi
+# ══════════════════════════════════════════════════════════════════
+# Sheets'dagi hamyon tartibi va yozuvlari (Остаток qatorlarida shunday turadi)
+DDS_XL_WALLETS = [
+    ("РС MBM", "р.с МБМ", "rs_mbm"),
+    ("Наличные", "накт сум", "nal"),
+    (" РС DAVR BANK MBM", "р.с МБМ Davr bank", "davr_mbm"),
+    ("$", "$", "usd"),
+    ("UZCARD 2406", "карта 2406", "uzcard2406"),
+    ("PC MFAKTOR", "PC Mfaktor", "rs_mfaktor"),
+    ("MFAKTOR karta", "карта MFAKTOR", "karta_mfaktor"),
+]
+_XL_TRANSFER_IN = "Доход — Перевод между счетами"
+_XL_TRANSFER_OUT = "Расход — Перевод между счетами"
+
+
+def dds_excel(year):
+    """«ДДС_2026» varag'i bilan bir xil tuzilma: to'g'ridan-to'g'ri
+    «ДДС данные» (DdsRow) ustida hisoblanadi — Sheets formulalari kabi.
+    """
+    from models import DdsRow, DDS_SPRAVOCHNIK, Wallet as _W
+
+    rows = [r for r in DdsRow.query.all() if r.ddate and r.ddate.year == year]
+
+    def msum(pred):
+        v = [0.0] * 12
+        for r in rows:
+            if pred(r):
+                v[r.ddate.month - 1] += r.amount
+        return v
+
+    # ── modda bloklari: faoliyat × yo'nalish (Sheets'dagi FILTER kabi) ──
+    def block(activity, flow):
+        arts = [a for a, g, v in DDS_SPRAVOCHNIK
+                if v == activity and g == flow
+                and a not in (_XL_TRANSFER_IN, _XL_TRANSFER_OUT)]
+        out = []
+        for a in arts:
+            vals = msum(lambda r, a=a: r.article == a)
+            if any(vals):
+                out.append({"name": a.strip(), "vals": vals, "total": sum(vals)})
+        sub = [sum(x["vals"][i] for x in out) for i in range(12)]
+        return out, sub
+
+    op_in, op_in_t = block("Операционная", "Поступление")
+    op_out, op_out_t = block("Операционная", "Выбытие")
+    inv_in, inv_in_t = block("Инвестиционная", "Поступление")
+    inv_out, inv_out_t = block("Инвестиционная", "Выбытие")
+    fin_in, fin_in_t = block("Финансовая", "Поступление")
+    fin_out, fin_out_t = block("Финансовая", "Выбытие")
+    tr_in = msum(lambda r: r.article == _XL_TRANSFER_IN)
+    tr_out = msum(lambda r: r.article == _XL_TRANSFER_OUT)
+
+    # ── hamyonlar bo'yicha oylik qoldiqlar (perevodlar bilan birga) ──
+    opening0 = {}
+    for dds_name, label, code in DDS_XL_WALLETS:
+        w = _W.query.filter_by(code=code).first()
+        opening0[dds_name] = w.opening if w else 0.0
+    # yil boshigacha bo'lgan harakat ham qoldiqqa kiradi
+    for r in DdsRow.query.all():
+        if r.ddate and r.ddate.year < year and r.wallet in opening0:
+            opening0[r.wallet] += r.amount if r.flow == "Поступление" else -r.amount
+
+    delta = {n: [0.0] * 12 for n, _, _ in DDS_XL_WALLETS}
+    for r in rows:
+        if r.wallet in delta:
+            m = r.ddate.month - 1
+            delta[r.wallet][m] += r.amount if r.flow == "Поступление" else -r.amount
+
+    wal_open, wal_close = {}, {}
+    for n, _, _ in DDS_XL_WALLETS:
+        o, c, bal = [], [], opening0[n]
+        for i in range(12):
+            o.append(bal)
+            bal += delta[n][i]
+            c.append(bal)
+        wal_open[n], wal_close[n] = o, c
+
+    open_tot = [sum(wal_open[n][i] for n, _, _ in DDS_XL_WALLETS) for i in range(12)]
+    close_tot = [sum(wal_close[n][i] for n, _, _ in DDS_XL_WALLETS) for i in range(12)]
+    # ЧДП — oy davomidagi jami harakat (barcha qatorlar, perevod bilan)
+    chdp = [close_tot[i] - open_tot[i] for i in range(12)]
+    # Разница — nazorat: ЧДП == modda bloklari + perevod farqi bo'lishi shart
+    flows = [op_in_t[i] - op_out_t[i] + inv_in_t[i] - inv_out_t[i]
+             + fin_in_t[i] - fin_out_t[i] + tr_in[i] - tr_out[i]
+             for i in range(12)]
+    razn = [chdp[i] - flows[i] for i in range(12)]
+
+    tot = lambda v: sum(v)
+    return {
+        "year": year, "months": ["Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"],
+        "wallets": [(label, wal_open[n], wal_close[n])
+                    for n, label, _ in DDS_XL_WALLETS],
+        "open_tot": open_tot, "close_tot": close_tot,
+        "op_in": op_in, "op_in_t": op_in_t, "op_out": op_out, "op_out_t": op_out_t,
+        "inv_in": inv_in, "inv_in_t": inv_in_t, "inv_out": inv_out,
+        "inv_out_t": inv_out_t,
+        "fin_in": fin_in, "fin_in_t": fin_in_t, "fin_out": fin_out,
+        "fin_out_t": fin_out_t,
+        "tr_in": tr_in, "tr_out": tr_out,
+        "chdp": chdp, "razn": razn,
+        "ok": all(abs(x) < 1 for x in razn),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
 #  BUDGET plan-fakt
 # ══════════════════════════════════════════════════════════════════
 def budget_planfact(year, month):
