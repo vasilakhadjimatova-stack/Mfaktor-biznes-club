@@ -40,13 +40,13 @@
         {% if w.cur == 'usd' %}
           <div class="woval"></div>
           <div class="wmark">$</div>
-        {% else %}
-          <div class="wmark">so'm</div>
-          <div class="wstripe"></div>
+        {% elif w.cur == 'cash' %}
+          <div class="wcash"><i></i><i></i><i></i><b></b></div>
         {% endif %}
         <div class="wtop">
           <div class="wname">{{ w.name }}</div>
-          <div class="wcur">{{ 'USD' if w.cur == 'usd' else "SO'M" }}</div>
+          <div class="wcur">{{ 'USD' if w.cur == 'usd'
+                              else ('NAQD' if w.cur == 'cash' else "SO'M") }}</div>
         </div>
         <div class="wchip"></div>
         <svg class="wwave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

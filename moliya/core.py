@@ -63,7 +63,13 @@ def wallet_cards(limit_tx=8):
                       else (t.category or ""))[:26],
                 "a": t.amount, "in": bool(incoming),
             })
-        cur = "usd" if w.code == "usd" or "$" in w.name else "uzs"
+        low = w.name.lower()
+        if w.code == "usd" or "$" in w.name:
+            cur = "usd"                     # dollar hisobi
+        elif w.code == "nal" or "налич" in low or "naqd" in low or "нал " in low:
+            cur = "cash"                    # naqd pul — banknot dastasi
+        else:
+            cur = "card"                    # bank kartasi/hisobi — toza karta
         cards.append({"code": w.code, "name": w.name,
                       "balance": r["balance"], "grad": i % 6,
                       "cur": cur, "hist": hist})

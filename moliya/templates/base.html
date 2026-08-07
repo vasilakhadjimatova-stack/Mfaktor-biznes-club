@@ -431,35 +431,50 @@ main > *:nth-child(6){animation-delay:.25s}
 /* dollar kartasi — dollar banknoti yashili, boshqa gradientlardan ustun */
 .wcard.cur-usd{background:
   linear-gradient(135deg,#2e7d57,#175c3d 52%,#0a3a25)}
-/* banknot naqshi (guilloche): valyutaga xos halqalar */
-.wguil{position:absolute;inset:0;pointer-events:none;opacity:.5}
+/* nozik guilloche halqalari — barcha kartalarda, deyarli sezilmas */
+.wguil{position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background:
+  repeating-radial-gradient(circle at 112% -20%, transparent 0 8px,
+    rgba(255,255,255,.04) 8px 9px),
+  repeating-radial-gradient(circle at -12% 118%, transparent 0 10px,
+    rgba(255,255,255,.03) 10px 11px)}
 .cur-usd .wguil{background:
   repeating-radial-gradient(circle at 118% 50%, transparent 0 7px,
     rgba(255,255,255,.055) 7px 8px),
   repeating-radial-gradient(circle at -18% 120%, transparent 0 9px,
     rgba(255,255,255,.04) 9px 10px)}
-.cur-uzs .wguil{background:
-  repeating-radial-gradient(circle at 112% -20%, transparent 0 8px,
-    rgba(255,255,255,.05) 8px 9px),
-  repeating-radial-gradient(circle at -12% 118%, transparent 0 10px,
-    rgba(255,255,255,.035) 10px 11px)}
-/* valyuta muhri — banknotdagi katta belgi */
+/* dollar: banknot oval ramkasi ichida katta $ */
 .wmark{position:absolute;z-index:0;pointer-events:none;
   font-family:var(--serif);font-weight:700;line-height:1;
   color:rgba(255,255,255,.09);text-shadow:0 0 1px rgba(255,255,255,.05)}
 .cur-usd .wmark{font-size:96px;right:16px;top:50%;transform:translateY(-50%)}
-.cur-uzs .wmark{font-size:42px;right:14px;top:54%;
-  transform:translateY(-50%) rotate(-8deg);letter-spacing:-.02em}
-/* dollar: banknot oval ramkasi */
 .cur-usd .woval{position:absolute;right:14px;top:50%;transform:translateY(-54%);
   width:78px;height:100px;border-radius:50%;z-index:0;pointer-events:none;
   border:1.5px solid rgba(255,255,255,.14);
   box-shadow:inset 0 0 0 5px transparent, inset 0 0 0 6px rgba(255,255,255,.07)}
-/* so'm: milliy naqsh chizig'i (atlas ohangida) */
-.cur-uzs .wstripe{position:absolute;left:0;right:0;bottom:0;height:7px;z-index:1;
-  pointer-events:none;opacity:.85;
-  background:repeating-linear-gradient(90deg,
-    rgba(255,255,255,.28) 0 14px, rgba(255,255,255,.07) 14px 28px)}
+/* naqd pul: banknot dastasi (faqat «Наличные» kartasida) */
+.wcash{position:absolute;right:16px;top:50%;transform:translateY(-52%);
+  width:84px;height:52px;z-index:1;pointer-events:none;
+  filter:drop-shadow(0 5px 9px rgba(0,0,0,.4))}
+.wcash i{position:absolute;inset:0;border-radius:6px;
+  background:linear-gradient(135deg,#e9edda,#c3d3b2 60%,#a8bd96);
+  border:1px solid rgba(60,80,45,.35)}
+.wcash i:nth-child(1){transform:rotate(-9deg) translate(-3px,7px)}
+.wcash i:nth-child(2){transform:rotate(-3deg) translateY(3px)}
+.wcash i:nth-child(3){transform:rotate(4deg)}
+/* ustki banknot: oval va «so'm» yozuvi */
+.wcash i:nth-child(3)::before{content:"";position:absolute;left:60%;top:50%;
+  width:34px;height:34px;border-radius:50%;transform:translate(-50%,-50%);
+  border:1.5px solid rgba(60,80,45,.4);
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.5)}
+.wcash i:nth-child(3)::after{content:"so'm";position:absolute;left:60%;top:50%;
+  transform:translate(-50%,-50%);
+  font:700 12px var(--serif);color:#41552f;letter-spacing:-.02em}
+/* pul tasmasi (banderol) — chetroqda, yozuvni to'smaydi */
+.wcash b{position:absolute;left:24%;top:-4px;bottom:-4px;width:14px;
+  transform:translateX(-50%) rotate(4deg);border-radius:3px;
+  background:linear-gradient(180deg,#f5c15c,#dda73f);
+  border:1px solid rgba(120,80,10,.45);opacity:.95}
 .wcard .wtop{display:flex;justify-content:space-between;align-items:flex-start;
   position:relative;z-index:2}
 .wcard .wname{font:600 11.5px var(--sans);letter-spacing:.03em;opacity:.92;
