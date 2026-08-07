@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mfaktor Moliya — kirish</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root{--bg:#0d1017;--card:#161b28;--gold:#f5c15c;--txt:#eceff7;--mut:#9aa3b5;
+        --line:#2c3550;--red:#f0716c}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100svh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(120% 90% at 50% -20%, #1a2030, var(--bg) 60%);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--txt);
+    padding:24px}
+  .box{width:min(360px,100%);text-align:center}
+  .logo{width:58px;height:58px;border-radius:16px;margin:0 auto 14px;
+    background:linear-gradient(135deg,#f7d489,#dfa63e);display:flex;
+    align-items:center;justify-content:center;font-size:22px;color:#141414;
+    box-shadow:0 10px 30px rgba(245,193,92,.25)}
+  h1{font-size:19px;font-weight:700;letter-spacing:.02em}
+  .sub{color:var(--mut);font-size:13px;margin:6px 0 26px}
+  form{background:var(--card);border:1px solid var(--line);border-radius:20px;
+    padding:26px 22px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+  label{display:block;font-size:11px;font-weight:600;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--mut);margin-bottom:12px}
+  .pin{display:flex;gap:9px;justify-content:center;margin-bottom:18px}
+  .pin input{width:44px;height:54px;border-radius:12px;border:1.5px solid var(--line);
+    background:#0d1120;color:var(--txt);font:700 22px/1 inherit;text-align:center;
+    caret-color:var(--gold);transition:border-color .15s}
+  .pin input:focus{outline:0;border-color:var(--gold)}
+  button{width:100%;padding:13px;border:0;border-radius:12px;cursor:pointer;
+    background:linear-gradient(135deg,#f7d489,#dfa63e);color:#141414;
+    font:700 15px inherit;letter-spacing:.02em}
+  button:active{transform:scale(.98)}
+  .err{color:var(--red);font-size:13px;font-weight:600;margin-bottom:12px}
+  .foot{margin-top:18px;color:#6b7488;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">◆</div>
+  <h1>MFAKTOR MOLIYA</h1>
+  <p class="sub">Kirish uchun 6 xonali kodni tering</p>
+  <form method="post" id="f" autocomplete="off">
+    <label>Maxfiy kod</label>
+    {% if err %}<div class="err">{{ err }}</div>{% endif %}
+    {% if wait %}<div class="err">Ko'p urinildi — {{ wait }} soniya kuting</div>{% endif %}
+    <div class="pin" id="pin">
+      {% for i in range(6) %}
+      <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1"
+             {{ 'autofocus' if loop.first }} aria-label="{{ loop.index }}-raqam">
+      {% endfor %}
+    </div>
+    <input type="hidden" name="pin" id="pinval">
+    <button>Kirish</button>
+  </form>
+  <p class="foot">Kodni faqat jamoa a'zolari biladi. Unutsangiz — administratorga murojaat qiling.</p>
+</div>
+<script>
+  var inputs = [].slice.call(document.querySelectorAll("#pin input"));
+  var form = document.getElementById("f"), hidden = document.getElementById("pinval");
+  function collect(){ hidden.value = inputs.map(function(i){return i.value}).join(""); }
+  inputs.forEach(function(inp, k){
+    inp.addEventListener("input", function(){
+      inp.value = inp.value.replace(/\D/g, "").slice(-1);
+      collect();
+      if (inp.value && k < 5) inputs[k+1].focus();
+      if (hidden.value.length === 6) form.submit();
+    });
+    inp.addEventListener("keydown", function(e){
+      if (e.key === "Backspace" && !inp.value && k > 0) inputs[k-1].focus();
+    });
+    inp.addEventListener("paste", function(e){
+      e.preventDefault();
+      var t = (e.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, 6);
+      t.split("").forEach(function(ch, j){ if (inputs[j]) inputs[j].value = ch; });
+      collect();
+      if (t.length === 6) form.submit(); else if (inputs[t.length]) inputs[t.length].focus();
+    });
+  });
+  form.addEventListener("submit", collect);
+</script>
+</body>
+</html>

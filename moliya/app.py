@@ -6,12 +6,14 @@ Ishga tushirish:
     python seed.py      # birinchi marta — demo ma'lumot
     python app.py       # http://localhost:5060
 """
+import hmac
 import os
+import time
 from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
 from flask import (Flask, Response, flash, redirect, render_template,
-                   request, url_for)
+                   request, session, url_for)
 
 import analytics
 import automation
@@ -32,7 +34,63 @@ from models import (Budget, Cohort, Contract, Course, DdsRow, DDS_LOOKUP,
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "mfaktor-moliya-dev")
+    app.permanent_session_lifetime = timedelta(days=30)
     init_db(app)
+
+    # ── 6 xonali kirish kodi ─────────────────────────────────────
+    # APP_PIN o'rnatilgan bo'lsa butun dastur qulflanadi (Railway'da shart).
+    # O'rnatilmagan bo'lsa (lokal ishlab chiqish) — himoya o'chiq.
+    APP_PIN = os.environ.get("APP_PIN", "").strip()
+    _pin_fails = {}                    # ip -> (soni, oxirgi urinish vaqti)
+    _PUBLIC = ("/login", "/static/", "/manifest.json", "/sw.js",
+               "/offline.html", "/healthz")
+
+    @app.before_request
+    def _guard():
+        if not APP_PIN:
+            return None
+        p = request.path
+        if any(p == x or p.startswith(x) for x in _PUBLIC):
+            return None
+        if session.get("auth"):
+            return None
+        return redirect(url_for("login", next=request.path))
+
+    @app.route("/healthz")
+    def healthz():
+        return {"ok": True}
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        if not APP_PIN or session.get("auth"):
+            return redirect("/")
+        err = wait = None
+        ip = request.headers.get("X-Forwarded-For",
+                                 request.remote_addr or "?").split(",")[0]
+        fails, last = _pin_fails.get(ip, (0, 0))
+        if request.method == "POST":
+            # 5 marta xato — 60 soniya kutish (qo'pol kuchga qarshi)
+            if fails >= 5 and time.time() - last < 60:
+                wait = int(60 - (time.time() - last))
+            else:
+                pin = "".join(ch for ch in request.form.get("pin", "")
+                              if ch.isdigit())
+                if hmac.compare_digest(pin, APP_PIN):
+                    _pin_fails.pop(ip, None)
+                    session.permanent = True
+                    session["auth"] = True
+                    nxt = request.args.get("next", "/")
+                    return redirect(nxt if nxt.startswith("/") else "/")
+                _pin_fails[ip] = (fails + 1, time.time())
+                err = "Kod noto'g'ri"
+                if fails + 1 >= 5:
+                    wait = 60
+        return render_template("login.html", err=err, wait=wait)
+
+    @app.route("/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("login"))
 
     @app.template_filter("grp")
     def grp(v):

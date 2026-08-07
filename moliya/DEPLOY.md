@@ -27,6 +27,14 @@ Servis → **Variables**:
 | Nomi | Qiymati |
 |---|---|
 | `SECRET_KEY` | istalgan uzun tasodifiy satr (masalan 40 belgili) |
+| `APP_PIN` | 6 xonali kirish kodi, masalan `582917` — jamoa shu kod bilan kiradi |
+
+`APP_PIN` o'rnatilgach butun dastur qulflanadi: har kim avval chiroyli
+PIN sahifasida kodni teradi (5 marta xato — 1 daqiqa blok), sessiya
+30 kun eslab qolinadi, chap panelda «Chiqish» tugmasi bor.
+Kodni almashtirish: Variables'da qiymatni o'zgartiring — Railway o'zi
+qayta deploy qiladi, eski sessiyalar ham bekor bo'lishini istasangiz
+`SECRET_KEY`ni ham yangilang.
 
 ## 5. Domen
 
@@ -44,8 +52,20 @@ pip install -r requirements.txt
 # Railway'dagi PostgreSQL'ga ulanib import qilamiz:
 # (DATABASE_URL ni Railway -> Postgres -> Connect bo'limidan oling)
 set DATABASE_URL=postgresql://...     # Windows (PowerShell: $env:DATABASE_URL="...")
-python import_dds.py Mbm_2026.xlsx
-python import_extra.py Mbm_2026.xlsx
+python import_ddsdata.py Mbm_2026.xlsx   # «ДДС данные» 1:1 (1415 qator)
+python import_dds.py Mbm_2026.xlsx       # hamyon boshlang'ich qoldiqlari
+python import_extra.py Mbm_2026.xlsx     # kurslar/oqimlar (bo'lsa)
+```
+
+So'ng saytda (yoki xuddi shu terminalda) bir marta qayta qurishni
+ishga tushiring — ДДС qatorlari kassaga bog'lanadi va to'lovlar
+shartnomalarga taqqoslanadi:
+
+```bash
+python -c "from app import create_app; import ddsflow, matching
+app = create_app()
+with app.app_context():
+    print(ddsflow.rebuild_all()); print(matching.run_all())"
 ```
 
 Shu bilan sayt real 2026 ma'lumotlari bilan ishlaydi.
@@ -56,5 +76,9 @@ Har `git push` (tanlangan branchga) Railway'da avtomatik qayta deploy qiladi.
 
 ## Eslatmalar
 
-- Dastur hozircha parolsiz — jamoaga tarqatishdan oldin oddiy kirish kodi qo'shamiz (Impulse'dagi 6 xonali kod andozasi, 30 daqiqalik ish). URL olingach ayting, darhol qo'shib beramiz.
+- Kirish himoyasi tayyor: `APP_PIN` o'rnatilsa 6 xonali kod so'raladi
+  (yuqoridagi 4-bo'lim). Kodsiz deploy qilmang — moliyaviy ma'lumot
+  ochiq internetga chiqib qoladi.
 - Narx: Railway'ning Hobby rejasi ($5/oy) bu hajmdagi dastur uchun yetarli.
+- Tekshirish: deploy'dan keyin `https://.../healthz` → `{"ok": true}`
+  qaytarsa servis tirik.
