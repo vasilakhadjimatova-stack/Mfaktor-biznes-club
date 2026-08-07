@@ -1,0 +1,306 @@
+"""Mijoz to'lovini shartnomaga avtomat bog'lash (2-bosqich).
+
+Andoza — bank ko'chirmasini yuklash (1C «Загрузка выписки», QuickBooks/Xero
+bank feed): tizim taxmin qiladi, lekin **jimgina** qaror qabul qilmaydi.
+Ishonchi yetmasa — navbatga qo'yadi, odam bir bosishda tasdiqlaydi.
+
+Uch manba ishlatiladi:
+  • Статья              → yo'nalish (РОП / СМК / ТББ)
+  • Назначение платежа  → o'quvchi ismi
+  • Кошелек (2)         → to'lov turi (Depozit / Debitorka / Toliq tolov)
+
+Ishonch darajasi:
+  ≥ 0.92 va yagona nomzod  → avtomat bog'lanadi  (match_status="auto")
+  aks holda                → navbatga tushadi    (match_status="none")
+"""
+import re
+import unicodedata
+from difflib import SequenceMatcher
+
+from database import db
+from models import Contract, DdsRow, Student, Transaction
+
+import ddsflow
+
+# shu chegaradan yuqori bo'lsagina avtomat bog'lanadi
+AUTO_THRESHOLD = 0.92
+# navbatda ko'rsatiladigan eng past o'xshashlik — bundan pasti shunchaki shovqin
+SUGGEST_THRESHOLD = 0.65
+
+# ism emas — umumiy izohlar (bulardan hech qachon ism qidirilmaydi)
+STOPWORDS = {
+    "prixod klient", "klient prixod", "rop prixod", "prixod", "klient",
+    "click", "payme", "uzum", "smk", "rop", "tbb", "mbm", "mfaktor",
+    "prixod klienta", "oplata", "tolov", "to'lov", "перевод", "приход",
+    "поступление", "клиент", "оплата",
+}
+
+# lotin ↔ kirill: ismlarni bir alifboga keltiramiz
+_CYR = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+    "ж": "j", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+    "ф": "f", "х": "x", "ц": "s", "ч": "ch", "ш": "sh", "щ": "sh",
+    "ъ": "", "ы": "i", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+    "ў": "o", "қ": "q", "ғ": "g", "ҳ": "h",
+}
+
+
+def translit(s):
+    return "".join(_CYR.get(ch, ch) for ch in s)
+
+
+def norm_name(s):
+    """Ismni solishtirishga tayyorlash: kichik harf, bitta alifbo, tartiblangan.
+
+    «Suyunova Barno» va «Barno Suyunova» bir xil deb qaraladi.
+    """
+    s = unicodedata.normalize("NFKC", str(s or "")).strip().lower()
+    s = s.replace("ʼ", "").replace("'", "").replace("`", "").replace("’", "")
+    s = translit(s)
+    s = re.sub(r"[^a-z\s]", " ", s)
+    parts = [p for p in s.split() if len(p) > 1]
+    # o'zbek familiya qo'shimchalarini bir xillashtirish: -ov/-ova, -yev/-yeva
+    return " ".join(sorted(parts))
+
+
+def looks_like_name(purpose):
+    """Izohda haqiqiy ism bormi?"""
+    n = norm_name(purpose)
+    if not n:
+        return False
+    raw = " ".join(str(purpose or "").strip().lower().split())
+    if raw in STOPWORDS:
+        return False
+    parts = n.split()
+    if len(parts) < 2:
+        return False
+    # har bir bo'lak stop-so'z bo'lsa — ism emas
+    if all(p in STOPWORDS for p in parts):
+        return False
+    return True
+
+
+def similarity(a, b):
+    """0..1 — ikki ism qanchalik yaqin."""
+    na, nb = norm_name(a), norm_name(b)
+    if not na or not nb:
+        return 0.0
+    if na == nb:
+        return 1.0
+    base = SequenceMatcher(None, na, nb).ratio()
+    # umumiy so'zlar ulushi — «Suyunova Barno Baxtiyorovna» holati uchun
+    sa, sb = set(na.split()), set(nb.split())
+    if sa and sb:
+        jac = len(sa & sb) / len(sa | sb)
+        full = len(sa & sb) / min(len(sa), len(sb))   # biri ikkinchisini qamrasa
+        base = max(base, (base + jac) / 2, full * 0.95)
+    return round(min(base, 1.0), 4)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Nomzodlarni topish
+# ══════════════════════════════════════════════════════════════════
+def _course_matches(contract, direction):
+    """Shartnoma kursi ДДС yo'nalishiga mos keladimi?"""
+    if not direction:
+        return True
+    name = ddsflow.norm(contract.cohort.course.name if contract.cohort else "")
+    keys = {"РОП": ("роп", "rop", "rahbar"),
+            "СМК": ("смк", "smk", "sotuv"),
+            "ТББ": ("тбб", "tbb", "тбв", "biznes")}.get(direction, ())
+    return any(k in name for k in keys)
+
+
+def candidates(row, limit=5):
+    """Qatorga mos shartnomalar — o'xshashligi bo'yicha tartiblangan.
+
+    Qaytaradi: [{"contract":…, "score":…, "reason":…}]
+    """
+    if not ddsflow.is_client_payment(row) or not looks_like_name(row.purpose):
+        return []
+    direction = ddsflow.direction_for(row.article)
+    out = []
+    for c in Contract.query.filter(Contract.status != "refunded").all():
+        sc = similarity(row.purpose, c.student.name)
+        reasons = [f"ism {int(sc * 100)}%"]
+        if _course_matches(c, direction):
+            reasons.append(f"yo'nalish {direction}")
+        else:
+            sc -= 0.15                     # boshqa yo'nalish — ishonch pasayadi
+            reasons.append(f"yo'nalish mos emas ({direction})")
+        if c.due_total() > 0.01:
+            reasons.append("qarzi bor")
+        else:
+            sc -= 0.05                     # to'liq to'langan — ehtimoli past
+            reasons.append("to'liq to'langan")
+        if sc < SUGGEST_THRESHOLD:         # jarimalardan KEYIN tekshiramiz
+            continue
+        out.append({"contract": c, "score": round(max(sc, 0), 4),
+                    "reason": ", ".join(reasons)})
+    out.sort(key=lambda x: -x["score"])
+    return out[:limit]
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Bog'lash / bekor qilish
+# ══════════════════════════════════════════════════════════════════
+def apply(row, contract, status="manual", score=None):
+    """Qatorni shartnomaga bog'laydi va grafikni FIFO bo'yicha yopadi.
+
+    Kassa yozuvi QAYTA yaratilmaydi — u 1-bosqichda allaqachon bor.
+    Faqat unga contract_id qo'yiladi. Shuning uchun pul ikki marta
+    hisoblanmaydi.
+    """
+    if row.contract_id:
+        unapply(row)
+    row.contract_id = contract.id
+    row.match_status = status
+    row.match_score = score if score is not None else 1.0
+
+    tx = Transaction.query.filter_by(dds_row_id=row.id).first()
+    if tx:
+        tx.contract_id = contract.id
+
+    # FIFO: eng eski to'lanmagan qatordan boshlab yopamiz
+    rest = row.amount
+    for line in contract.lines:
+        need = line.amount - line.paid
+        if need <= 0.01 or rest <= 0:
+            continue
+        pay = min(need, rest)
+        line.paid += pay
+        rest -= pay
+    return rest                            # ortiqcha qolgan summa (avans)
+
+
+def unapply(row):
+    """Bog'lanishni bekor qiladi va grafikdan to'lovni teskari yechadi."""
+    if not row.contract_id:
+        return
+    c = db.session.get(Contract, row.contract_id)
+    if c:
+        rest = row.amount
+        for line in reversed(list(c.lines)):   # LIFO — apply'ning teskarisi
+            if rest <= 0 or line.paid <= 0:
+                continue
+            back = min(line.paid, rest)
+            line.paid -= back
+            rest -= back
+    tx = Transaction.query.filter_by(dds_row_id=row.id).first()
+    if tx:
+        tx.contract_id = None
+    row.contract_id = None
+    row.match_score = 0.0
+    if row.match_status in ("auto", "manual"):
+        row.match_status = "none"
+
+
+def auto_match(row):
+    """Ishonch yetsa — o'zi bog'laydi. Aks holda navbatda qoladi.
+
+    Qaytaradi: "auto" | "none" | "skip"
+    """
+    if not ddsflow.is_client_payment(row):
+        return "skip"
+    if row.match_status in ("manual", "skipped", "new"):
+        return row.match_status           # odam qaror qilgan — tegmaymiz
+    cands = candidates(row, limit=2)
+    if not cands:
+        row.match_status = "none"
+        return "none"
+    top = cands[0]
+    second = cands[1]["score"] if len(cands) > 1 else 0
+    # yagona va ishonchli bo'lsagina avtomat
+    if top["score"] >= AUTO_THRESHOLD and top["score"] - second >= 0.08:
+        apply(row, top["contract"], status="auto", score=top["score"])
+        return "auto"
+    row.match_status = "none"
+    row.match_score = top["score"]
+    return "none"
+
+
+def run_all():
+    """Barcha bog'lanmagan mijoz to'lovlarini qayta ko'rib chiqadi."""
+    auto = queued = skipped = 0
+    for row in DdsRow.query.order_by(DdsRow.rownum).all():
+        r = auto_match(row)
+        if r == "auto":
+            auto += 1
+        elif r == "none":
+            queued += 1
+        else:
+            skipped += 1
+    db.session.commit()
+    return {"auto": auto, "queued": queued, "skipped": skipped}
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Navbat («Tanilmagan to'lovlar»)
+# ══════════════════════════════════════════════════════════════════
+def inbox(limit=200, show="open"):
+    """Navbatdagi qatorlar + har biriga tayyor takliflar."""
+    q = DdsRow.query.filter(DdsRow.article.in_(_client_article_names()))
+    if show == "open":
+        q = q.filter(db.or_(DdsRow.contract_id.is_(None),
+                            DdsRow.contract_id == 0),
+                     DdsRow.match_status.notin_(["skipped", "new"]))
+    elif show == "skipped":
+        q = q.filter(DdsRow.match_status == "skipped")
+    elif show == "matched":
+        q = q.filter(DdsRow.contract_id.isnot(None))
+    rows = q.order_by(DdsRow.ddate.desc(), DdsRow.rownum.desc()).limit(limit).all()
+    out = []
+    for r in rows:
+        out.append({"row": r,
+                    "direction": ddsflow.direction_for(r.article),
+                    "named": looks_like_name(r.purpose),
+                    "cands": candidates(r, limit=3) if show != "matched" else []})
+    return out
+
+
+def _client_article_names():
+    from models import DDS_SPRAVOCHNIK
+    return [a for a, _, _ in DDS_SPRAVOCHNIK
+            if ddsflow.direction_for(a) is not None]
+
+
+def open_count():
+    """Navbatdagi qatorlar soni — har sahifada chaqiriladi, yengil so'rov."""
+    return (DdsRow.query
+            .filter(DdsRow.article.in_(_client_article_names()),
+                    DdsRow.contract_id.is_(None),
+                    DdsRow.match_status.notin_(["skipped", "new"]))
+            .count())
+
+
+def stats():
+    """Navbat holati — dashboard va sahifa sarlavhasi uchun."""
+    arts = _client_article_names()
+    rows = DdsRow.query.filter(DdsRow.article.in_(arts)).all()
+    total = len(rows)
+    matched = [r for r in rows if r.contract_id]
+    auto = [r for r in matched if r.match_status == "auto"]
+    skipped = [r for r in rows if r.match_status == "skipped"]
+    openq = [r for r in rows
+             if not r.contract_id and r.match_status not in ("skipped", "new")]
+    amt = lambda L: sum(x.amount for x in L)
+    return {"total": total, "total_amt": amt(rows),
+            "matched": len(matched), "matched_amt": amt(matched),
+            "auto": len(auto), "manual": len(matched) - len(auto),
+            "skipped": len(skipped),
+            "open": len(openq), "open_amt": amt(openq),
+            "named": sum(1 for r in openq if looks_like_name(r.purpose)),
+            "pct": round(len(matched) / total * 100) if total else 0}
+
+
+def find_or_create_student(name, source=""):
+    """Ismi bo'yicha o'quvchini topadi, bo'lmasa yaratadi."""
+    target = norm_name(name)
+    for s in Student.query.all():
+        if norm_name(s.name) == target:
+            return s, False
+    s = Student(name=name.strip(), source=source)
+    db.session.add(s)
+    db.session.flush()
+    return s, True

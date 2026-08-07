@@ -106,8 +106,15 @@
         <td class="cI">{{ r.flow }}</td>
         <td class="cJ">{{ r.activity }}</td>
         <td class="cX">
-          <form method="post" action="/ddsdata/{{ r.id }}/delete"
-                onsubmit="return confirm('Удалить строку?')">
+          <button type="button" class="xl-edit" title="Изменить"
+                  onclick='xlEdit({{ {"id": r.id,
+                                      "ddate": r.ddate.isoformat() if r.ddate else "",
+                                      "amount": r.amount,
+                                      "wallet": r.wallet, "wallet2": r.wallet2,
+                                      "purpose": r.purpose,
+                                      "article": r.article}|tojson }})'>✎</button>
+          <form method="post" action="/ddsdata/{{ r.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Удалить строку? Кассовая запись и график тоже будут отменены.')">
             <button class="xl-del" title="Удалить">✕</button></form>
         </td>
       </tr>
@@ -118,11 +125,11 @@
   </table>
 </div>
 
-{# ── Yangi qator ── #}
-<details class="adder" style="margin-top:14px">
-  <summary>Добавить строку</summary>
+{# ── Yangi qator / tahrirlash ── #}
+<details class="adder" style="margin-top:14px" id="xladd">
+  <summary id="xladd-title">Добавить строку</summary>
   <div class="body">
-  <form class="inline" method="post" action="/ddsdata/add">
+  <form class="inline" method="post" action="/ddsdata/add" id="xladd-form">
     <div><label>Дата</label><input type="date" name="ddate" value="{{ today.isoformat() }}" required></div>
     <div><label>Сумма</label><input name="amount" required placeholder="0,00"></div>
     <div><label>Кошелек</label>
@@ -132,9 +139,37 @@
     <div style="flex:1;min-width:220px"><label>Назначение платежа</label><input name="purpose"></div>
     <div><label>Статья</label>
       <select name="article">{% for a in articles %}<option>{{ a }}</option>{% endfor %}</select></div>
-    <div><button>Сохранить</button></div>
+    <div><button id="xladd-btn">Сохранить</button></div>
+    <div><button type="button" class="btn ghost" id="xladd-cancel"
+                 style="display:none" onclick="xlEditOff()">Отмена</button></div>
   </form>
-  <p class="hint" style="margin-top:10px">«Платеж/поступл» и «Вид д-ти» подставятся автоматически из справочника — как формулы VLOOKUP в таблице.</p>
+  <p class="hint" style="margin-top:10px">Строка сразу попадает в кассу: кошелёк, статья и вид деятельности
+    подставятся автоматически. Если это платёж клиента — система сама найдёт договор
+    или положит его в «To'lovlar navbati».</p>
   </div>
 </details>
+
+<script>
+/* ✎ — pastdagi formani tahrirlash rejimiga o'tkazadi */
+function xlEdit(d){
+  var det = document.getElementById("xladd"), f = document.getElementById("xladd-form");
+  det.open = true;
+  f.action = "/ddsdata/" + d.id + "/edit";
+  f.ddate.value = d.ddate; f.amount.value = d.amount;
+  f.wallet.value = d.wallet; f.wallet2.value = d.wallet2;
+  f.purpose.value = d.purpose; f.article.value = d.article;
+  document.getElementById("xladd-title").textContent = "Изменить строку — касса пересчитается";
+  document.getElementById("xladd-btn").textContent = "Сохранить изменения";
+  document.getElementById("xladd-cancel").style.display = "";
+  det.scrollIntoView({behavior: "smooth", block: "center"});
+}
+function xlEditOff(){
+  var det = document.getElementById("xladd"), f = document.getElementById("xladd-form");
+  f.action = "/ddsdata/add"; f.reset();
+  document.getElementById("xladd-title").textContent = "Добавить строку";
+  document.getElementById("xladd-btn").textContent = "Сохранить";
+  document.getElementById("xladd-cancel").style.display = "none";
+  det.open = false;
+}
+</script>
 {% endblock %}

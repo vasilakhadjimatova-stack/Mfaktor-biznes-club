@@ -16,7 +16,9 @@ from flask import (Flask, Response, flash, redirect, render_template,
 import analytics
 import automation
 import core
+import ddsflow
 import kpi
+import matching
 import planner
 import praytimes
 from database import db, init_db
@@ -68,9 +70,14 @@ def create_app():
             _, total_cash = core.wallet_balances()
         except Exception:
             total_cash = None
+        try:
+            inbox_open = matching.open_count()
+        except Exception:
+            inbox_open = 0
         return {"INCOME_CATS": INCOME_CATS, "EXPENSE_CATS": EXPENSE_CATS,
                 "CHANNELS": MARKETING_CHANNELS, "STATUSES": CONTRACT_STATUSES,
-                "today": date.today(), "total_cash": total_cash}
+                "today": date.today(), "total_cash": total_cash,
+                "inbox_open": inbox_open}
 
     register_routes(app)
     return app
@@ -651,22 +658,81 @@ def register_routes(app):
         except ValueError:
             amt = 0.0
         last = db.session.query(db.func.max(DdsRow.rownum)).scalar() or 2
-        db.session.add(DdsRow(rownum=last + 1, ddate=d, amount=amt,
-                              wallet=f.get("wallet", ""),
-                              wallet2=f.get("wallet2", ""),
-                              purpose=f.get("purpose", "").strip(),
-                              article=f.get("article", "")))
+        row = DdsRow(rownum=last + 1, ddate=d, amount=amt,
+                     wallet=f.get("wallet", ""),
+                     wallet2=f.get("wallet2", ""),
+                     purpose=f.get("purpose", "").strip(),
+                     article=f.get("article", ""))
+        db.session.add(row)
+        db.session.flush()
+
+        # ── ZANJIR: bitta qator → kassa → moslash ──
+        steps = []
+        tx = ddsflow.sync_row(row)
+        if tx:
+            steps.append("kassaga yozildi")
+            steps.append("hamyon qoldig'i yangilandi")
+        else:
+            _, why = ddsflow.check_row(row)
+            flash(f"Kassaga tushmadi: {why}", "err")
+        res = matching.auto_match(row)
+        if res == "auto":
+            steps.append(f"shartnomaga bog'landi ({row.contract.student.name})")
+            steps.append("to'lov grafigi yopildi")
+        elif res == "none":
+            steps.append("«Tanilmagan to'lovlar» navbatiga qo'yildi")
         db.session.commit()
-        flash("Qator qo'shildi", "ok")
+        if steps:
+            flash("Qator qo'shildi — " + ", ".join(steps), "ok")
         return redirect(url_for("ddsdata"))
 
     @app.route("/ddsdata/<int:rid>/delete", methods=["POST"])
     def ddsdata_delete(rid):
         row = db.session.get(DdsRow, rid)
         if row:
+            # avval ta'sirini qaytaramiz (kassa yozuvi + grafik), keyin o'chiramiz
+            ddsflow.unsync_row(row)
             db.session.delete(row)
             db.session.commit()
-            flash("Qator o'chirildi", "ok")
+            flash("Qator o'chirildi — kassa yozuvi va grafikdagi ta'siri "
+                  "ham qaytarildi", "ok")
+        return redirect(request.referrer or url_for("ddsdata"))
+
+    @app.route("/ddsdata/<int:rid>/edit", methods=["POST"])
+    def ddsdata_edit(rid):
+        """Qatorni tahrirlash — kassa yozuvi ham o'zi yangilanadi."""
+        row = db.session.get(DdsRow, rid)
+        if not row:
+            return redirect(url_for("ddsdata"))
+        f = request.form
+        try:
+            row.ddate = date.fromisoformat(f.get("ddate"))
+        except (ValueError, TypeError):
+            pass
+        amt = (f.get("amount") or "").replace(" ", "").replace(" ", "")
+        try:
+            row.amount = float(amt.replace(",", "."))
+        except ValueError:
+            pass
+        for k in ("wallet", "wallet2", "purpose", "article"):
+            if k in f:
+                setattr(row, k, f.get(k, "").strip())
+        # summa yoki ism o'zgargan bo'lsa — eski bog'lanish endi to'g'ri emas
+        matching.unapply(row)
+        ddsflow.sync_row(row)
+        matching.auto_match(row)
+        db.session.commit()
+        flash("Qator yangilandi — kassa va grafik qayta hisoblandi", "ok")
+        return redirect(request.referrer or url_for("ddsdata"))
+
+    @app.route("/ddsdata/rebuild", methods=["POST"])
+    def ddsdata_rebuild():
+        """Butun ДДС'ni kassaga qayta yozish + moslashni qayta ishga tushirish."""
+        r = ddsflow.rebuild_all()
+        m = matching.run_all()
+        flash(f"Kassa qayta qurildi: {r['made']} yozuv "
+              f"({r['skipped']} o'tkazildi). Moslash: {m['auto']} avtomat, "
+              f"{m['queued']} navbatda.", "ok")
         return redirect(request.referrer or url_for("ddsdata"))
 
     @app.route("/ddsdata/export")
@@ -686,6 +752,117 @@ def register_routes(app):
         return Response(csv, mimetype="text/csv; charset=utf-8",
                         headers={"Content-Disposition":
                                  'attachment; filename="DDS_dannie.csv"'})
+
+    # ── To'lovlar navbati («Tanilmagan to'lovlar») ────────────────
+    @app.route("/inbox")
+    def payments_inbox():
+        show = request.args.get("show", "open")
+        items = matching.inbox(show=show)
+        return render_template("inbox.html", items=items, show=show,
+                               st=matching.stats(),
+                               cohorts=Cohort.query.order_by(
+                                   Cohort.start_date.desc()).all())
+
+    @app.route("/inbox/<int:rid>/link", methods=["POST"])
+    def inbox_link(rid):
+        """Taklif qilingan shartnomaga bog'lash (bir bosish)."""
+        row = db.session.get(DdsRow, rid)
+        c = db.session.get(Contract, int(request.form.get("contract_id") or 0))
+        if not row or not c:
+            flash("Qator yoki shartnoma topilmadi", "err")
+            return redirect(url_for("payments_inbox"))
+        left = matching.apply(row, c, status="manual")
+        automation.log_event(
+            "payment",
+            f"To'lov bog'landi: {c.student.name} — "
+            + f"{row.amount:,.0f}".replace(",", " ") + " so'm",
+            f"ДДС qatori #{row.rownum} → shartnoma #{c.id}", c.id)
+        db.session.commit()
+        msg = f"Bog'landi: {c.student.name}"
+        if left > 0.01:
+            msg += f" · {left:,.0f} so'm avans bo'lib qoldi".replace(",", " ")
+        flash(msg, "ok")
+        return redirect(request.referrer or url_for("payments_inbox"))
+
+    @app.route("/inbox/<int:rid>/unlink", methods=["POST"])
+    def inbox_unlink(rid):
+        row = db.session.get(DdsRow, rid)
+        if row:
+            matching.unapply(row)
+            db.session.commit()
+            flash("Bog'lanish bekor qilindi — grafik qaytarildi", "ok")
+        return redirect(request.referrer or url_for("payments_inbox"))
+
+    @app.route("/inbox/<int:rid>/skip", methods=["POST"])
+    def inbox_skip(rid):
+        """«Bu shartnomaga tegishli emas» — navbatdan olib tashlash."""
+        row = db.session.get(DdsRow, rid)
+        if row:
+            matching.unapply(row)
+            row.match_status = "skipped"
+            db.session.commit()
+            flash("Navbatdan olib tashlandi", "ok")
+        return redirect(request.referrer or url_for("payments_inbox"))
+
+    @app.route("/inbox/<int:rid>/restore", methods=["POST"])
+    def inbox_restore(rid):
+        row = db.session.get(DdsRow, rid)
+        if row:
+            row.match_status = "none"
+            db.session.commit()
+        return redirect(request.referrer or url_for("payments_inbox"))
+
+    @app.route("/inbox/<int:rid>/contract", methods=["POST"])
+    def inbox_new_contract(rid):
+        """3-BOSQICH: navbatdan turib shartnoma ochish.
+
+        O'quvchi ismi, yo'nalish va birinchi to'lov summasi allaqachon
+        ma'lum — ROP faqat narx, oqim va bo'lib to'lash sonini kiritadi.
+        """
+        row = db.session.get(DdsRow, rid)
+        if not row:
+            return redirect(url_for("payments_inbox"))
+        f = request.form
+        cohort = db.session.get(Cohort, int(f.get("cohort_id") or 0))
+        if not cohort:
+            flash("Oqim tanlanmagan — avval Oqimlar sahifasida oqim oching",
+                  "err")
+            return redirect(url_for("payments_inbox"))
+        name = (f.get("student_name") or row.purpose or "").strip()
+        if not name:
+            flash("O'quvchi ismi kerak", "err")
+            return redirect(url_for("payments_inbox"))
+        student, is_new = matching.find_or_create_student(
+            name, source=f.get("source", ""))
+        if f.get("phone"):
+            student.phone = f.get("phone")
+
+        price = float(f.get("price") or 0) or cohort.course.base_price
+        c = Contract(student_id=student.id, cohort_id=cohort.id,
+                     price=price, discount=float(f.get("discount") or 0),
+                     signed_date=row.ddate or date.today())
+        db.session.add(c)
+        db.session.flush()
+        n = max(int(f.get("installments") or 1), 1)
+        per = c.net_price / n
+        for i in range(n):
+            db.session.add(InstallmentLine(
+                contract_id=c.id,
+                due_date=c.signed_date + timedelta(days=30 * i), amount=per))
+        db.session.flush()
+        automation.on_contract_created(c, n)
+        matching.apply(row, c, status="manual")
+        db.session.commit()
+        flash(f"Shartnoma ochildi va to'lov bog'landi — {student.name}"
+              + (" (yangi o'quvchi)" if is_new else ""), "ok")
+        return redirect(url_for("contract_detail", cid=c.id, welcome=1))
+
+    @app.route("/inbox/rerun", methods=["POST"])
+    def inbox_rerun():
+        r = matching.run_all()
+        flash(f"Qayta ko'rildi: {r['auto']} avtomat bog'landi, "
+              f"{r['queued']} navbatda qoldi", "ok")
+        return redirect(url_for("payments_inbox"))
 
     # ── Hisobotlar ───────────────────────────────────────────────
     @app.route("/reports")

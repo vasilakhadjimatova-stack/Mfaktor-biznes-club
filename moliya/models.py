@@ -129,6 +129,11 @@ class Transaction(db.Model):
     channel     = db.Column(db.String(50), default="")
     # faoliyat turi: operating / finance / tech (perevod — hisobotdan tashqari)
     activity    = db.Column(db.String(20), default="operating", index=True)
+    # «ДДС данные» qatoridan avtomat yaratilgan bo'lsa — manbaga bog'lanish.
+    # Shu bog'lanish tufayli ДДС qatori tahrirlansa/o'chirilsa, kassa yozuvi
+    # ham xuddi shunday yangilanadi (ikki marta hisoblanib ketmaydi).
+    dds_row_id  = db.Column(db.Integer, db.ForeignKey("dds_rows.id"),
+                            nullable=True, index=True)
 
 
 class Course(db.Model):
@@ -352,6 +357,18 @@ class DdsRow(db.Model):
     wallet2  = db.Column(db.String(40), default="")       # Кошелек (F)
     purpose  = db.Column(db.String(300), default="")      # Назначение платежа (G)
     article  = db.Column(db.String(120), default="")      # Статья (H)
+
+    # ── Avtomatika maydonlari (Excel'da yo'q, dastur o'zi yuritadi) ──
+    # moslash holati: none | auto | manual | skipped | new
+    match_status = db.Column(db.String(12), default="none", index=True)
+    # topilgan shartnoma (mijoz to'lovi bo'lsa)
+    contract_id  = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                             nullable=True, index=True)
+    match_score  = db.Column(db.Float, default=0.0)       # o'xshashlik 0..1
+
+    tx = db.relationship("Transaction", backref="dds_row", uselist=False,
+                         foreign_keys="Transaction.dds_row_id")
+    contract = db.relationship("Contract", foreign_keys=[contract_id])
 
     # formulали ustunlar — Excel'dagi kabi hisoblanadi
     @property
