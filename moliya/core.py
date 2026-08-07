@@ -63,9 +63,10 @@ def wallet_cards(limit_tx=8):
                       else (t.category or ""))[:26],
                 "a": t.amount, "in": bool(incoming),
             })
+        cur = "usd" if w.code == "usd" or "$" in w.name else "uzs"
         cards.append({"code": w.code, "name": w.name,
                       "balance": r["balance"], "grad": i % 6,
-                      "hist": hist})
+                      "cur": cur, "hist": hist})
     return {"cards": cards, "total": total}
 
 

@@ -30,20 +30,30 @@
 
 {# ── Hamyonlar katalogi (yashirin, hero bosilganda ochiladi) ── #}
 <div class="wcat" id="wcat">
+ <div class="wcat-in">
   <div class="wallet-deck">
     <div class="wtrack">
       {% for w in d.wcards.cards %}
-      <div class="wcard wg{{ w.grad }}" data-code="{{ w.code }}">
+      <div class="wcard wg{{ w.grad }} cur-{{ w.cur }}" data-code="{{ w.code }}"
+           style="--wi:{{ loop.index0 }}">
+        <div class="wguil"></div>
+        {% if w.cur == 'usd' %}
+          <div class="woval"></div>
+          <div class="wmark">$</div>
+        {% else %}
+          <div class="wmark">so'm</div>
+          <div class="wstripe"></div>
+        {% endif %}
         <div class="wtop">
           <div class="wname">{{ w.name }}</div>
-          <div class="wlogo">◆ MFAKTOR</div>
+          <div class="wcur">{{ 'USD' if w.cur == 'usd' else "SO'M" }}</div>
         </div>
         <div class="wchip"></div>
-        <svg class="wwave" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="wwave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M8.5 8.5a5 5 0 0 1 0 7"/><path d="M11.5 5.5a9 9 0 0 1 0 13"/><path d="M14.5 2.5a13 13 0 0 1 0 19"/>
         </svg>
-        <div class="wbal {{ 'neg' if w.balance < 0 }}">{{ w.balance|grp }}<small>so'm</small></div>
-        <div class="wnum">•••• {{ '%04d'|format(loop.index * 1379 % 10000) }}</div>
+        <div class="wbal {{ 'neg' if w.balance < 0 }}">{{ w.balance|grp }}<small>{{ '$' if w.cur == 'usd' else "so'm" }}</small></div>
+        <div class="wnum">◆ MFAKTOR · •••• {{ '%04d'|format(loop.index * 1379 % 10000) }}</div>
       </div>
       {% endfor %}
     </div>
@@ -60,6 +70,7 @@
     </div>
     <div id="whist-list"></div>
   </div>
+ </div>
 </div>
 
 {# ── Tez amallar ── #}
