@@ -3,6 +3,24 @@
 <h1>Sozlamalar</h1>
 <p class="sub">Hamyonlar va takrorlanuvchi to'lovlar</p>
 
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Excel'dan import (Mbm_2026.xlsx)</h2>
+  <p class="sub" style="margin-top:-4px">Google Sheets'dagi faylni
+    (Fayl → Yuklab olish → .xlsx) shu yerga yuklang. «ДДС данные» to'liq
+    almashtiriladi, hamyon qoldiqlari yangilanadi, kassa qayta quriladi va
+    to'lovlar shartnomalarga o'zi taqqoslanadi. Bir necha soniya davom etadi.</p>
+  <form class="inline" method="post" action="/settings/import"
+        enctype="multipart/form-data"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Yuklanmoqda…'">
+    <div style="flex:1;min-width:240px"><label>Excel fayl</label>
+      <input type="file" name="xlsx" accept=".xlsx,.xlsm" required></div>
+    <div><button>Import qilish</button></div>
+  </form>
+  <p class="hint warn" style="margin-top:10px">Diqqat: bu amal «ДДС данные»dagi
+    hozirgi qatorlarni fayl bilan to'liq almashtiradi. Saytda qo'lda kiritilgan
+    qatorlar bo'lsa, avval CSV eksport qilib oling.</p>
+</div>
+
 <div class="grid g2">
   <div class="card">
     <h2 style="margin-top:0">Hamyonlar</h2>

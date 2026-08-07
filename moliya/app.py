@@ -1058,6 +1058,32 @@ def register_routes(app):
             recurring=RecurringPayment.query.order_by(
                 RecurringPayment.pay_day).all())
 
+    @app.route("/settings/import", methods=["POST"])
+    def settings_import():
+        """Mbm_2026.xlsx ni sayt orqali yuklab, butun zanjirni ishga tushirish."""
+        import importer
+        f = request.files.get("xlsx")
+        if not f or not f.filename:
+            flash("Fayl tanlanmagan", "err")
+            return redirect(url_for("settings"))
+        if not f.filename.lower().endswith((".xlsx", ".xlsm")):
+            flash("Faqat .xlsx fayl qabul qilinadi", "err")
+            return redirect(url_for("settings"))
+        try:
+            res = importer.import_workbook(f.stream)
+        except Exception as e:                          # noqa: BLE001
+            db.session.rollback()
+            flash(f"Import xatosi: {e}", "err")
+            return redirect(url_for("settings"))
+        if res.get("error"):
+            flash(res["error"], "err")
+            return redirect(url_for("settings"))
+        flash(f"Import tayyor: {res['added']} qator yuklandi "
+              f"(eski {res['old']} almashtirildi), {res['openings']} hamyon "
+              f"qoldig'i, kassada {res['tx']} yozuv, {res['auto']} to'lov "
+              f"avtomat bog'landi, {res['queued']} navbatda.", "ok")
+        return redirect(url_for("settings"))
+
     @app.route("/settings/wallet", methods=["POST"])
     def add_wallet():
         f = request.form
