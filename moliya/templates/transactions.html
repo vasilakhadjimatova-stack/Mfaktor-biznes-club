@@ -10,12 +10,22 @@
   {% for key, label in presets %}
   <a class="chip {{ 'on' if f.preset == key }}" href="?p={{ key }}">{{ label }}</a>
   {% endfor %}
-  {% if f.q or f.w or f.op or f.cat or f.ch or f.amin or f.amax %}
-  <a class="chip" href="/transactions" style="color:var(--red);border-color:var(--red)">✕ Filtrni tozalash</a>
+  {% set nfilt = [f.q, f.w, f.op, f.cat, f.ch, f.amin, f.amax]
+     | select | list | length %}
+  <button type="button" class="filt-toggle {{ 'on opened' if nfilt }}"
+          onclick="toggleFilt(this)" style="margin-left:auto">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+    Filtr{% if nfilt %}<span class="n">{{ nfilt }}</span>{% endif %}
+    <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+  </button>
+  {% if nfilt %}
+  <a class="chip" href="/transactions" style="color:var(--red);border-color:var(--red)">✕ Tozalash</a>
   {% endif %}
 </div>
 
-{# ── Filtr paneli ── #}
+{# ── Filtr paneli — tugma bilan ochib-yopiladi, faol filtr bo'lsa ochiq ── #}
+<div class="fwrap {{ 'open' if nfilt }}" id="fwrap">
+ <div class="fwrap-in">
 <div class="card filt">
   <form method="get" action="/transactions" id="filt">
     <div class="filt-grid">
@@ -56,6 +66,8 @@
       </div>
     </div>
   </form>
+</div>
+ </div>
 </div>
 
 {# ── Filtrlangan natija jamlamasi ── #}

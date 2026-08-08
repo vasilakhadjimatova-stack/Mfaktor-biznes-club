@@ -1,14 +1,24 @@
 {% extends "base.html" %}
 {% block body %}
+{% set nfilt = ([sel.q, sel.d1, sel.d2, sel.s1, sel.s2] | select | list | length)
+   + (sel.m + sel.y + sel.w + sel.w2 + sel.a + sel.f + sel.v) | length %}
 <div class="xl-top">
   <h1 style="margin:0">ДДС данные</h1>
   <span class="xl-badge">Excel varag'ining 1:1 nusxasi</span>
-  <button type="button" class="xl-fs" onclick="xlFull()"
+  <button type="button" class="filt-toggle {{ 'on opened' if nfilt }}"
+          onclick="toggleFilt(this)" style="margin-left:auto">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+    Filtr{% if nfilt %}<span class="n">{{ nfilt }}</span>{% endif %}
+    <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+  </button>
+  <button type="button" class="xl-fs" style="margin-left:0" onclick="xlFull()"
           title="Jadval butun ekranni oladi (Esc — chiqish)">⛶ Katta ekran</button>
 </div>
 <p class="sub">Ustun sarlavhasidagi <b>▼</b> belgisini bosib filtrlang — Google Sheets'dagi kabi. «Мсц», «Год», «Платеж/поступл» va «Вид д-ти» ustunlari formulalar bilan avtomatik to'ladi.</p>
 
-{# ── Yuqori panel: qidiruv, sana/summa oralig'i, eksport ── #}
+{# ── Yuqori panel: qidiruv, sana/summa — «Filtr» tugmasi bilan ochiladi ── #}
+<div class="fwrap {{ 'open' if nfilt }}" id="fwrap">
+ <div class="fwrap-in">
 <form method="get" action="/ddsdata" id="xlf" class="card filt" style="padding:12px 14px">
   {% for k in ['m','y','w','w2','a','f','v'] %}
     {% for v in sel[k] %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
@@ -28,6 +38,8 @@
     </div>
   </div>
 </form>
+ </div>
+</div>
 
 {# ── Holat qatori ── #}
 <div class="xl-status">
