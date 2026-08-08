@@ -432,10 +432,14 @@ main > *:nth-child(6){animation-delay:.25s}
 /* ══ SUPER-APP: jonli hamyon kartalari ══ */
 .wallet-deck{position:relative;margin:0 -34px}
 @media(max-width:900px){.wallet-deck{margin:0 -14px}}
-.wtrack{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
+.wtrack{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;
+  cursor:grab;-webkit-overflow-scrolling:touch;
   padding:6px 34px 14px;scrollbar-width:none}
 @media(max-width:900px){.wtrack{padding:6px 14px 14px;gap:12px}}
 .wtrack::-webkit-scrollbar{display:none}
+/* sudrash paytida: kursor va snap'ni bo'shatamiz — erkin yuradi */
+.wtrack.dragging{cursor:grabbing;scroll-snap-type:none;scroll-behavior:auto}
+.wtrack.dragging .wcard{pointer-events:none}
 .wcard{position:relative;flex:0 0 272px;height:160px;border-radius:19px;
   scroll-snap-align:center;padding:15px 17px;color:#fff;overflow:hidden;
   cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.3,1), box-shadow .25s;
@@ -1954,9 +1958,12 @@ function initDeck(){
   var histTitle = document.getElementById("whist-title");
   var D = JSON.parse(document.getElementById("wcards-data").textContent);
   function fmt(v){ return Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g," "); }
-  function render(i){
+  /* nuqta/halqa — darhol (arzon); tarix — alohida (qimmat) */
+  function setActive(i){
     cards.forEach(function(c,k){ c.classList.toggle("active", k===i); });
     dots.forEach(function(d,k){ d.classList.toggle("on", k===i); });
+  }
+  function renderHist(i){
     var w = D[i];
     if (histTitle) histTitle.textContent = w.name;
     if (!histBox) return;
@@ -1975,26 +1982,82 @@ function initDeck(){
         + '</div>';
     }).join("");
   }
-  var cur = -1;
-  function onScroll(){
-    var center = track.scrollLeft + track.clientWidth/2;
-    var best = 0, bd = 1e9;
-    cards.forEach(function(c,k){
-      var cc = c.offsetLeft + c.offsetWidth/2;
-      var d = Math.abs(cc-center);
-      if (d < bd){ bd = d; best = k; }
-    });
-    if (best !== cur){ cur = best; render(best); }
+  /* karta markazlari keshda — scroll paytida layout o'qilmaydi */
+  var centers = [], halfW = 0;
+  function measure(){
+    halfW = track.clientWidth / 2;
+    centers = cards.map(function(c){ return c.offsetLeft + c.offsetWidth/2; });
   }
-  track.addEventListener("scroll", function(){ requestAnimationFrame(onScroll); }, {passive:true});
+  measure();
+  addEventListener("resize", measure);
+
+  var cur = -1, ticking = false, settle = null;
+  function onScroll(){
+    ticking = false;
+    var center = track.scrollLeft + halfW;
+    var best = 0, bd = 1e9;
+    for (var k = 0; k < centers.length; k++){
+      var d = Math.abs(centers[k] - center);
+      if (d < bd){ bd = d; best = k; }
+    }
+    if (best !== cur){
+      cur = best;
+      setActive(best);
+      // tarix ro'yxati (qimmat innerHTML) — scroll tinishini kutadi
+      clearTimeout(settle);
+      settle = setTimeout(function(){ renderHist(cur); }, 130);
+    }
+  }
+  track.addEventListener("scroll", function(){
+    if (!ticking){ ticking = true; requestAnimationFrame(onScroll); }
+  }, {passive:true});
+
+  function centerOn(i){
+    track.scrollTo({left: centers[i] - halfW, behavior: "smooth"});
+  }
   cards.forEach(function(c,k){
-    c.addEventListener("click", function(){
-      // faqat trek aylantiriladi — scrollIntoView butun sahifani surib yuboradi
-      track.scrollTo({left: c.offsetLeft - (track.clientWidth - c.offsetWidth)/2,
-                      behavior: "smooth"});
-    });
+    c.addEventListener("click", function(){ centerOn(k); });
   });
+
+  /* g'ildirak: trek ustida vertikal aylantirish -> gorizontal yuradi */
+  track.addEventListener("wheel", function(e){
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){
+      track.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+  /* sichqoncha bilan sudrash (telefondagi svayp kabi) */
+  var drag = null;
+  track.addEventListener("pointerdown", function(e){
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    drag = {x: e.clientX, left: track.scrollLeft, moved: false};
+  });
+  addEventListener("pointermove", function(e){
+    if (!drag) return;
+    var dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) > 5){
+      drag.moved = true;
+      track.classList.add("dragging");
+    }
+    if (drag.moved) track.scrollLeft = drag.left - dx;
+  });
+  addEventListener("pointerup", function(){
+    if (!drag) return;
+    var moved = drag.moved;
+    drag = null;
+    track.classList.remove("dragging");
+    if (moved){
+      // qo'yib yuborilganda eng yaqin kartaga yumshoq o'tiradi
+      requestAnimationFrame(function(){
+        onScroll();
+        if (cur >= 0) centerOn(cur);
+      });
+    }
+  });
+
   onScroll();
+  renderHist(cur < 0 ? 0 : cur);
 }
 function initPray(){
   var el = document.querySelector(".pray");
