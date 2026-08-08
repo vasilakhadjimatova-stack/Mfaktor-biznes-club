@@ -792,6 +792,23 @@ main > *:nth-child(6){animation-delay:.25s}
 .xl-sep{flex:1}
 /* Sheets kabi: bu sahifalar butun ekranni oladi */
 main:has(.xl-wrap){max-width:none}
+/* «Katta ekran» rejimi — jadval butun ekranni qoplaydi (Esc — chiqish) */
+.xl-fs{margin-left:auto;display:inline-flex;align-items:center;gap:7px;
+  padding:7px 14px;border-radius:99px;cursor:pointer;
+  background:var(--card-faint);border:1px solid var(--line);color:var(--mut);
+  font:600 12px var(--sans);box-shadow:none;transform:none;white-space:nowrap}
+.xl-fs:hover{color:var(--txt);border-color:var(--mut);filter:none;transform:none}
+body.xlfull{overflow:hidden}
+body.xlfull .xl-wrap{position:fixed;inset:0;z-index:300;
+  height:100dvh;max-height:none;min-height:0;border:0;border-radius:0;
+  box-shadow:none}
+/* rejimdan chiqish tugmasi jadval ustida suzib turadi */
+.xl-fs-exit{display:none;position:fixed;right:16px;bottom:16px;z-index:310;
+  padding:10px 18px;border-radius:99px;cursor:pointer;
+  background:#1a73e8;border:0;color:#fff;font:700 13px var(--sans);
+  box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.xl-fs-exit:hover{background:#1765cc;filter:none;transform:none}
+body.xlfull .xl-fs-exit{display:block}
 .xl-wrap{overflow:auto;height:calc(100dvh - 300px);min-height:420px;
   border:1px solid #c9ccd1;
   border-radius:8px;background:#fff;color-scheme:light;
@@ -2199,6 +2216,27 @@ function initPray(){
 addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); applyEye(); initCharts(); });
 
 /* ══ «ДДС данные» filtr menyulari ══ */
+/* «Katta ekran»: jadval butun ekranni oladi; Esc yoki tugma bilan chiqiladi */
+function xlFull(){
+  var on = document.body.classList.toggle("xlfull");
+  if (on && !document.querySelector(".xl-fs-exit")){
+    var b = document.createElement("button");
+    b.className = "xl-fs-exit";
+    b.type = "button";
+    b.textContent = "✕ Katta ekrandan chiqish (Esc)";
+    b.onclick = xlFull;
+    document.body.appendChild(b);
+  }
+}
+/* capture bosqichida: menyu yoki tahrir ochiq bo'lsa, Esc avval o'shani yopadi */
+document.addEventListener("keydown", function(e){
+  if (e.key !== "Escape") return;
+  if (!document.body.classList.contains("xlfull")) return;
+  if (document.querySelector(".xl-menu.open") ||
+      document.querySelector("tr.editing")) return;
+  xlFull();
+}, true);
+
 function xlClose(){
   document.querySelectorAll(".xl-menu.open").forEach(function(x){
     x.classList.remove("open");
