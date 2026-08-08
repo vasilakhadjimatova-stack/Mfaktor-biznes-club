@@ -1220,7 +1220,8 @@ body.xlfull .xl-fs-exit{display:block}
 @media(max-width:900px){
   .shell{grid-template-columns:1fr}
   aside{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:2px;
-    padding:10px 12px;overflow-x:auto;z-index:20;border-right:0;border-bottom:1px solid var(--side-line)}
+    padding:calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+    overflow-x:auto;z-index:20;border-right:0;border-bottom:1px solid var(--side-line)}
   aside nav a.on::before{display:none}
   .brand .dot{width:26px;height:26px;border-radius:8px}
   .brand{padding:0 10px 0 4px;font-size:16px}
