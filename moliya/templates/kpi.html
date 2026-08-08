@@ -9,7 +9,7 @@
   <a class="chip" href="/kpi?y={{ ny }}&m={{ nm }}">→</a>
 </div>
 
-<div class="grid g2" style="align-items:start">
+<div class="grid gkpi" style="align-items:start">
   {% for card, r in data %}
   <div class="card">
     <div style="display:flex;align-items:flex-start;gap:12px">
@@ -25,7 +25,7 @@
 
     <div class="tablewrap" style="margin-top:4px">
     <table style="font-size:12.5px">
-      <tr><th>Ko'rsatkich</th><th class="r">Reja</th><th class="r" style="width:92px">Fakt</th>
+      <tr><th>Ko'rsatkich</th><th class="r">Reja</th><th class="r" style="width:80px">Fakt</th>
           <th class="r">Index</th><th class="r">Vazn</th></tr>
       {% for row in r.rows %}
       {% set it = row.item %}
@@ -38,7 +38,7 @@
         <td class="r">
           <input name="fact_{{ it.id }}" form="kf{{ card.id }}" value="{{ it.fact|grp if it.fact is not none and it.fact >= 1000 else (it.fact if it.fact is not none else '') }}"
                  inputmode="decimal"
-                 style="width:86px;text-align:right;padding:5px 7px;border-radius:8px;
+                 style="width:72px;text-align:right;padding:5px 6px;border-radius:8px;
                         border:1px solid var(--line2);background:var(--card-faint);
                         color:var(--txt);font:600 12px var(--sans);font-variant-numeric:tabular-nums">
         </td>

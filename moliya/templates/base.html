@@ -157,6 +157,8 @@ h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--g
 .grid{display:grid;gap:14px;align-items:start}
 .g4{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
 .g2{grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}
+/* KPI kartalari: ichidagi 5 ustunli jadval qisilmasligi uchun kengroq */
+.gkpi{grid-template-columns:repeat(auto-fit,minmax(min(560px,100%),1fr))}
 .card{background:linear-gradient(160deg,var(--card-top),var(--card-bot));
   border:1px solid var(--line);border-radius:18px;padding:18px 18px 16px;
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
