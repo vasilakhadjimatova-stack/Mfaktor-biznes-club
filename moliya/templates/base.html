@@ -1019,8 +1019,10 @@ main > *:nth-child(6){animation-delay:.25s}
 
 /* oy xulosasi (hero ichida) */
 .mstat{display:grid;grid-template-columns:repeat(3,1fr)}
-.mstat>div{padding:2px 8px;text-align:center}
+.mstat>div{padding:2px 8px;text-align:center;min-width:0}
 .mstat>div+div{border-left:1px solid var(--line)}
+/* qiymat katakka sig'masa — kesilmasin, kichrayib sig'sin */
+.mstat .v{font-size:clamp(12.5px,1.6vw,15.5px);white-space:nowrap}
 .mstat .l{font-size:10px;color:var(--mut);text-transform:uppercase;
   letter-spacing:.08em;font-weight:600}
 .mstat .v{font:600 15.5px var(--sans);font-variant-numeric:tabular-nums;margin-top:3px}
