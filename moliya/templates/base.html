@@ -790,17 +790,22 @@ main > *:nth-child(6){animation-delay:.25s}
   font:500 12.5px var(--sans);color:var(--mut)}
 .xl-status b{font-variant-numeric:tabular-nums;color:var(--txt)}
 .xl-sep{flex:1}
-.xl-wrap{overflow:auto;max-height:74vh;border:1px solid #c9ccd1;
+/* Sheets kabi: bu sahifalar butun ekranni oladi */
+main:has(.xl-wrap){max-width:none}
+.xl-wrap{overflow:auto;height:calc(100dvh - 300px);min-height:420px;
+  border:1px solid #c9ccd1;
   border-radius:8px;background:#fff;color-scheme:light;
   box-shadow:0 6px 22px rgba(0,0,0,.28)}
+/* Sheets zichligi: Arial 10pt (~13px), qator ~21px */
 .xl{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;
-  font:400 12px/1.35 Arial,Helvetica,sans-serif;color:#202124;background:#fff}
+  font:400 13px/1.3 Arial,Helvetica,sans-serif;color:#202124;background:#fff}
 .xl th,.xl td{border-right:1px solid #d7d9dd;border-bottom:1px solid #d7d9dd;
-  padding:3px 6px;vertical-align:middle;white-space:nowrap;background:#fff;
+  padding:2px 6px;height:21px;box-sizing:border-box;
+  vertical-align:middle;white-space:nowrap;background:#fff;
   text-transform:none;letter-spacing:normal}
 /* sarlavha — Google Sheets qizil (E06666) */
 .xl thead th{position:sticky;top:0;z-index:3;background:#e06666;color:#fff;
-  font:700 12px Arial,sans-serif;text-align:left;padding:6px 6px;
+  font:700 12.5px Arial,sans-serif;text-align:left;padding:4px 6px;
   border-right:1px solid #cf5252;border-bottom:1px solid #cf5252;
   white-space:normal;vertical-align:middle;
   text-transform:none;letter-spacing:normal}
@@ -831,7 +836,19 @@ main > *:nth-child(6){animation-delay:.25s}
 .xl-edit{background:transparent;border:0;color:#1a73e8;cursor:pointer;
   font-size:12px;padding:2px 5px;box-shadow:none;transform:none}
 .xl-edit:hover{background:#e8f0fe;filter:none;transform:none}
-.xl td.cX{background:#fff;text-align:center;padding:0;white-space:nowrap}
+.xl-ok{background:#1a73e8;border:0;color:#fff;cursor:pointer;border-radius:3px;
+  font-size:12px;padding:2px 7px;margin-right:3px;box-shadow:none;transform:none}
+.xl-ok:hover{background:#1765cc;filter:none;transform:none}
+.xl td.cX{background:#fff;text-align:center;padding:0;white-space:nowrap;min-width:58px}
+/* qatorni joyida tahrirlash — Sheets katak rejimi */
+.xl tr.editing td{background:#fff!important;box-shadow:inset 0 0 0 1px #1a73e8}
+.xl tr.editing td.rn{box-shadow:none}
+.xl tr.editing td input,.xl tr.editing td select{
+  width:100%;min-width:72px;box-sizing:border-box;border:0;outline:0;
+  background:#fff;color:#202124;font:400 13px Arial,sans-serif;
+  padding:1px 2px;border-radius:0;color-scheme:light;height:17px}
+.xl tr.editing td.cD input{text-align:right}
+.xl tr.editing td.cG input{min-width:200px}
 /* filtr menyusi — Google Sheets menyusining nusxasi
    position:fixed => .xl-wrap ning overflow'i uni qirqmaydi */
 .xl-menu{display:none;position:fixed;z-index:400;
@@ -901,6 +918,8 @@ main > *:nth-child(6){animation-delay:.25s}
 .x2 tr.x2-ctl td{background:#e6b8af;color:#5a1f16;font-weight:700}
 .x2 td.tt{font-weight:700;border-left:2px solid #b5b8bd}
 .x2 td.nv{color:#b3261e}
+/* oy ustunlari bir tekis — Sheets'dagi kabi */
+.x2 td.r,.x2 th.r{min-width:92px}
 .x2 tbody tr:hover td{filter:brightness(.96)}
 
 /* Kassa filtr paneli */

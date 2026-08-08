@@ -771,7 +771,7 @@ def register_routes(app):
             row.ddate = date.fromisoformat(f.get("ddate"))
         except (ValueError, TypeError):
             pass
-        amt = (f.get("amount") or "").replace(" ", "").replace(" ", "")
+        amt = (f.get("amount") or "").replace(" ", "").replace("\u00a0", "")
         try:
             row.amount = float(amt.replace(",", "."))
         except ValueError:

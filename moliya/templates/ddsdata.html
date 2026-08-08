@@ -107,7 +107,7 @@
         <td class="cJ">{{ r.activity }}</td>
         <td class="cX">
           <button type="button" class="xl-edit" title="Изменить"
-                  onclick='xlEdit({{ {"id": r.id,
+                  onclick='xlEdit(this, {{ {"id": r.id,
                                       "ddate": r.ddate.isoformat() if r.ddate else "",
                                       "amount": r.amount,
                                       "wallet": r.wallet, "wallet2": r.wallet2,
@@ -140,8 +140,6 @@
     <div><label>Статья</label>
       <select name="article">{% for a in articles %}<option>{{ a }}</option>{% endfor %}</select></div>
     <div><button id="xladd-btn">Сохранить</button></div>
-    <div><button type="button" class="btn ghost" id="xladd-cancel"
-                 style="display:none" onclick="xlEditOff()">Отмена</button></div>
   </form>
   <p class="hint" style="margin-top:10px">Строка сразу попадает в кассу: кошелёк, статья и вид деятельности
     подставятся автоматически. Если это платёж клиента — система сама найдёт договор
@@ -149,27 +147,71 @@
   </div>
 </details>
 
+<script type="application/json" id="xl-lists">{{ {"wallets": wallets,
+  "wallets2": wallets2, "articles": articles}|tojson }}</script>
 <script>
-/* ✎ — pastdagi formani tahrirlash rejimiga o'tkazadi */
-function xlEdit(d){
-  var det = document.getElementById("xladd"), f = document.getElementById("xladd-form");
-  det.open = true;
-  f.action = "/ddsdata/" + d.id + "/edit";
-  f.ddate.value = d.ddate; f.amount.value = d.amount;
-  f.wallet.value = d.wallet; f.wallet2.value = d.wallet2;
-  f.purpose.value = d.purpose; f.article.value = d.article;
-  document.getElementById("xladd-title").textContent = "Изменить строку — касса пересчитается";
-  document.getElementById("xladd-btn").textContent = "Сохранить изменения";
-  document.getElementById("xladd-cancel").style.display = "";
-  det.scrollIntoView({behavior: "smooth", block: "center"});
+/* ✎ yoki katakka ikki marta bosish — qator JOYIDA tahrirlanadi (Sheets kabi).
+   Enter yoki ✓ — saqlash, Esc yoki ✕ — bekor qilish. */
+function xlEdit(btn, d){
+  var old = document.querySelector("tr.editing");
+  if (old) xlCancel(old);                       // bittadan ortiq ochilmasin
+  var tr = btn.closest("tr");
+  tr.classList.add("editing");
+  tr.dataset.orig = tr.innerHTML;
+  var L = JSON.parse(document.getElementById("xl-lists").textContent);
+  function esc(s){ return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+  function sel(list, val, empty){
+    return '<select>' + (empty ? '<option value=""></option>' : '')
+      + list.map(function(o){
+          return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>';
+        }).join("") + '</select>';
+  }
+  tr.querySelector(".cC").innerHTML = '<input type="date" value="' + esc(d.ddate) + '">';
+  tr.querySelector(".cD").innerHTML = '<input inputmode="decimal" value="' + esc(d.amount) + '">';
+  tr.querySelector(".cE").innerHTML = sel(L.wallets, d.wallet);
+  tr.querySelector(".cF").innerHTML = sel(L.wallets2, d.wallet2, true);
+  tr.querySelector(".cG").innerHTML = '<input value="' + esc(d.purpose) + '">';
+  tr.querySelector(".cH").innerHTML = sel(L.articles, d.article);
+  tr.querySelector(".cX").innerHTML =
+    '<button type="button" class="xl-ok" title="Сохранить (Enter)" onclick="xlSave(this)">✓</button>'
+    + '<button type="button" class="xl-del" title="Отмена (Esc)" onclick="xlCancel(this)">✕</button>';
+  tr.dataset.id = d.id;
+  tr.addEventListener("keydown", function(e){
+    if (e.key === "Enter"){ e.preventDefault(); xlSave(tr); }
+    if (e.key === "Escape") xlCancel(tr);
+  });
+  var a = tr.querySelector(".cD input");
+  a.focus(); a.select();
 }
-function xlEditOff(){
-  var det = document.getElementById("xladd"), f = document.getElementById("xladd-form");
-  f.action = "/ddsdata/add"; f.reset();
-  document.getElementById("xladd-title").textContent = "Добавить строку";
-  document.getElementById("xladd-btn").textContent = "Сохранить";
-  document.getElementById("xladd-cancel").style.display = "none";
-  det.open = false;
+function xlCancel(el){
+  var tr = el.tagName === "TR" ? el : el.closest("tr");
+  tr.innerHTML = tr.dataset.orig;
+  tr.classList.remove("editing");
 }
+function xlSave(el){
+  var tr = el.tagName === "TR" ? el : el.closest("tr");
+  var f = document.createElement("form");
+  f.method = "post"; f.action = "/ddsdata/" + tr.dataset.id + "/edit";
+  function add(n, v){
+    var i = document.createElement("input");
+    i.type = "hidden"; i.name = n; i.value = v; f.appendChild(i);
+  }
+  add("ddate",   tr.querySelector(".cC input").value);
+  add("amount",  tr.querySelector(".cD input").value);
+  add("wallet",  tr.querySelector(".cE select").value);
+  add("wallet2", tr.querySelector(".cF select").value);
+  add("purpose", tr.querySelector(".cG input").value);
+  add("article", tr.querySelector(".cH select").value);
+  document.body.appendChild(f);
+  f.submit();
+}
+/* Sheets odati: katakka ikki marta bosish ham tahrirni ochadi */
+document.addEventListener("dblclick", function(e){
+  var tr = e.target.closest("table.xl tbody tr");
+  if (!tr || tr.classList.contains("editing")) return;
+  var pen = tr.querySelector(".xl-edit");
+  if (pen) pen.click();
+});
 </script>
 {% endblock %}
