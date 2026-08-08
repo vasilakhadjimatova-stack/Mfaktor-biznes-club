@@ -4,7 +4,7 @@
      tarmoq yo'q bo'lsa keshdagi oxirgi nusxa, u ham bo'lmasa offline sahifa.
    • Statika (ikonka, shrift): cache-first — tez ochilish.
    POST so'rovlar keshlan MAYDI. */
-const VER = "mf-v1";
+const VER = "mf-v2";
 const STATIC_CACHE = VER + "-static";
 const PAGE_CACHE = VER + "-pages";
 const OFFLINE_URL = "/static/offline.html";

@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mfaktor Moliya — kirish</title>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
 <style>
   :root{--bg:#0d1017;--card:#161b28;--gold:#f5c15c;--txt:#eceff7;--mut:#9aa3b5;
         --line:#2c3550;--red:#f0716c}
@@ -14,10 +15,8 @@
     font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--txt);
     padding:24px}
   .box{width:min(360px,100%);text-align:center}
-  .logo{width:58px;height:58px;border-radius:16px;margin:0 auto 14px;
-    background:linear-gradient(135deg,#f7d489,#dfa63e);display:flex;
-    align-items:center;justify-content:center;font-size:22px;color:#141414;
-    box-shadow:0 10px 30px rgba(245,193,92,.25)}
+  .logo{width:64px;height:64px;border-radius:17px;margin:0 auto 14px;
+    display:block;box-shadow:0 10px 30px rgba(245,193,92,.25)}
   h1{font-size:19px;font-weight:700;letter-spacing:.02em}
   .sub{color:var(--mut);font-size:13px;margin:6px 0 26px}
   form{background:var(--card);border:1px solid var(--line);border-radius:20px;
@@ -39,7 +38,7 @@
 </head>
 <body>
 <div class="box">
-  <div class="logo">◆</div>
+  <img class="logo" src="/static/icons/logo.svg" alt="MFAKTOR">
   <h1>MFAKTOR MOLIYA</h1>
   <p class="sub">Kirish uchun 6 xonali kodni tering</p>
   <form method="post" id="f" autocomplete="off">

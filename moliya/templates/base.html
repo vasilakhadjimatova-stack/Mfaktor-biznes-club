@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Moliya">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -120,7 +121,7 @@ aside > *{position:relative;z-index:1}
   display:flex;align-items:center;justify-content:center;
   color:#241a05;font:700 16px var(--sans);
   box-shadow:0 4px 14px rgba(217,165,58,.4)}
-.brand .dot::before{content:"◆";font-size:14px}
+.brand img.dot{object-fit:cover}
 .brand small{display:block;font-family:var(--sans);font-weight:500;font-size:9.5px;
   color:var(--side-dim);letter-spacing:.24em;text-transform:uppercase;margin-top:1px}
 aside nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;
@@ -1253,7 +1254,7 @@ body.xlfull .xl-fs-exit{display:block}
 <body>
 <div class="shell">
 <aside>
-  <div class="brand"><span class="dot"></span><span>MFAKTOR<small>Moliya markazi</small></span></div>
+  <div class="brand"><img class="dot" src="/static/icons/logo.svg" alt=""><span>MFAKTOR<small>Moliya markazi</small></span></div>
   {% set p = request.path %}
   <nav style="display:contents">
   <span class="sep">Kundalik</span>
