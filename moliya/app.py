@@ -37,6 +37,23 @@ def create_app():
     app.permanent_session_lifetime = timedelta(days=30)
     init_db(app)
 
+    # Bo'sh bazada standart kurslar o'zi paydo bo'ladi — «Oqim» ro'yxati
+    # hech qachon bo'm-bo'sh qolmasin (yangi deploy/baza holati uchun).
+    _DEFAULT_COURSES = [
+        ("Sotuv menejerlari kursi (СМК)", 3_450_000),
+        ("СМК Online", 3_000_000),
+        ("Sotuv bo'limi rahbari (РОП)", 12_000_000),
+        ("ТББ yo'nalishi", 15_000_000),
+    ]
+    with app.app_context():
+        try:
+            if Course.query.count() == 0:
+                for n, p in _DEFAULT_COURSES:
+                    db.session.add(Course(name=n, base_price=p))
+                db.session.commit()
+        except Exception:                              # noqa: BLE001
+            db.session.rollback()
+
     # ── 6 xonali kirish kodi ─────────────────────────────────────
     # APP_PIN o'rnatilgan bo'lsa butun dastur qulflanadi (Railway'da shart).
     # O'rnatilmagan bo'lsa (lokal ishlab chiqish) — himoya o'chiq.

@@ -111,12 +111,16 @@
             <input name="student_name" value="{{ r.purpose if it.named }}" required></div>
           <div><label>Telefon</label><input name="phone" placeholder="+998"></div>
           <div><label>Oqim</label>
+            {% if cohorts %}
             <select name="cohort_id" required>
               <option value="">— tanlang —</option>
               {% for co in cohorts %}
               <option value="{{ co.id }}">{{ co.course.name }} — {{ co.name }}</option>
               {% endfor %}
-            </select></div>
+            </select>
+            {% else %}
+            <a class="btn ghost" href="/cohorts" style="white-space:nowrap">➕ Avval oqim oching →</a>
+            {% endif %}</div>
           <div><label>Shartnoma narxi</label>
             <input name="price" type="number" step="any" placeholder="0"></div>
           <div><label>Chegirma</label>

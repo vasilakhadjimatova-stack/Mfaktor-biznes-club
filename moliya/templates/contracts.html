@@ -12,16 +12,26 @@
     <div><label>Qayerdan keldi</label>
       <select name="source">{% for c in CHANNELS %}<option>{{ c }}</option>{% endfor %}</select></div>
     <div><label>Oqim</label>
+      {% if cohorts %}
       <select name="cohort_id" required>
         {% for ch in cohorts %}<option value="{{ ch.id }}">{{ ch.course.name }} — {{ ch.name }}</option>{% endfor %}
-      </select></div>
+      </select>
+      {% else %}
+      <a class="btn ghost" href="/cohorts"
+         style="white-space:nowrap">➕ Avval oqim oching →</a>
+      {% endif %}</div>
     <div><label>Narx</label><input name="price" type="number" step="any" required></div>
     <div><label>Chegirma/Grant</label><input name="discount" type="number" step="any" value="0"></div>
     <div><label>Imzo sanasi</label><input type="date" name="signed_date" value="{{ today.isoformat() }}"></div>
     <div><label>Bo'lib to'lash</label>
       <select name="installments">{% for n in [1,2,3,4,6] %}<option value="{{n}}">{{n}} qism</option>{% endfor %}</select></div>
-    <div><button>Shartnoma yaratish</button></div>
+    <div><button {{ 'disabled' if not cohorts }}>Shartnoma yaratish</button></div>
   </form>
+  {% if not cohorts %}
+  <p class="hint warn" style="margin-top:10px">Shartnoma oqimga bog'lanadi.
+    Hali birorta oqim ochilmagan — <a href="/cohorts">Oqimlar sahifasida</a>
+    kurs va boshlanish sanasini ko'rsatib oqim yarating, keyin bu forma ishlaydi.</p>
+  {% endif %}
   </div>
 </details>
 
