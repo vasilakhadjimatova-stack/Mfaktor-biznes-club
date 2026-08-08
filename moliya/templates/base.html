@@ -963,28 +963,50 @@ main > *:nth-child(6){animation-delay:.25s}
 .hb-chev{transition:transform .3s;display:flex}
 .hb-chev svg{width:20px;height:20px}
 .hero-bal.open .hb-chev{transform:rotate(180deg)}
-/* ── Katalogning silliq ochilishi: grid-rows 0fr→1fr (balandlik animatsiyasi) ── */
-.wcat{display:grid;grid-template-rows:0fr;
-  transition:grid-template-rows .55s cubic-bezier(.3,.9,.25,1)}
-.wcat > .wcat-in{overflow:hidden;min-height:0}
-.wcat.open{grid-template-rows:1fr}
-/* kartalar birin-ketin, shoshmasdan suzib chiqadi */
-.wcat .wcard{opacity:0;transform:translateY(26px) scale(.93)}
+/* ── Hamyonlar katalogi: sahifани surmaydigan suzuvchi panel ──
+   Balandlik animatsiyasi o'rniga transform+opacity — har kadr faqat
+   kompozitorda, sahifa qayta joylashmaydi: mutlaqo silliq. */
+.wwrap{position:relative;z-index:70}
+.wcat{position:absolute;left:0;right:0;top:calc(100% + 10px);z-index:60;
+  opacity:0;transform:translateY(-14px) scale(.985);transform-origin:top center;
+  pointer-events:none;visibility:hidden;
+  border-radius:22px;border:1px solid var(--line2);
+  background:linear-gradient(180deg,var(--ink3),var(--ink2));
+  box-shadow:0 30px 80px rgba(0,0,0,.5), 0 6px 22px rgba(0,0,0,.3);
+  transition:opacity .28s cubic-bezier(.25,.9,.3,1),
+             transform .32s cubic-bezier(.25,.9,.3,1),
+             visibility 0s .32s;
+  will-change:transform,opacity}
+.wcat.open{opacity:1;transform:none;pointer-events:auto;visibility:visible;
+  transition:opacity .28s cubic-bezier(.25,.9,.3,1),
+             transform .32s cubic-bezier(.25,.9,.3,1)}
+.wcat > .wcat-in{max-height:min(72vh,680px);overflow-y:auto;overflow-x:hidden;
+  padding:16px 16px 4px;overscroll-behavior:contain;contain:content}
+.wcat .wallet-deck{margin:0 -16px}
+.wcat .wtrack{padding:6px 16px 12px}
+/* orqa parda — dashboard biroz xiralashadi */
+.wcat-dim{position:fixed;inset:0;z-index:55;background:rgba(4,6,12,.45);
+  opacity:0;pointer-events:none;transition:opacity .3s;
+  -webkit-tap-highlight-color:transparent}
+.wcat-dim.open{opacity:1;pointer-events:auto}
+/* kartalar birin-ketin suzib chiqadi (kompozitor animatsiyasi) */
+.wcat .wcard{opacity:0;transform:translateY(18px) scale(.95)}
 .wcat.open .wcard{opacity:1;transform:none;
-  transition:opacity .6s cubic-bezier(.22,.9,.3,1),
-             transform .6s cubic-bezier(.22,.9,.3,1),
+  transition:opacity .45s cubic-bezier(.22,.9,.3,1),
+             transform .45s cubic-bezier(.22,.9,.3,1),
              box-shadow .25s;
-  transition-delay:calc(.12s + var(--wi, 0) * .11s)}
-/* yopilganda kechikishsiz, tez yig'ilsin */
-.wcat:not(.open) .wcard{transition:opacity .18s, transform .18s}
-/* nuqtalar va tarix ham yumshoq keladi */
-.wcat .wdots,.wcat .whist{opacity:0;transform:translateY(12px)}
+  transition-delay:calc(.05s + var(--wi, 0) * .07s)}
+.wcat:not(.open) .wcard{transition:opacity .15s, transform .15s}
+.wcat .wdots,.wcat .whist{opacity:0;transform:translateY(10px)}
 .wcat.open .wdots{opacity:1;transform:none;
-  transition:opacity .5s .45s, transform .5s .45s}
+  transition:opacity .35s .28s, transform .35s .28s}
 .wcat.open .whist{opacity:1;transform:none;
-  transition:opacity .55s .55s cubic-bezier(.22,.9,.3,1),
-             transform .55s .55s cubic-bezier(.22,.9,.3,1)}
-.wcat:not(.open) .wdots,.wcat:not(.open) .whist{transition:opacity .15s, transform .15s}
+  transition:opacity .4s .36s cubic-bezier(.22,.9,.3,1),
+             transform .4s .36s cubic-bezier(.22,.9,.3,1)}
+.wcat:not(.open) .wdots,.wcat:not(.open) .whist{transition:opacity .12s, transform .12s}
+@media(max-width:900px){
+  .wcat > .wcat-in{max-height:calc(100dvh - 210px)}
+}
 @media (prefers-reduced-motion: reduce){
   .wcat{transition:none}
   .wcat .wcard,.wcat .wdots,.wcat .whist{transition:none !important;
@@ -1885,13 +1907,20 @@ function initViz(){
 addEventListener("DOMContentLoaded", initViz);
 
 
-function toggleWcat(){
+function toggleWcat(force){
   var h = document.getElementById("hero-bal"), c = document.getElementById("wcat");
   if (!h || !c) return;
-  var open = c.classList.toggle("open");
+  var open = force !== undefined ? force : !c.classList.contains("open");
+  c.classList.toggle("open", open);
   h.classList.toggle("open", open);
+  var dim = document.getElementById("wcat-dim");
+  if (dim) dim.classList.toggle("open", open);
   if (open && !c.dataset.init){ c.dataset.init = "1"; initDeck(); }
 }
+/* tashqarini bosganda yoki Escape'da yopiladi */
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape") toggleWcat(false);
+});
 function toggleEye(e){
   if (e) e.stopPropagation();
   var v = document.getElementById("hb-v");
