@@ -394,18 +394,15 @@ def register_routes(app):
         )
         db.session.add(ch)
         db.session.flush()
-        # ── ZANJIR: oqim ochildi -> launch tahlili avtomatik ──
         automation.log_event(
             "contract", f"Yangi oqim ochildi: {ch.course.name} — {ch.name}",
-            "Oqim yaratildi → launch-tahlil (marja/BEP) tayyorlandi → "
-            "kalkulyatorga yo'naltirildi")
+            "Oqim yaratildi — kartada Launch-hisob havolasi tayyor")
         db.session.commit()
-        flash("Oqim ochildi — marja va zararsizlik tahlili tayyor", "ok")
-        return redirect(url_for(
-            "launch_planner", course_id=ch.course_id,
-            price=int(ch.course.base_price or 0) or "",
-            capacity=ch.capacity,
-            duration=(ch.end_date - ch.start_date).days))
+        # foydalanuvchi shu sahifada qoladi — yangi oqim kartasi darhol
+        # ko'rinadi; Launch-hisob kartadagi tugma orqali ochiladi
+        flash(f"«{ch.name}» oqimi ochildi — quyida kartasi ko'rinib turibdi. "
+              "Zararsizlik tahlili kartadagi «Launch-hisob →» tugmasida.", "ok")
+        return redirect(url_for("cohorts"))
 
     # ── Launch-kalkulyator: yangi kurs marja/BEP tahlili ────────
     @app.route("/planner")
