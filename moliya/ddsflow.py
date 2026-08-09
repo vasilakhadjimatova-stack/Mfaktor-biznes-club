@@ -16,7 +16,8 @@ Ya'ni ikki marta hisoblanish ham, «osilib qolgan» yozuv ham bo'lmaydi.
 import unicodedata
 
 from database import db
-from models import (TRANSFER_CAT, DDS_LOOKUP, Transaction, Wallet)
+from models import (TRANSFER_CAT, Transaction, Wallet,
+                    dds_group, dds_activity)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -162,7 +163,7 @@ def sync_row(row):
         return None
 
     (wcode, _wname), cat = parsed
-    flow = DDS_LOOKUP.get(row.article, ("", ""))[0]
+    flow = dds_group(row.article)
     operation = "kirim" if flow == "Поступление" else "chiqim"
     activity = {"Техническая операция": "tech",
                 "Финансовая": "finance",
@@ -197,11 +198,14 @@ def unsync_row(row):
         db.session.delete(tx)
 
 
-def rebuild_all(wipe_legacy=True):
+def rebuild_all(wipe_legacy=True, commit=True):
     """Barcha ДДС qatorlarini kassaga qayta yozadi.
 
     wipe_legacy=True bo'lsa, eski `import_dds.py` qoldirgan bog'lanmagan
     yozuvlarni ham tozalaydi — shunda kassa ДДС bilan aynan 1:1 bo'ladi.
+
+    commit=False — chaqiruvchi o'zi bitta umumiy tranzaksiyada saqlaydi
+    (import shunday ishlaydi: yo hammasi, yo hech nima).
     """
     from models import DdsRow
     ensure_wallets()
@@ -222,6 +226,9 @@ def rebuild_all(wipe_legacy=True):
         made += 1
         if made % 500 == 0:
             db.session.flush()
-    db.session.commit()
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
     return {"made": made, "skipped": skipped, "removed": removed,
             "problems": problems}

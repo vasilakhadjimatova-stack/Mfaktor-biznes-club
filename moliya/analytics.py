@@ -196,12 +196,14 @@ def cash_forecast(year, month, ahead=6):
     months = _months_ahead(ty, tm, ahead)
     labels = [f"{MN[m]} {str(y)[2:]}" for y, m in months]
 
-    # shartnoma grafigi: oyma-oy kutilayotgan (hali to'lanmagan) summalar
-    start = date(months[0][0], months[0][1], 1)
+    # Shartnoma grafigi: oyma-oy kutilayotgan (hali to'lanmagan) summalar.
+    # Hisob BUGUNDAN boshlanadi — shu oyning qolgan kunlaridagi to'lovlar
+    # hech qayerda hisobga olinmay qolmasligi uchun ular alohida yig'iladi.
     sched = [0.0] * ahead
+    cur_sched = 0.0
     lines = (InstallmentLine.query.join(Contract)
              .filter(Contract.status == "active",
-                     InstallmentLine.due_date >= start)
+                     InstallmentLine.due_date >= today)
              .all())
     idx = {ym: i for i, ym in enumerate(months)}
     for l in lines:
@@ -211,23 +213,30 @@ def cash_forecast(year, month, ahead=6):
         i = idx.get((l.due_date.year, l.due_date.month))
         if i is not None:
             sched[i] += rest
-    # muddati allaqachon o'tgan, ammo to'lanmagan qarzlar — birinchi oyga
+        elif (l.due_date.year, l.due_date.month) == (ty, tm):
+            cur_sched += rest              # shu oyning qolgan kunlari
+    # muddati allaqachon o'tgan, ammo to'lanmagan qarzlar
     overdue_rest = sum(r["rest"] for r in core.overdue_lines())
     rate = collection_rate()
     rate_eff = rate if rate is not None else 0.85
     sched_adj = [s * rate_eff for s in sched]
-    if sched_adj and overdue_rest:
-        # eski qarzning atigi yarmi qaytadi deb ehtiyotkor baholaymiz
-        sched_adj[0] += overdue_rest * min(rate_eff, 0.5)
+    # Eski qarzning bir qismi qaytadi deb ehtiyotkor baholaymiz. Bu — odatdagi
+    # aylanmadan tashqaridagi bir martalik tushum, shuning uchun statistik
+    # sur'at bilan solishtirilmaydi, ustiga qo'shiladi.
+    overdue_gain = overdue_rest * min(rate_eff, 0.5)
 
     # stsenariylar: kirim/chiqim koeffitsiyentlari
     scen = {"pes": (0.85, 1.05), "base": (1.0, 1.0), "opt": (1.10, 0.97)}
     bal = {}
     for key, (ki, ke) in scen.items():
         # joriy oyning qolgan kunlaridagi kutilayotgan oqim
-        path, cur = [], cash + (cur_inc * ki - cur_exp * ke) * frac
+        cur = cash + (max(cur_inc * frac, cur_sched * rate_eff) * ki
+                      - cur_exp * frac * ke)
+        path = []
         for i in range(ahead):
             inc = max(stat_inc[i], sched_adj[i]) * ki
+            if i == 0:
+                inc += overdue_gain * ki
             cur += inc - stat_exp[i] * ke
             path.append(round(cur))
         bal[key] = path
@@ -241,8 +250,10 @@ def cash_forecast(year, month, ahead=6):
     return {
         "labels": labels, "cash": round(cash),
         "sched": [round(s) for s in sched],
-        "sched_total": round(sum(sched)),
+        "sched_total": round(sum(sched) + cur_sched),
+        "cur_sched": round(cur_sched),
         "overdue_rest": round(overdue_rest),
+        "overdue_gain": round(overdue_gain),
         "rate": rate,                      # None — shartnoma ma'lumoti yo'q
         "stat_inc": stat_inc, "stat_exp": stat_exp,
         "bal": bal,
@@ -452,10 +463,12 @@ def insights(year, month):
         add("warn", "Ehtiyot stsenariyda kassa yetmasligi mumkin",
             f"Tushum 15% pasaysa, balans {cast['zero']['pes']} oyida manfiy "
             f"bo'ladi. Zaxira rejani tayyorlab qo'ygan ma'qul.")
-    if cast["overdue_rest"] > 0 and cast["rate"] is not None:
-        add("warn", "Grafikdagi qarzlar prognozni ushlab turibdi",
-            f"Muddati o'tgan {_n(cast['overdue_rest'])} so'm undirilsa, "
-            f"keyingi oy balansi shuncha yaxshilanadi.")
+    if cast["overdue_rest"] > 0:
+        add("warn", "Muddati o'tgan qarzlar prognozga ta'sir qilmoqda",
+            f"Jami {_n(cast['overdue_rest'])} so'm kechikkan. Prognozda uning "
+            f"faqat {_n(cast['overdue_gain'])} so'mi qaytadi deb olingan — "
+            f"to'liq undirilsa, balans yana {_n(cast['overdue_rest'] - cast['overdue_gain'])} "
+            f"so'mga yaxshilanadi.")
 
     # yo'nalishlar
     weak = [d for d in dirs if d["income"] and d["margin"] < 0]

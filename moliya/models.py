@@ -11,6 +11,7 @@ Ikki qatlamli moliya (ta'lim biznesining jahon standarti):
 
 Unit-ekonomika uchun: MarketingSpend (kanal bo'yicha) → CAC, LTV, ARPU.
 """
+import unicodedata
 from datetime import date, datetime
 
 from database import db
@@ -95,6 +96,20 @@ CONTRACT_STATUSES = {
     "active": "Faol", "completed": "Tugatgan",
     "refunded": "Qaytarilgan", "cancelled": "Bekor qilingan",
 }
+
+
+class AppSetting(db.Model):
+    """Dastur ichki sozlamalari (kalit → qiymat).
+
+    Sessiya imzosi uchun maxfiy kalit shu yerda saqlanadi: SECRET_KEY
+    muhit o'zgaruvchisi berilmagan bo'lsa, tasodifiy kalit bir marta
+    yaratilib bazaga yoziladi. Shu tufayli kalit kodda ochiq turmaydi,
+    server qayta ishga tushganda ham, bir nechta ishchi jarayonda ham
+    bir xil bo'ladi (aks holda foydalanuvchi tizimdan chiqib ketardi).
+    """
+    __tablename__ = "app_settings"
+    key   = db.Column(db.String(40), primary_key=True)
+    value = db.Column(db.Text, default="")
 
 
 class Wallet(db.Model):
@@ -345,6 +360,27 @@ DDS_SPRAVOCHNIK = [
 ]
 DDS_LOOKUP = {a: (g, v) for a, g, v in DDS_SPRAVOCHNIK}
 
+# Excel spravochnigidagi ba'zi statyalar bosh/oxirgi bo'shliq bilan yozilgan
+# (" Поступление Б2Б", "Доход — долг "). Brauzer <option> qiymatini yuborishda
+# bo'shliqni olib tashlaydi, ya'ni sayt formasidan kelgan nom lug'atdagi
+# kalitga aynan mos kelmaydi. Shu sababli izlash normallashtirilgan holatda
+# olib boriladi — aks holda guruh topilmay, kirim chiqim bo'lib yozilardi.
+def dds_norm(s):
+    return " ".join(unicodedata.normalize("NFKC", str(s or "")).strip().lower().split())
+
+
+DDS_LOOKUP_N = {dds_norm(a): (g, v) for a, g, v in DDS_SPRAVOCHNIK}
+
+
+def dds_group(article):
+    """Statya → «Поступление»/«Выбытие» (bo'shliq va registrga bardoshli)."""
+    return DDS_LOOKUP_N.get(dds_norm(article), ("", ""))[0]
+
+
+def dds_activity(article):
+    """Statya → faoliyat turi (Операционная/Финансовая/...)."""
+    return DDS_LOOKUP_N.get(dds_norm(article), ("", ""))[1]
+
 
 class DdsRow(db.Model):
     """«ДДС данные» varag'idagi bitta qator — 1:1 nusxa."""
@@ -365,6 +401,11 @@ class DdsRow(db.Model):
     contract_id  = db.Column(db.Integer, db.ForeignKey("contracts.id"),
                              nullable=True, index=True)
     match_score  = db.Column(db.Float, default=0.0)       # o'xshashlik 0..1
+    # grafikka haqiqatda yozilgan summa. To'lov shartnoma qoldig'idan katta
+    # bo'lsa, uning bir qismi ortib qoladi (avans) — bekor qilishda aynan
+    # shu yozilgan qism qaytarilishi kerak, aks holda boshqa to'lovning puli
+    # ham yechilib ketardi.
+    applied_amount = db.Column(db.Float, default=0.0)
 
     tx = db.relationship("Transaction", backref="dds_row", uselist=False,
                          foreign_keys="Transaction.dds_row_id")
@@ -381,8 +422,8 @@ class DdsRow(db.Model):
 
     @property
     def flow(self):                        # I: VLOOKUP(Статья → Группа)
-        return DDS_LOOKUP.get(self.article, ("", ""))[0]
+        return dds_group(self.article)
 
     @property
     def activity(self):                    # J: VLOOKUP(Статья → Вид д-ти)
-        return DDS_LOOKUP.get(self.article, ("", ""))[1]
+        return dds_activity(self.article)

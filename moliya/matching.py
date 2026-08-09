@@ -163,7 +163,7 @@ def apply(row, contract, status="manual", score=None):
         tx.contract_id = contract.id
 
     # FIFO: eng eski to'lanmagan qatordan boshlab yopamiz
-    rest = row.amount
+    rest = row.amount or 0.0
     for line in contract.lines:
         need = line.amount - line.paid
         if need <= 0.01 or rest <= 0:
@@ -171,6 +171,9 @@ def apply(row, contract, status="manual", score=None):
         pay = min(need, rest)
         line.paid += pay
         rest -= pay
+    # grafikka aynan qancha yozilgani eslab qolinadi: bekor qilinganda
+    # xuddi shu summa qaytariladi (ortiqchasi — avans — tegilmaydi)
+    row.applied_amount = (row.amount or 0.0) - rest
     return rest                            # ortiqcha qolgan summa (avans)
 
 
@@ -180,7 +183,11 @@ def unapply(row):
         return
     c = db.session.get(Contract, row.contract_id)
     if c:
-        rest = row.amount
+        # Aynan shu qator grafikka qancha yozgan bo'lsa, shuncha qaytariladi.
+        # applied_amount = 0 ham to'liq ma'noli qiymat (hammasi avansga
+        # ketgan) — faqat NULL, ya'ni eski qator, summaga tayanadi.
+        rest = row.amount or 0.0 if row.applied_amount is None \
+            else row.applied_amount
         for line in reversed(list(c.lines)):   # LIFO — apply'ning teskarisi
             if rest <= 0 or line.paid <= 0:
                 continue
@@ -192,6 +199,7 @@ def unapply(row):
         tx.contract_id = None
     row.contract_id = None
     row.match_score = 0.0
+    row.applied_amount = 0.0
     if row.match_status in ("auto", "manual"):
         row.match_status = "none"
 
@@ -207,6 +215,10 @@ def auto_match(row):
         return row.match_status           # odam qaror qilgan — tegmaymiz
     cands = candidates(row, limit=2)
     if not cands:
+        # ilgari bog'langan bo'lsa — grafikdan ham yechib qo'yamiz, aks holda
+        # «bog'lanmagan» deb turib, pul shartnomada yozilgancha qolardi
+        if row.contract_id:
+            unapply(row)
         row.match_status = "none"
         return "none"
     top = cands[0]
@@ -220,8 +232,12 @@ def auto_match(row):
     return "none"
 
 
-def run_all():
-    """Barcha bog'lanmagan mijoz to'lovlarini qayta ko'rib chiqadi."""
+def run_all(commit=True):
+    """Barcha bog'lanmagan mijoz to'lovlarini qayta ko'rib chiqadi.
+
+    commit=False — import kabi chaqiruvchi hammasini bitta tranzaksiyada
+    saqlamoqchi bo'lganda ishlatiladi.
+    """
     auto = queued = skipped = 0
     for row in DdsRow.query.order_by(DdsRow.rownum).all():
         r = auto_match(row)
@@ -231,7 +247,10 @@ def run_all():
             queued += 1
         else:
             skipped += 1
-    db.session.commit()
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
     return {"auto": auto, "queued": queued, "skipped": skipped}
 
 

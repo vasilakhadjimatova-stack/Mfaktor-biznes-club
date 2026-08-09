@@ -24,6 +24,8 @@ NEW_COLUMNS = [
     ("dds_rows", "match_status", "VARCHAR(12) DEFAULT 'none'"),
     ("dds_rows", "contract_id", "INTEGER"),
     ("dds_rows", "match_score", "FLOAT DEFAULT 0"),
+    # NULL = eski qator (qancha yozilgani noma'lum) — 0 dan farqlanishi shart
+    ("dds_rows", "applied_amount", "FLOAT"),
 ]
 
 

@@ -8,6 +8,7 @@ Ishga tushirish:
 """
 import hmac
 import os
+import secrets
 import time
 from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
@@ -24,18 +25,52 @@ import matching
 import planner
 import praytimes
 from database import db, init_db
-from models import (Budget, Cohort, Contract, Course, DdsRow, DDS_LOOKUP,
+from models import (AppSetting, Budget, Cohort, Contract, Course, DdsRow, DDS_LOOKUP,
                     DDS_SPRAVOCHNIK, DDS_WALLET2, DDS_WALLETS, EXPENSE_CATS, KpiCard,
                     INCOME_CATS, InstallmentLine, MARKETING_CHANNELS,
                     RecurringPayment, Student, Transaction, Wallet,
                     CONTRACT_STATUSES, income_cat_for_course)
 
 
+def _session_secret(app):
+    """Sessiya imzosi uchun kalit.
+
+    Kod ochiq repoda turgani uchun kalitni faylga yozib qo'yib bo'lmaydi —
+    uni bilgan har kim «kirilgan» cookie'sini yasab, 6 xonali koddan
+    o'tib ketardi. Shuning uchun: avval SECRET_KEY muhit o'zgaruvchisi,
+    bo'lmasa — bazada bir marta yaratiladigan tasodifiy kalit.
+    """
+    env = os.environ.get("SECRET_KEY", "").strip()
+    if env:
+        return env
+    with app.app_context():
+        try:
+            row = db.session.get(AppSetting, "secret_key")
+            if row and row.value:
+                return row.value
+            key = secrets.token_urlsafe(48)
+            db.session.merge(AppSetting(key="secret_key", value=key))
+            db.session.commit()
+            app.logger.warning(
+                "SECRET_KEY o'rnatilmagan — bazada tasodifiy kalit yaratildi")
+            return key
+        except Exception:                              # noqa: BLE001
+            db.session.rollback()
+            # baza hali tayyor emas: jarayon uchun vaqtincha kalit
+            return secrets.token_urlsafe(48)
+
+
 def create_app():
     app = Flask(__name__)
-    app.secret_key = os.environ.get("SECRET_KEY", "mfaktor-moliya-dev")
     app.permanent_session_lifetime = timedelta(days=30)
     init_db(app)
+    app.secret_key = _session_secret(app)
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,      # JS cookie'ni o'qiy olmaydi
+        SESSION_COOKIE_SAMESITE="Lax",     # boshqa saytdan yuborilmaydi
+        # Railway HTTPS'da ishlaydi; lokal ishlab chiqishda o'chiq bo'ladi
+        SESSION_COOKIE_SECURE=bool(os.environ.get("APP_PIN", "").strip()),
+    )
 
     # Bo'sh bazada standart kurslar o'zi paydo bo'ladi — «Oqim» ro'yxati
     # hech qachon bo'm-bo'sh qolmasin (yangi deploy/baza holati uchun).
@@ -781,6 +816,9 @@ def register_routes(app):
         if not row:
             return redirect(url_for("ddsdata"))
         f = request.form
+        # Avval eski bog'lanishni yechamiz — hali eski summa/ism o'rnida
+        # turganda. Keyin tahrirlaymiz va qaytadan moslaymiz.
+        matching.unapply(row)
         try:
             row.ddate = date.fromisoformat(f.get("ddate"))
         except (ValueError, TypeError):
@@ -793,8 +831,6 @@ def register_routes(app):
         for k in ("wallet", "wallet2", "purpose", "article"):
             if k in f:
                 setattr(row, k, f.get(k, "").strip())
-        # summa yoki ism o'zgargan bo'lsa — eski bog'lanish endi to'g'ri emas
-        matching.unapply(row)
         ddsflow.sync_row(row)
         matching.auto_match(row)
         db.session.commit()
@@ -1098,7 +1134,9 @@ def register_routes(app):
         flash(f"Import tayyor: {res['added']} qator yuklandi "
               f"(eski {res['old']} almashtirildi), {res['openings']} hamyon "
               f"qoldig'i, kassada {res['tx']} yozuv, {res['auto']} to'lov "
-              f"avtomat bog'landi, {res['queued']} navbatda.", "ok")
+              f"avtomat bog'landi, {res['queued']} navbatda"
+              + (f", {res['restored']} qo'lda qilingan qaror saqlandi"
+                 if res.get("restored") else "") + ".", "ok")
         return redirect(url_for("settings"))
 
     @app.route("/settings/wallet", methods=["POST"])

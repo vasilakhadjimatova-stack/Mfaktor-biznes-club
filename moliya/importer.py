@@ -13,7 +13,7 @@ import unicodedata
 import openpyxl
 
 from database import db
-from models import DdsRow, Wallet
+from models import Contract, DdsRow, Wallet
 
 import ddsflow
 import matching
@@ -65,6 +65,13 @@ def import_workbook(stream):
 
     # ── 1. ДДС данные → DdsRow ──
     old = DdsRow.query.count()
+    # Odam qilgan qarorlar (qo'lda bog'langan / chetlatilgan) esda qoladi:
+    # import ularni o'chirib yubormasligi kerak. Kalit — sana + summa + izoh.
+    keep = {}
+    for row in DdsRow.query.filter(DdsRow.match_status.in_(("manual", "skipped"))):
+        keep[(row.ddate, round(row.amount or 0, 2),
+              (row.purpose or "").strip().lower())] = (row.match_status,
+                                                       row.contract_id)
     # eski qatorlarning kassa izlarini tozalaymiz
     for row in DdsRow.query.all():
         ddsflow.unsync_row(row)
@@ -114,12 +121,34 @@ def import_workbook(stream):
                 elif label.startswith(("операционная", "поступления")):
                     break
 
-    db.session.commit()
-
     # ── 3-4. Kassa + moslash ──
-    reb = ddsflow.rebuild_all()
-    mat = matching.run_all()
+    # Hammasi BITTA tranzaksiyada: o'chirish alohida saqlanib, keyin
+    # qayta qurish uzilib qolsa, kassa bo'm-bo'sh qolib ketardi.
+    reb = ddsflow.rebuild_all(commit=False)
+
+    # odam qilgan qarorlarni qaytarib qo'yamiz
+    restored = 0
+    if keep:
+        for row in DdsRow.query.all():
+            k = (row.ddate, round(row.amount or 0, 2),
+                 (row.purpose or "").strip().lower())
+            st = keep.pop(k, None)
+            if not st:
+                continue
+            status, cid = st
+            if status == "skipped":
+                row.match_status = "skipped"
+            elif cid:
+                c = db.session.get(Contract, cid)
+                if c:
+                    matching.apply(row, c, status="manual")
+            restored += 1
+        db.session.flush()
+
+    mat = matching.run_all(commit=False)
+    db.session.commit()
 
     return {"old": old, "added": added, "openings": openings,
             "tx": reb["made"], "tx_skipped": reb["skipped"],
-            "auto": mat["auto"], "queued": mat["queued"]}
+            "auto": mat["auto"], "queued": mat["queued"],
+            "restored": restored}

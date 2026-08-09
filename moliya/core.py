@@ -19,7 +19,7 @@ import charts
 
 from database import db
 from models import (Budget, Cohort, Contract, Course, InstallmentLine,
-                    RecurringPayment, Student, Transaction, Wallet)
+                    RecurringPayment, Student, Transaction, Wallet, dds_norm)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -125,8 +125,11 @@ def accrual_summary(as_of=None):
     recognized = deferred = receivable = booked = 0.0
     for c in Contract.query.filter(Contract.status != "cancelled").all():
         rec = contract_recognized(c, as_of)
-        paid = c.paid_total()
         base = c.net_price - c.refund_amount
+        # Qaytarilgan pul o'quvchida emas — u majburiyat ham, avans ham emas.
+        # Grafikda «to'langan» bo'lib qolgani uchun uni chegirib tashlaymiz,
+        # aks holda qaytarilgan summa abadiy «ishlanmagan avans» bo'lib turardi.
+        paid = max(c.paid_total() - (c.refund_amount or 0.0), 0.0)
         booked += base
         recognized += rec
         # to'langan, lekin hali "topilmagan" qism — majburiyat
@@ -417,7 +420,12 @@ def dds_excel(year):
                 and a not in (_XL_TRANSFER_IN, _XL_TRANSFER_OUT)]
         out = []
         for a in arts:
-            vals = msum(lambda r, a=a: r.article == a)
+            # Statya nomi bo'shliq/registr bilan farq qilishi mumkin (Excel
+            # spravochnigida " Поступление Б2Б" kabi kalitlar bor, sayt
+            # formasi esa bo'shliqsiz yuboradi) — normallashtirib solishtiramiz,
+            # aks holda qator hech bir blokka tushmay, hisobotdan yo'qolardi.
+            na = dds_norm(a)
+            vals = msum(lambda r, na=na: dds_norm(r.article) == na)
             if any(vals):
                 out.append({"name": a.strip(), "vals": vals, "total": sum(vals)})
         sub = [sum(x["vals"][i] for x in out) for i in range(12)]
@@ -429,8 +437,8 @@ def dds_excel(year):
     inv_out, inv_out_t = block("Инвестиционная", "Выбытие")
     fin_in, fin_in_t = block("Финансовая", "Поступление")
     fin_out, fin_out_t = block("Финансовая", "Выбытие")
-    tr_in = msum(lambda r: r.article == _XL_TRANSFER_IN)
-    tr_out = msum(lambda r: r.article == _XL_TRANSFER_OUT)
+    tr_in = msum(lambda r: dds_norm(r.article) == dds_norm(_XL_TRANSFER_IN))
+    tr_out = msum(lambda r: dds_norm(r.article) == dds_norm(_XL_TRANSFER_OUT))
 
     # ── hamyonlar bo'yicha oylik qoldiqlar (perevodlar bilan birga) ──
     opening0 = {}
