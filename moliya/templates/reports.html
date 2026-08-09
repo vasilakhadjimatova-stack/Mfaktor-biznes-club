@@ -90,8 +90,56 @@
         <div style="font-size:10px;color:var(--dim)">kutilayotgan natija</div></div>
       {% endfor %}
     </div>
-    <p class="hint" style="margin-top:10px">Prognoz oxirgi 3 oy o'rtachasi va o'sish sur'ati asosida. Uzuq chiziq — bashorat, to'liq chiziq — fakt.</p>
+    <p class="hint" style="margin-top:10px">Prognoz oxirgi 6 oy o'rtachasi va so'nuvchi o'sish sur'ati asosida; joriy tugallanmagan oy hisobga olinmaydi. Uzuq chiziq — bashorat, to'liq chiziq — fakt.</p>
   </div>
+</div>
+
+{# ── 3b. Kassa prognozi — 6 oy, uch stsenariy ── #}
+<div class="card {{ 'alert' if an.cast.zero.base }}" style="margin-top:14px">
+  <h2>Kassa prognozi — keyingi 6 oy</h2>
+  <div class="ech" id="an-cast" style="height:280px"></div>
+  <div class="mstat m4" style="margin-top:8px;padding-top:10px;border-top:1px solid var(--line)">
+    <div><span class="l">Hozir kassada</span>
+      <div class="v">{{ an.cast.cash|grp }}</div></div>
+    <div><span class="l">6 oydan keyin (baza)</span>
+      <div class="v {{ 'pos' if an.cast.end.base >= 0 else 'neg' }}">{{ an.cast.end.base|grp }}</div></div>
+    <div><span class="l">Ehtiyot stsenariy</span>
+      <div class="v {{ 'pos' if an.cast.end.pes >= 0 else 'neg' }}">{{ an.cast.end.pes|grp }}</div></div>
+    <div><span class="l">Grafik bo'yicha kutilmoqda</span>
+      <div class="v">{{ an.cast.sched_total|grp }}</div>
+      <div style="font-size:10px;color:var(--dim)">
+        {% if an.cast.rate is not none %}yig'ilish darajasi {{ '%.0f'|format(an.cast.rate*100) }}%
+        {% else %}shartnomalar bog'langach aniqlashadi{% endif %}</div></div>
+  </div>
+  {% if an.cast.zero.base %}
+  <p class="hint" style="margin-top:10px;color:var(--red)">
+    ⚠ Bazaviy stsenariyda balans <b>{{ an.cast.zero.base }}</b> oyida manfiyga o'tadi —
+    xarajat rejasini qayta ko'rish kerak.</p>
+  {% elif an.cast.zero.pes %}
+  <p class="hint" style="margin-top:10px">
+    Ehtiyot stsenariyda (tushum −15%) balans <b>{{ an.cast.zero.pes }}</b> oyida manfiy
+    bo'lishi mumkin — zaxira rejani tayyorlab qo'ying.</p>
+  {% else %}
+  <p class="hint" style="margin-top:10px">Uchala stsenariyda ham kassa musbat qoladi.
+    Prognoz manbasi: statistik sur'at + shartnoma grafigi (kattasi olinadi, ikki marta hisoblanmaydi).</p>
+  {% endif %}
+  {% if an.cast.sched_total %}
+  <div class="tablewrap" style="margin-top:8px">
+  <table style="font-size:12.5px">
+    <tr><th>Oy</th>
+      {% for l in an.cast.labels %}<th class="r">{{ l }}</th>{% endfor %}</tr>
+    <tr><td>Grafik bo'yicha to'lovlar</td>
+      {% for s in an.cast.sched %}<td class="r">{{ s|grp if s else '—' }}</td>{% endfor %}</tr>
+    <tr><td><b>Oy oxiri balans (baza)</b></td>
+      {% for b in an.cast.bal.base %}<td class="r"><b class="{{ 'pos' if b >= 0 else 'neg' }}">{{ b|grp }}</b></td>{% endfor %}</tr>
+  </table>
+  </div>
+  {% endif %}
+  {% if an.cast.overdue_rest %}
+  <p class="hint" style="margin-top:8px">Muddati o'tgan <b>{{ an.cast.overdue_rest|grp }}</b> so'm
+    qarz bor — prognozda uning faqat yarmi qaytadi deb hisoblangan.
+    To'liq undirilsa, manzara shunga yaxshilanadi — <a href="/debtors">qarzdorlar</a>.</p>
+  {% endif %}
 </div>
 
 {# ── 4. Yo'nalishlar va xarajat tarkibi ── #}
@@ -229,20 +277,29 @@
   <div class="tablewrap">
   <table>
     <tr><th>Oqim</th><th class="r">O'quvchi</th><th class="r">To'ldirildi</th>
-        <th class="r">Tushum</th><th class="r">To'g'ridan-to'g'ri xarajat</th>
-        <th class="r">Marja</th></tr>
+        <th class="r">Tushum</th><th class="r">Yig'ildi</th>
+        <th class="r">Kutilmoqda</th>
+        <th class="r">To'g'ridan-to'g'ri xarajat</th>
+        <th class="r">Marja</th><th class="r">1 o'quvchi marjasi</th></tr>
     {% for r in cohorts[:10] %}
     <tr>
       <td>{{ r.cohort.name }}</td>
       <td class="r">{{ r.students }}</td>
       <td class="r">{{ '%.0f'|format(r.fill_rate) }}%</td>
       <td class="r pos">{{ r.revenue|grp }}</td>
+      <td class="r">{{ r.paid|grp }}
+        <span style="color:var(--mut);font-size:11px">({{ '%.0f'|format(r.paid_pct) }}%)</span></td>
+      <td class="r {{ 'neg' if r.outstanding }}">{{ r.outstanding|grp if r.outstanding else '—' }}</td>
       <td class="r neg">{{ r.direct_cost|grp }}</td>
       <td class="r"><span class="badge {{ 'b-green' if r.margin_pct >= 50 else ('b-gold' if r.margin_pct >= 20 else 'b-red') }}">{{ '%.0f'|format(r.margin_pct) }}%</span></td>
+      <td class="r">{{ r.margin_per_st|grp }}</td>
     </tr>
     {% endfor %}
   </table>
   </div>
+  <p class="hint" style="margin-top:10px">«Yig'ildi» — shartnoma summasidan haqiqatda tushgan qism;
+    «Kutilmoqda» — hali tushishi kerak bo'lgan pul. «1 o'quvchi marjasi» past oqim —
+    narx yoki xarajatni qayta ko'rish belgisi.</p>
 </div>
 {% endif %}
 

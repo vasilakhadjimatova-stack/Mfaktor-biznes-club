@@ -4,6 +4,7 @@ Bu modul moliyaviy ma'lumotni "raqamlar" darajasidan "qarorlar" darajasiga
 ko'taradi: P&L tuzilmasi, trend va prognoz, yo'nalishlar rentabelligi,
 qarzdorlik yoshi, qaytarishlar tahlili va avtomatik xulosalar.
 """
+import calendar
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -90,17 +91,31 @@ def trend(year, month, back=12, ahead=3):
                      "exp": round(cf["expense_total"]),
                      "net": round(cf["net"])})
 
+    # joriy tugallanmagan oy prognoz bazasini buzmasin: oy hali oxirlamagan
+    # bo'lsa, uning qisman raqamlari o'rtacha hisobidan chiqariladi
+    today = date.today()
+    partial = (year == today.year and month == today.month and today.day < 28)
+    base_hist = hist[:-1] if (partial and len(hist) > 1) else hist
+
     def _forecast(key):
-        vals = [h[key] for h in hist if h[key]]
+        """Daraja = oxirgi 6 oy o'rtachasi (bitta sakragan oy hukmron bo'lmasin),
+        yo'nalish = oxirgi 3 oy / avvalgi 3 oy, so'nuvchi sur'at bilan.
+        Oddiy murakkab foiz 6 oyga cho'zilsa, bitta g'ayrioddiy oy butun
+        prognozni buzadi — shuning uchun sur'at har oy so'nib boradi."""
+        vals = [h[key] for h in base_hist if h[key]]
         if len(vals) < 3:
             return [round(vals[-1]) if vals else 0] * ahead
-        base = sum(vals[-3:]) / 3
-        prev = sum(vals[-6:-3]) / 3 if len(vals) >= 6 else base
-        g = (base / prev) if prev > 0 else 1.0
-        g = max(0.85, min(g, 1.15))          # ekstremal o'sishni cheklash
-        out, cur = [], base
+        level = sum(vals[-6:]) / len(vals[-6:])
+        cur3 = sum(vals[-3:]) / 3
+        # yo'nalish: so'nggi choraq yarim yillik normadan qanchaga og'gan.
+        # (3-oy vs 3-oy taqqoslash bitta anomal oy tufayli qarama-qarshi
+        # "qaychi" hosil qilardi — norma bilan taqqoslash barqarorroq)
+        g = (cur3 / level) if level > 0 else 1.0
+        g = max(0.93, min(g, 1.07))          # ekstremal sur'atni cheklash
+        out, cur, damp = [], level, 1.0
         for _ in range(ahead):
-            cur *= g
+            cur *= g ** damp
+            damp *= 0.5                      # sur'at har oy ikki barobar so'nadi
             out.append(round(cur))
         return out
 
@@ -122,6 +137,117 @@ def trend(year, month, back=12, ahead=3):
         "f_exp": [None] * (n - 1) + [hist[-1]["exp"]] + f_exp if hist else [],
         "next_inc": f_inc, "next_exp": f_exp,
         "next_net": [i - e for i, e in zip(f_inc, f_exp)],
+    }
+
+
+def _months_ahead(year, month, n):
+    """Keyingi n oy ro'yxati (joriy oydan keyin)."""
+    out = []
+    y, m = year, month
+    for _ in range(n):
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+        out.append((y, m))
+    return out
+
+
+def collection_rate(days=90, today=None):
+    """Grafik to'lovlarining amalda yig'ilish darajasi (0..1).
+
+    Oxirgi `days` kunda muddati kelgan bo'lib-to'lash qatorlari bo'yicha:
+    qancha so'ralgan bo'lsa, shuncha necha foizi haqiqatda tushgan.
+    Shartnoma ma'lumoti hali yo'q bo'lsa None qaytadi.
+    """
+    today = today or date.today()
+    since = today - timedelta(days=days)
+    lines = (InstallmentLine.query.join(Contract)
+             .filter(Contract.status == "active",
+                     InstallmentLine.due_date >= since,
+                     InstallmentLine.due_date <= today)
+             .all())
+    due = sum(l.amount for l in lines)
+    paid = sum(min(l.paid, l.amount) for l in lines)
+    return (paid / due) if due else None
+
+
+def cash_forecast(year, month, ahead=6):
+    """Kassa balansi prognozi — `ahead` oy oldinga, uch stsenariy.
+
+    Ikki mustaqil manba birlashtiriladi:
+      • statistik — oxirgi oylar kirim/chiqim sur'ati (trend bilan bir usul);
+      • shartnomaviy — InstallmentLine grafigi bo'yicha kutilayotgan
+        to'lovlar, tarixiy yig'ilish darajasi bilan tuzatilgan.
+    Qisqa muddatda grafik aniqroq, shuning uchun bazaviy kirim sifatida
+    ikkalasining kattasi olinadi (grafik statistikaning bir qismi, qo'shib
+    yuborilsa ikki marta hisoblangan bo'lardi).
+    """
+    _rows, cash = core.wallet_balances()
+    # prognoz har doim "bugundan" boshlanadi: kassa qoldig'i bugungi holat,
+    # shuning uchun statistika oxirgi TO'LIQ oyga bog'lanadi va joriy oyning
+    # qolgan kunlari ulush sifatida qo'shiladi
+    today = date.today()
+    ty, tm = today.year, today.month
+    ay, am = (ty - 1, 12) if tm == 1 else (ty, tm - 1)
+    tr = trend(ay, am, back=12, ahead=ahead + 1)
+    cur_inc, cur_exp = tr["next_inc"][0], tr["next_exp"][0]   # joriy oy bahosi
+    stat_inc, stat_exp = tr["next_inc"][1:], tr["next_exp"][1:]
+    dim = calendar.monthrange(ty, tm)[1]
+    frac = max(dim - today.day, 0) / dim                       # oyning qolgan qismi
+
+    months = _months_ahead(ty, tm, ahead)
+    labels = [f"{MN[m]} {str(y)[2:]}" for y, m in months]
+
+    # shartnoma grafigi: oyma-oy kutilayotgan (hali to'lanmagan) summalar
+    start = date(months[0][0], months[0][1], 1)
+    sched = [0.0] * ahead
+    lines = (InstallmentLine.query.join(Contract)
+             .filter(Contract.status == "active",
+                     InstallmentLine.due_date >= start)
+             .all())
+    idx = {ym: i for i, ym in enumerate(months)}
+    for l in lines:
+        rest = max(l.amount - l.paid, 0.0)
+        if not rest:
+            continue
+        i = idx.get((l.due_date.year, l.due_date.month))
+        if i is not None:
+            sched[i] += rest
+    # muddati allaqachon o'tgan, ammo to'lanmagan qarzlar — birinchi oyga
+    overdue_rest = sum(r["rest"] for r in core.overdue_lines())
+    rate = collection_rate()
+    rate_eff = rate if rate is not None else 0.85
+    sched_adj = [s * rate_eff for s in sched]
+    if sched_adj and overdue_rest:
+        # eski qarzning atigi yarmi qaytadi deb ehtiyotkor baholaymiz
+        sched_adj[0] += overdue_rest * min(rate_eff, 0.5)
+
+    # stsenariylar: kirim/chiqim koeffitsiyentlari
+    scen = {"pes": (0.85, 1.05), "base": (1.0, 1.0), "opt": (1.10, 0.97)}
+    bal = {}
+    for key, (ki, ke) in scen.items():
+        # joriy oyning qolgan kunlaridagi kutilayotgan oqim
+        path, cur = [], cash + (cur_inc * ki - cur_exp * ke) * frac
+        for i in range(ahead):
+            inc = max(stat_inc[i], sched_adj[i]) * ki
+            cur += inc - stat_exp[i] * ke
+            path.append(round(cur))
+        bal[key] = path
+
+    def _zero_cross(path):
+        for i, v in enumerate(path):
+            if v < 0:
+                return labels[i]
+        return None
+
+    return {
+        "labels": labels, "cash": round(cash),
+        "sched": [round(s) for s in sched],
+        "sched_total": round(sum(sched)),
+        "overdue_rest": round(overdue_rest),
+        "rate": rate,                      # None — shartnoma ma'lumoti yo'q
+        "stat_inc": stat_inc, "stat_exp": stat_exp,
+        "bal": bal,
+        "zero": {k: _zero_cross(p) for k, p in bal.items()},
+        "end": {k: p[-1] for k, p in bal.items()},
     }
 
 
@@ -314,6 +440,22 @@ def insights(year, month):
             add("warn", "Kassa kamayib bormoqda",
                 f"Oxirgi 3 oyda o'rtacha oyiga {_n(abs(rw['avg_net']))} so'm "
                 f"kamaymoqda, zaxira {rw['months']:.1f} oyga yetadi.")
+
+    # kassa prognozi — stsenariylar bo'yicha ogohlantirish
+    cast = cash_forecast(year, month)
+    if cast["zero"]["base"]:
+        add("bad", "Prognoz: kassa manfiyga o'tadi",
+            f"Bazaviy stsenariyda balans {cast['zero']['base']} oyida noldan "
+            f"pastga tushadi. Xarajatni qisqartirish yoki tushumni tezlashtirish "
+            f"rejasi hoziroq kerak.")
+    elif cast["zero"]["pes"]:
+        add("warn", "Ehtiyot stsenariyda kassa yetmasligi mumkin",
+            f"Tushum 15% pasaysa, balans {cast['zero']['pes']} oyida manfiy "
+            f"bo'ladi. Zaxira rejani tayyorlab qo'ygan ma'qul.")
+    if cast["overdue_rest"] > 0 and cast["rate"] is not None:
+        add("warn", "Grafikdagi qarzlar prognozni ushlab turibdi",
+            f"Muddati o'tgan {_n(cast['overdue_rest'])} so'm undirilsa, "
+            f"keyingi oy balansi shuncha yaxshilanadi.")
 
     # yo'nalishlar
     weak = [d for d in dirs if d["income"] and d["margin"] < 0]

@@ -947,6 +947,7 @@ def register_routes(app):
         an = {
             "pnl": analytics.pnl(y, m),
             "trend": analytics.trend(y, m),
+            "cast": analytics.cash_forecast(y, m),
             "runway": analytics.runway(y, m),
             "dirs": analytics.directions(y, m),
             "dirs_year": analytics.directions(y),
@@ -958,6 +959,8 @@ def register_routes(app):
         chart_json = {
             "pnl": an["pnl"]["steps"],
             "trend": an["trend"],
+            "cast": {"labels": an["cast"]["labels"], "cash": an["cast"]["cash"],
+                     "bal": an["cast"]["bal"], "sched": an["cast"]["sched"]},
             "dirs": [{"name": d["name"], "income": round(d["income"]),
                       "margin": round(d["margin"]),
                       "margin_pct": round(d["margin_pct"], 1)}

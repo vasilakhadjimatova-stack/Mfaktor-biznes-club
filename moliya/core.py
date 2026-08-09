@@ -252,13 +252,20 @@ def cohort_report():
                   .with_entities(func.coalesce(func.sum(Transaction.amount), 0.0))
                   .scalar())
         margin = revenue - direct
+        outstanding = sum(c.due_total() for c in active)
+        n = len(active)
         rows.append({
-            "cohort": ch, "students": len(active),
-            "fill_rate": len(active) / ch.capacity * 100 if ch.capacity else 0,
+            "cohort": ch, "students": n,
+            "fill_rate": n / ch.capacity * 100 if ch.capacity else 0,
             "revenue": revenue, "paid": paid, "direct_cost": direct,
             "margin": margin,
             "margin_pct": margin / revenue * 100 if revenue else 0,
             "refunds": sum(c.refund_amount for c in contracts),
+            # chuqur kesim: yig'ilish darajasi va 1 o'quvchi iqtisodi
+            "paid_pct": paid / revenue * 100 if revenue else 0,
+            "outstanding": outstanding,
+            "arpu": revenue / n if n else 0,
+            "margin_per_st": margin / n if n else 0,
         })
     return rows
 

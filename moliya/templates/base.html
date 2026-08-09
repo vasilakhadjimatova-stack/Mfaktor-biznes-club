@@ -1138,6 +1138,13 @@ body.xlfull .xl-fs-exit{display:block}
 .mstat{display:grid;grid-template-columns:repeat(3,1fr)}
 .mstat>div{padding:2px 8px;text-align:center;min-width:0}
 .mstat>div+div{border-left:1px solid var(--line)}
+/* 4 ko'rsatkichli variant: keng ekranda 4 ustun, telefonda 2×2 */
+.mstat.m4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:900px){
+  .mstat.m4{grid-template-columns:repeat(2,1fr);row-gap:10px}
+  .mstat.m4>div:nth-child(odd){border-left:0}
+  .mstat.m4>div:nth-child(n+3){border-top:1px solid var(--line);padding-top:10px}
+}
 /* qiymat katakka sig'masa — kesilmasin, kichrayib sig'sin */
 .mstat .v{font-size:clamp(12.5px,1.6vw,15.5px);white-space:nowrap}
 .mstat .l{font-size:10px;color:var(--mut);text-transform:uppercase;
@@ -1519,6 +1526,53 @@ function initCharts(){
             lineStyle: {width: 1.6, color: C.gold, opacity: .5, type: [3, 5]},
             tooltip: {show: false}}
         ]
+      });
+    }
+    // 2b) Kassa prognozi — uch stsenariyli balans traektoriyasi
+    var ce = make("an-cast");
+    if (ce && A.cast){
+      var hasSched = A.cast.sched.some(function(v){ return v > 0; });
+      var castSeries = [
+        {name: "Baza", type: "line", data: A.cast.bal.base, smooth: .35,
+          symbol: "circle", symbolSize: 6,
+          lineStyle: {width: 3, color: C.gold,
+            shadowColor: C.gold, shadowBlur: 12, shadowOffsetY: 5},
+          itemStyle: {color: C.gold, borderColor: "#fff", borderWidth: 1.5},
+          areaStyle: {color: grad2(C.gold + "33", C.gold + "00")},
+          markLine: {silent: true, symbol: "none", label: {show: false},
+            lineStyle: {color: C.red, type: [4, 5], width: 1.4, opacity: .7},
+            data: [{yAxis: 0}]}},
+        {name: "Ehtiyot (−15%)", type: "line", data: A.cast.bal.pes, smooth: .35,
+          showSymbol: false,
+          lineStyle: {width: 2, color: C.red, type: [4, 5]},
+          itemStyle: {color: C.red}},
+        {name: "Yaxshi (+10%)", type: "line", data: A.cast.bal.opt, smooth: .35,
+          showSymbol: false,
+          lineStyle: {width: 1.8, color: C.green, type: [4, 5], opacity: .8},
+          itemStyle: {color: C.green}}
+      ];
+      if (hasSched){
+        castSeries.push({name: "Grafik to'lovlar", type: "bar",
+          data: A.cast.sched, barWidth: "34%",
+          itemStyle: {color: grad2(C.s1 + "aa", C.s1 + "44"),
+            borderRadius: [5, 5, 0, 0]}});
+      }
+      ce.setOption({
+        animationDuration: anim ? 1100 : 0,
+        grid: {left: 4, right: 14, top: 32, bottom: 4, containLabel: true},
+        legend: {top: 0, left: 0, icon: "roundRect", itemWidth: 15, itemHeight: 5,
+          itemGap: 12, textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+        tooltip: {trigger: "axis", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "category", data: A.cast.labels, boundaryGap: hasSched,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        series: castSeries
       });
     }
     // 3) Yo'nalishlar
