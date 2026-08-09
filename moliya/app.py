@@ -501,11 +501,18 @@ def register_routes(app):
     @app.route("/contracts")
     def contracts():
         status = request.args.get("status", "active")
-        q = Contract.query
-        if status != "all":
-            q = q.filter_by(status=status)
-        rows = q.order_by(Contract.signed_date.desc()).all()
-        return render_template("contracts.html", rows=rows, status=status,
+        board = core.contracts_board(status)
+        tot = {
+            "cohorts": len([r for r in board if r["count"]]),
+            "students": sum(r["count"] for r in board),
+            "price": sum(r["price"] for r in board),
+            "paid": sum(r["paid"] for r in board),
+            "overdue": sum(r["overdue"] for r in board),
+            "overdue_n": sum(r["overdue_n"] for r in board),
+        }
+        tot["paid_pct"] = (tot["paid"] / tot["price"] * 100) if tot["price"] else 0
+        return render_template("contracts.html", board=board, tot=tot,
+                               status=status,
                                cohorts=Cohort.query.order_by(
                                    Cohort.start_date.desc()).all())
 

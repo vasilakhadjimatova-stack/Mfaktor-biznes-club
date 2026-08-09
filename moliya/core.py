@@ -590,3 +590,86 @@ def dashboard_data(today=None):
         "active_contracts": Contract.query.filter_by(status="active").count(),
         "students": Student.query.count(),
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+#  SHARTNOMALAR TAXTASI — oqim kartochkalari va ichidagi o'quvchilar
+# ══════════════════════════════════════════════════════════════════
+def contracts_board(status="active", today=None):
+    """Har oqim uchun bitta kartochka + ichida o'quvchi kartochkalari.
+
+    Jadval o'rniga ko'z bilan o'qiladigan ko'rinish: oqimning to'ldirilishi,
+    puli va qarzi bir qarashda; ochilganda har o'quvchining to'lov holati,
+    keyingi muddati va kechikishi ko'rinadi.
+    """
+    today = today or date.today()
+    out = []
+    for ch in (Cohort.query.order_by(Cohort.start_date.desc()).all()):
+        q = Contract.query.filter_by(cohort_id=ch.id)
+        if status != "all":
+            q = q.filter_by(status=status)
+        contracts = q.order_by(Contract.signed_date.desc()).all()
+
+        students, c_paid, c_price, c_due, c_over, over_n = [], 0.0, 0.0, 0.0, 0.0, 0
+        for c in contracts:
+            price = c.net_price - (c.refund_amount or 0.0)
+            paid = c.paid_total()
+            due = c.due_total()
+            # keyingi muddat va kechikish
+            nxt, overdue_amt, overdue_days = None, 0.0, 0
+            for l in c.lines:
+                rest = max(l.amount - l.paid, 0.0)
+                if rest <= 0.01:
+                    continue
+                if l.due_date < today:
+                    overdue_amt += rest
+                    overdue_days = max(overdue_days, (today - l.due_date).days)
+                elif nxt is None or l.due_date < nxt["date"]:
+                    nxt = {"date": l.due_date, "amount": rest,
+                           "days": (l.due_date - today).days}
+            students.append({
+                "c": c, "name": c.student.name, "phone": c.student.phone,
+                "source": c.student.source,
+                "price": price, "paid": paid, "due": due,
+                "pct": (paid / price * 100) if price > 0 else 0,
+                "next": nxt, "overdue": overdue_amt, "overdue_days": overdue_days,
+                "installments": len(c.lines),
+                "done": len([l for l in c.lines if l.paid >= l.amount - 0.01]),
+            })
+            c_price += price
+            c_paid += paid
+            c_due += due
+            if overdue_amt > 0:
+                c_over += overdue_amt
+                over_n += 1
+
+        # eng muammolisi yuqorida: avval kechikkanlar, keyin qarzi ko'plar
+        students.sort(key=lambda s: (-s["overdue"], -s["due"]))
+
+        n = len(students)
+        # oqim bosqichi
+        if today < ch.start_date:
+            phase, phase_label = "soon", "Boshlanmagan"
+            progress = 0
+        elif today > ch.end_date:
+            phase, phase_label = "done", "Tugagan"
+            progress = 100
+        else:
+            phase, phase_label = "live", "Davom etmoqda"
+            progress = (today - ch.start_date).days / ch.duration_days() * 100
+        out.append({
+            "cohort": ch, "students": students, "count": n,
+            "capacity": ch.capacity or 0,
+            "fill": (n / ch.capacity * 100) if ch.capacity else 0,
+            "price": c_price, "paid": c_paid, "due": c_due,
+            "paid_pct": (c_paid / c_price * 100) if c_price > 0 else 0,
+            "overdue": c_over, "overdue_n": over_n,
+            "phase": phase, "phase_label": phase_label,
+            "progress": min(max(progress, 0), 100),
+        })
+    # Tartib: avval davom etayotganlar, keyin boshlanmaganlar, oxirida
+    # tugaganlar; bo'sh oqimlar esa eng oxirida.
+    rank = {"live": 0, "soon": 1, "done": 2}
+    out.sort(key=lambda r: (r["count"] == 0, rank.get(r["phase"], 3),
+                            -r["cohort"].start_date.toordinal()))
+    return out

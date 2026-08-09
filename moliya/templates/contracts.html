@@ -1,7 +1,22 @@
 {% extends "base.html" %}
+{% macro ring(pct, cls='', size='') %}
+{% set r = 20 if size == 'sm' else 23 %}
+{% set circ = 2 * 3.14159 * r %}
+<div class="ring {{ size }}">
+  <svg viewBox="0 0 {{ (r+3)*2 }} {{ (r+3)*2 }}">
+    <circle class="bg" cx="{{ r+3 }}" cy="{{ r+3 }}" r="{{ r }}"/>
+    <circle class="fg {{ cls }}" cx="{{ r+3 }}" cy="{{ r+3 }}" r="{{ r }}"
+            stroke-dasharray="{{ '%.1f'|format(circ) }}"
+            stroke-dashoffset="{{ '%.1f'|format(circ * (1 - [pct, 100]|min / 100)) }}"/>
+  </svg>
+  <b>{{ pct|round|int }}%</b>
+</div>
+{% endmacro %}
+
 {% block body %}
 <h1>Shartnomalar</h1>
-<p class="sub">O'quvchi bilan kelishuv → avtomatik bo'lib to'lash grafigi</p>
+<p class="sub">Har oqim — bitta kartochka. Ustiga bosing, ichidagi o'quvchilar
+  to'lovi va qarzi bilan ochiladi.</p>
 
 <details class="adder">
   <summary>Yangi shartnoma tuzish</summary>
@@ -35,31 +50,136 @@
   </div>
 </details>
 
+{# ── umumiy holat ── #}
+{% if board %}
+<div class="grid g4" style="margin-bottom:14px">
+  <div class="card kpi"><div class="l">O'quvchilar</div>
+    <div class="v">{{ tot.students }}</div>
+    <div class="h">{{ tot.cohorts }} ta oqimda</div></div>
+  <div class="card kpi"><div class="l">Shartnoma qiymati</div>
+    <div class="v">{{ tot.price|grp }}</div></div>
+  <div class="card kpi"><div class="l">Yig'ildi</div>
+    <div class="v pos">{{ tot.paid|grp }}</div>
+    <div class="h">{{ '%.0f'|format(tot.paid_pct) }}% bajarildi</div></div>
+  <div class="card kpi {{ 'alert' if tot.overdue }}"><div class="l">Kechikkan</div>
+    <div class="v {{ 'neg' if tot.overdue else 'pos' }}">{{ tot.overdue|grp }}</div>
+    <div class="h">{{ tot.overdue_n }} o'quvchi</div></div>
+</div>
+{% endif %}
+
 <div class="monthnav">
   {% for s, label in [('active','Faol'), ('completed','Tugatgan'), ('refunded','Qaytarilgan'), ('all','Hammasi')] %}
     <a class="chip {{ 'on' if status==s }}" href="?status={{ s }}">{{ label }}</a>
   {% endfor %}
 </div>
 
-<div class="card">
-  <div class="tablewrap">
-  <table>
-    <tr><th>O'quvchi</th><th>Oqim</th><th class="r">Net narx</th>
-        <th class="r">To'langan</th><th class="r">Qoldiq</th><th>Holat</th><th>Imzo</th></tr>
-    {% for c in rows %}
-    <tr>
-      <td><a href="/contracts/{{ c.id }}"><b>{{ c.student.name }}</b></a>
-          <div style="color:var(--dim);font-size:12px" class="num">{{ c.student.phone }}</div></td>
-      <td>{{ c.cohort.course.name }}<div style="color:var(--dim);font-size:12px">{{ c.cohort.name }}</div></td>
-      <td class="r">{{ c.net_price|grp }}</td>
-      <td class="r pos">{{ c.paid_total()|grp }}</td>
-      <td class="r {{ 'neg' if c.due_total() }}">{{ c.due_total()|grp }}</td>
-      <td>{% set b = {'active':'b-green','completed':'b-gray','refunded':'b-red','cancelled':'b-red'} %}
-          <span class="badge {{ b.get(c.status, 'b-gray') }}">{{ STATUSES.get(c.status, c.status) }}</span></td>
-      <td class="num">{{ c.signed_date|dmy }}</td>
-    </tr>
-    {% else %}<tr><td colspan="7"><div class="empty">Shartnoma yo'q — yuqoridagi «+» bilan yarating</div></td></tr>{% endfor %}
-  </table>
+{% if not board %}
+<div class="card"><div class="empty">Hali oqim ochilmagan —
+  <a href="/cohorts">Oqimlar sahifasida</a> birinchi oqimni yarating</div></div>
+{% endif %}
+
+<div class="cob">
+  {% for r in board %}
+  {% set ch = r.cohort %}
+  <div class="co" id="co{{ ch.id }}">
+    <div class="co-head" onclick="coTog(this)">
+      {{ ring(r.fill, 'g' if r.fill >= 80 else ('' if r.fill >= 40 else 'r')) }}
+      <div class="co-ttl">
+        <b>{{ ch.course.name }}</b>
+        <span>{{ ch.name }} · {{ ch.start_date|dmy }} – {{ ch.end_date|dmy }}</span>
+        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="badge {{ 'b-green' if r.phase=='live' else ('b-gold' if r.phase=='soon' else 'b-gray') }}">{{ r.phase_label }}</span>
+          <span class="badge b-gray">{{ r.count }}{{ '/' ~ r.capacity if r.capacity }} o'quvchi</span>
+          {% if r.overdue %}<span class="badge b-red">{{ r.overdue_n }} qarzdor</span>{% endif %}
+        </div>
+      </div>
+      <svg class="co-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+
+    <div class="co-prog"><i style="width:{{ '%.1f'|format(r.progress) }}%"></i></div>
+
+    <div class="co-st">
+      <div><div class="l">Qiymati</div><div class="v">{{ r.price|grp }}</div></div>
+      <div><div class="l">Yig'ildi</div><div class="v pos">{{ r.paid|grp }}</div></div>
+      <div><div class="l">Qoldiq</div>
+        <div class="v {{ 'neg' if r.due }}">{{ r.due|grp if r.due else '—' }}</div></div>
+    </div>
+
+    <div class="co-body"><div>
+      {% if r.students %}
+      <div class="stg">
+        {% for s in r.students %}
+        <a class="st {{ 'due' if s.overdue }}" href="/contracts/{{ s.c.id }}">
+          <div class="st-top">
+            {{ ring(s.pct, 'g' if s.pct >= 99 else ('r' if s.overdue else ''), 'sm') }}
+            <div class="st-nm">
+              <b>{{ s.name }}</b>
+              <span>{{ s.phone or '—' }}{{ ' · ' ~ s.source if s.source }}</span>
+            </div>
+            {% if s.c.status != 'active' %}
+            <span class="badge {{ 'b-gray' if s.c.status=='completed' else 'b-red' }}">{{ STATUSES.get(s.c.status, s.c.status) }}</span>
+            {% endif %}
+          </div>
+
+          <div class="st-money">
+            <div><div class="l">Shartnoma</div><div class="v">{{ s.price|grp }}</div></div>
+            <div><div class="l">To'landi</div><div class="v pos">{{ s.paid|grp }}</div></div>
+            <div><div class="l">Qoldiq</div>
+              <div class="v {{ 'neg' if s.due }}">{{ s.due|grp if s.due else '0' }}</div></div>
+          </div>
+
+          {% if s.overdue %}
+          <div class="st-note bad"><i></i>{{ s.overdue|grp }} so'm · {{ s.overdue_days }} kun kechikdi</div>
+          {% elif s.next %}
+          <div class="st-note {{ 'warn' if s.next.days <= 7 else '' }}"><i></i>
+            Keyingi: {{ s.next.amount|grp }} so'm — {{ s.next.date|dmy }}
+            ({{ s.next.days }} kundan keyin)</div>
+          {% elif s.due <= 0.01 %}
+          <div class="st-note ok"><i></i>To'liq to'langan · {{ s.done }}/{{ s.installments }} qism</div>
+          {% else %}
+          <div class="st-note warn"><i></i>Grafik tuzilmagan — {{ s.due|grp }} so'm qoldiq</div>
+          {% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty" style="padding:20px">Bu oqimda hali
+        {{ 'faol ' if status == 'active' }}shartnoma yo'q</div>
+      {% endif %}
+    </div></div>
   </div>
+  {% endfor %}
 </div>
+
+<script>
+function coTog(el){
+  var card = el.closest(".co");
+  var wasOpen = card.classList.contains("open");
+  // bir vaqtda bitta oqim ochiq tursin — ko'z chalg'imaydi
+  document.querySelectorAll(".co.open").forEach(function(c){ c.classList.remove("open"); });
+  if (!wasOpen){
+    card.classList.add("open");
+    try{ sessionStorage.setItem("co-open", card.id); }catch(_){}
+    // ochilgan oqim ekranga to'liq kelsin — ayniqsa telefonda, karta
+    // pastda turganda o'quvchilar ko'rinmay qolmasligi uchun
+    setTimeout(function(){
+      var box = card.getBoundingClientRect();
+      var pad = 62;
+      if (box.top < pad || box.bottom > innerHeight)
+        scrollTo({top: box.top + scrollY - pad, behavior: "smooth"});
+    }, 260);
+  } else {
+    try{ sessionStorage.removeItem("co-open"); }catch(_){}
+  }
+}
+// sahifa qaytib ochilganda oxirgi ochiq oqim joyida qoladi
+(function(){
+  try{
+    var id = sessionStorage.getItem("co-open");
+    var el = id && document.getElementById(id);
+    if (el) el.classList.add("open");
+  }catch(_){}
+})();
+</script>
 {% endblock %}
