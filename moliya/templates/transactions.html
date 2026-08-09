@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Kassa — pul harakati</h1>
+<p class="sub">Sana, hamyon, statya, summa va matn bo'yicha filtr; natijani Excel'ga chiqarish</p>
+
+{# ── Tez tanlovlar ── #}
+<div class="monthnav" style="flex-wrap:wrap">
+  {% set presets = [('today','Bugun'), ('week','Shu hafta'), ('month','Shu oy'),
+                    ('prev','O\'tgan oy'), ('year','Yil boshidan')] %}
+  {% for key, label in presets %}
+  <a class="chip {{ 'on' if f.preset == key }}" href="?p={{ key }}">{{ label }}</a>
+  {% endfor %}
+  {% set nfilt = [f.q, f.w, f.op, f.cat, f.ch, f.amin, f.amax]
+     | select | list | length %}
+  <button type="button" class="filt-toggle {{ 'on opened' if nfilt }}"
+          onclick="toggleFilt(this)" style="margin-left:auto">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+    Filtr{% if nfilt %}<span class="n">{{ nfilt }}</span>{% endif %}
+    <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+  </button>
+  {% if nfilt %}
+  <a class="chip" href="/transactions" style="color:var(--red);border-color:var(--red)">✕ Tozalash</a>
+  {% endif %}
+</div>
+
+{# ── Filtr paneli — tugma bilan ochib-yopiladi, faol filtr bo'lsa ochiq ── #}
+<div class="fwrap {{ 'open' if nfilt }}" id="fwrap">
+ <div class="fwrap-in">
+<div class="card filt">
+  <form method="get" action="/transactions" id="filt">
+    <div class="filt-grid">
+      <div><label>Sanadan</label><input type="date" name="from" value="{{ f.d_from }}"></div>
+      <div><label>Sanagacha</label><input type="date" name="to" value="{{ f.d_to }}"></div>
+      <div><label>Hamyon</label>
+        <select name="w"><option value="">Barchasi</option>
+          {% for w in wallets %}<option value="{{ w.code }}" {{ 'selected' if f.w == w.code }}>{{ w.name }}</option>{% endfor %}
+        </select></div>
+      <div><label>Amal</label>
+        <select name="op"><option value="">Barchasi</option>
+          <option value="kirim" {{ 'selected' if f.op == 'kirim' }}>Kirim</option>
+          <option value="chiqim" {{ 'selected' if f.op == 'chiqim' }}>Chiqim</option>
+          <option value="transfer" {{ 'selected' if f.op == 'transfer' }}>Transfer</option>
+        </select></div>
+      <div><label>Statya</label>
+        <select name="cat"><option value="">Barchasi</option>
+          {% for c in cats %}<option {{ 'selected' if f.cat == c }}>{{ c }}</option>{% endfor %}
+        </select></div>
+      <div><label>Kanal</label>
+        <select name="ch"><option value="">Barchasi</option>
+          {% for c in CHANNELS %}<option {{ 'selected' if f.ch == c }}>{{ c }}</option>{% endfor %}
+        </select></div>
+      <div><label>Summa dan</label><input name="amin" type="number" step="any" value="{{ f.amin }}" placeholder="0"></div>
+      <div><label>Summa gacha</label><input name="amax" type="number" step="any" value="{{ f.amax }}" placeholder="∞"></div>
+      <div class="wide"><label>Qidiruv (kontragent, izoh, statya)</label>
+        <input name="q" value="{{ f.q }}" placeholder="Masalan: Feruza yoki Аренда"></div>
+      <div><label>Tartib</label>
+        <select name="sort">
+          <option value="date_desc" {{ 'selected' if f.sort == 'date_desc' }}>Sana ↓ (yangi)</option>
+          <option value="date_asc" {{ 'selected' if f.sort == 'date_asc' }}>Sana ↑ (eski)</option>
+          <option value="amount_desc" {{ 'selected' if f.sort == 'amount_desc' }}>Summa ↓ (katta)</option>
+          <option value="amount_asc" {{ 'selected' if f.sort == 'amount_asc' }}>Summa ↑ (kichik)</option>
+        </select></div>
+      <div class="acts">
+        <button type="submit">Filtrlash</button>
+        <a class="btn ghost" href="/transactions/export?{{ request.query_string.decode() }}">⇩ Excel</a>
+      </div>
+    </div>
+  </form>
+</div>
+ </div>
+</div>
+
+{# ── Filtrlangan natija jamlamasi ── #}
+<div class="grid g4" style="margin-top:12px">
+  <div class="card kpi"><div class="l">Topildi</div>
+    <div class="v">{{ total }}</div><div class="h">yozuv</div></div>
+  <div class="card kpi"><div class="l">Kirim</div>
+    <div class="v pos">{{ sum_inc|grp }}</div><div class="h">transferlarsiz</div></div>
+  <div class="card kpi"><div class="l">Chiqim</div>
+    <div class="v neg">{{ sum_exp|grp }}</div><div class="h">transferlarsiz</div></div>
+  <div class="card kpi"><div class="l">Sof natija</div>
+    <div class="v {{ 'pos' if sum_net >= 0 else 'neg' }}">{{ sum_net|grp }}</div>
+    <div class="h">{{ f.d_from|default('—') }} … {{ f.d_to|default('—') }}</div></div>
+</div>
+
+<details class="adder" style="margin-top:14px">
+  <summary>Yangi yozuv kiritish</summary>
+  <div class="body">
+  <form class="inline" method="post" action="/transactions/add">
+    <div><label>Sana</label><input type="date" name="tdate" value="{{ today.isoformat() }}"></div>
+    <div><label>Amal</label>
+      <select name="operation" onchange="document.getElementById('tr-to').style.display=this.value=='transfer'?'block':'none'">
+        <option value="kirim">Kirim</option><option value="chiqim">Chiqim</option>
+        <option value="transfer">Transfer</option>
+      </select></div>
+    <div><label>Hamyon</label>
+      <select name="wallet_code">{% for w in wallets %}<option value="{{ w.code }}">{{ w.name }}</option>{% endfor %}</select></div>
+    <div id="tr-to" style="display:none"><label>Qaysi hamyonga</label>
+      <select name="transfer_to">{% for w in wallets %}<option value="{{ w.code }}">{{ w.name }}</option>{% endfor %}</select></div>
+    <div><label>Summa</label><input name="amount" type="number" step="any" required placeholder="0"></div>
+    <div><label>Statya</label>
+      <select name="category">
+        <optgroup label="Kirim">{% for c in INCOME_CATS %}<option>{{ c }}</option>{% endfor %}</optgroup>
+        <optgroup label="Chiqim">{% for c in EXPENSE_CATS %}<option>{{ c }}</option>{% endfor %}</optgroup>
+      </select></div>
+    <div><label>Kanal (marketing)</label>
+      <select name="channel"><option value="">—</option>{% for c in CHANNELS %}<option>{{ c }}</option>{% endfor %}</select></div>
+    <div><label>Kontragent</label><input name="counterparty" placeholder="Kimdan/kimga"></div>
+    <div><label>Izoh</label><input name="comment"></div>
+    <div><button>Saqlash</button></div>
+  </form>
+  </div>
+</details>
+
+<div class="card" style="margin-top:14px">
+  <div class="tablewrap">
+  <table>
+    <tr><th>Sana</th><th>Amal</th><th>Hamyon</th><th class="r">Summa</th>
+        <th>Statya</th><th>Kontragent</th><th>Izoh</th><th></th></tr>
+    {% for t in txs %}
+    <tr>
+      <td class="num">{{ t.tdate|dmy }}</td>
+      <td>{% if t.is_transfer %}<span class="badge b-gold">Transfer → {{ t.transfer_to_wallet }}</span>
+          {% elif t.activity == 'tech' %}<span class="badge b-gold">Perevod</span>
+          {% elif t.operation == 'kirim' %}<span class="badge b-green">Kirim</span>
+          {% else %}<span class="badge b-red">Chiqim</span>{% endif %}</td>
+      <td>{{ t.wallet_code }}</td>
+      <td class="r {{ 'pos' if t.operation=='kirim' and not t.is_transfer and t.activity != 'tech' }}">{{ t.amount|grp }}</td>
+      <td>{{ t.category }}{% if t.channel %} <span class="badge b-gray">{{ t.channel }}</span>{% endif %}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.counterparty }}</td>
+      <td style="color:var(--dim);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.comment }}</td>
+      <td><form method="post" action="/transactions/{{ t.id }}/delete"
+                onsubmit="return confirm('O\'chirilsinmi?')"><button class="danger">✕</button></form></td>
+    </tr>
+    {% else %}<tr><td colspan="8"><div class="empty">Bu shartlarga mos yozuv topilmadi — filtrni kengaytiring</div></td></tr>{% endfor %}
+  </table>
+  </div>
+
+  {% if pages > 1 %}
+  {% set base = request.args.to_dict() %}
+  <div class="pager">
+    {% set _ = base.pop('page', None) %}
+    {% set qs = base|urlencode %}
+    {% if page > 1 %}<a class="chip" href="?{{ qs }}&page={{ page - 1 }}">← Oldingi</a>{% endif %}
+    <span class="chip on">{{ page }} / {{ pages }}</span>
+    {% if page < pages %}<a class="chip" href="?{{ qs }}&page={{ page + 1 }}">Keyingi →</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

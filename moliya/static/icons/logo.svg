@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171d2e"/>
+      <stop offset=".55" stop-color="#0d1120"/>
+      <stop offset="1" stop-color="#080a13"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".72" cy=".08" r=".9">
+      <stop offset="0" stop-color="#f6d489" stop-opacity=".2"/>
+      <stop offset=".45" stop-color="#f6d489" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#f6d489" stop-opacity="0"/>
+    </radialGradient>
+    <!-- brenddagi oltin: yuqori yorug', pastga to'q -->
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbe6ac"/>
+      <stop offset=".5" stop-color="#eec161"/>
+      <stop offset="1" stop-color="#b57f24"/>
+    </linearGradient>
+    <filter id="soft" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="11" flood-color="#000" flood-opacity=".5"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <g fill="none" stroke="#f6d489" stroke-opacity=".05">
+    <circle cx="452" cy="70" r="150" stroke-width="1.4"/>
+    <circle cx="452" cy="70" r="196" stroke-width="1.2"/>
+    <circle cx="46" cy="470" r="130" stroke-width="1.4"/>
+    <circle cx="46" cy="470" r="178" stroke-width="1.2"/>
+  </g>
+  <!-- ichki nozik hoshiya -->
+  <rect x="10" y="10" width="492" height="492" rx="106" fill="none"
+        stroke="#f6d489" stroke-opacity=".15" stroke-width="2"/>
+
+  <!-- Mfaktor tog' cho'qqili «M» belgisi -->
+  <g filter="url(#soft)">
+    <path fill="none" stroke="url(#gold)" stroke-width="38"
+          stroke-linejoin="miter" stroke-miterlimit="6" stroke-linecap="butt"
+          d="M84,400 L212,158 L288,304 L366,182 L444,330"/>
+    <!-- chap boshlanish uchidagi qiya kesim tuyg'usi: kichik yorqin uch -->
+    <path fill="#fbe6ac" d="M84,400 L104,362 L84,362 Z" opacity=".0"/>
+  </g>
+</svg>

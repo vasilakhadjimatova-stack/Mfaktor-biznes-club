@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="xl-top">
+  <h1 style="margin:0">ДДС_{{ year }}</h1>
+  <span class="xl-badge">Отчет о движении денежных средств — Sheets ko'rinishi</span>
+  <button type="button" class="xl-fs" onclick="xlFull()"
+          title="Jadval butun ekranni oladi (Esc — chiqish)">⛶ Katta ekran</button>
+</div>
+<p class="sub">Google Sheets'dagi «ДДС_{{ year }}» varag'i bilan bir xil tuzilma.
+  Raqamlar «ДДС данные»dan o'zi hisoblanadi — formulalar dastur ichida.</p>
+
+<div class="monthnav" style="flex-wrap:wrap">
+  <a class="chip" href="?year={{ year - 1 }}">← {{ year - 1 }}</a>
+  <a class="chip on">{{ year }}</a>
+  <a class="chip" href="?year={{ year + 1 }}">{{ year + 1 }} →</a>
+  <span style="flex:1"></span>
+  <a class="chip" href="?year={{ year }}&view=app">Tahliliy ko'rinish →</a>
+</div>
+
+{% macro num(v, dash='') -%}
+  {%- if v is none or (v > -0.5 and v < 0.5) -%}{{ dash }}
+  {%- else -%}{{ v | round | int | grp }}{%- endif -%}
+{%- endmacro %}
+
+{% macro cells(vals, cls='') -%}
+  {% for v in vals %}<td class="r {{ cls }} {{ 'nv' if v < -0.5 }}">{{ num(v) }}</td>{% endfor %}
+  <td class="r tt {{ cls }} {{ 'nv' if vals|sum < -0.5 }}">{{ num(vals|sum) }}</td>
+{%- endmacro %}
+
+<div class="xl-wrap">
+  <table class="xl x2">
+    <thead>
+      <tr>
+        <th class="x2-name">Наименование</th>
+        {% for m in x.months %}<th class="r">{{ m }}</th>{% endfor %}
+        <th class="r">Итого {{ x.year }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {# ── Остаток на начало ── #}
+      <tr class="x2-sec"><td class="x2-name">Остаток ДС на начало периода</td>
+        {{ cells(x.open_tot) }}</tr>
+      {% for label, opens, closes in x.wallets %}
+      <tr class="x2-wal"><td class="x2-name">{{ label }}</td>{{ cells(opens) }}</tr>
+      {% endfor %}
+
+      {# ── Операционная ── #}
+      <tr class="x2-sec"><td class="x2-name">Операционная деятельность</td>
+        {% for i in range(13) %}<td></td>{% endfor %}</tr>
+      <tr class="x2-sub"><td class="x2-name">Поступления по операционной деятельности</td>
+        {{ cells(x.op_in_t) }}</tr>
+      {% for r in x.op_in %}
+      <tr class="x2-art"><td class="x2-name ind">{{ r.name }}</td>{{ cells(r.vals) }}</tr>
+      {% endfor %}
+      <tr class="x2-sub"><td class="x2-name">Выбытия по операционной деятельности</td>
+        {{ cells(x.op_out_t) }}</tr>
+      {% for r in x.op_out %}
+      <tr class="x2-art"><td class="x2-name ind">{{ r.name }}</td>{{ cells(r.vals) }}</tr>
+      {% endfor %}
+
+      {# ── Инвестиционная ── #}
+      <tr class="x2-sec2"><td class="x2-name">Инвестиционная деятельность</td>
+        {% for i in range(13) %}<td></td>{% endfor %}</tr>
+      <tr class="x2-sub"><td class="x2-name">Поступления по инвестиционной деятельности</td>
+        {{ cells(x.inv_in_t) }}</tr>
+      {% for r in x.inv_in %}
+      <tr class="x2-art"><td class="x2-name ind">{{ r.name }}</td>{{ cells(r.vals) }}</tr>
+      {% endfor %}
+      <tr class="x2-sub"><td class="x2-name">Выбытия по инвестиционной деятельности</td>
+        {{ cells(x.inv_out_t) }}</tr>
+      {% for r in x.inv_out %}
+      <tr class="x2-art"><td class="x2-name ind">{{ r.name }}</td>{{ cells(r.vals) }}</tr>
+      {% endfor %}
+
+      {# ── Финансовая ── #}
+      <tr class="x2-sec2"><td class="x2-name">Финансовая деятельность</td>
+        {% for i in range(13) %}<td></td>{% endfor %}</tr>
+      <tr class="x2-sub"><td class="x2-name">Поступления по финансовой деятельности</td>
+        {{ cells(x.fin_in_t) }}</tr>
+      {% for r in x.fin_in %}
+      <tr class="x2-art"><td class="x2-name ind">{{ r.name }}</td>{{ cells(r.vals) }}</tr>
+      {% endfor %}
+      <tr class="x2-sub"><td class="x2-name">Выбытия по финансовой деятельности</td>
+        {{ cells(x.fin_out_t) }}</tr>
+      {% for r in x.fin_out %}
+      <tr class="x2-art"><td class="x2-name ind">{{ r.name }}</td>{{ cells(r.vals) }}</tr>
+      {% endfor %}
+
+      {# ── ЧДП va perevodlar ── #}
+      <tr class="x2-sec2"><td class="x2-name">Чистый денежный поток</td>
+        {{ cells(x.chdp) }}</tr>
+      <tr class="x2-art"><td class="x2-name ind">Доход — Перевод между счетами</td>
+        {{ cells(x.tr_in) }}</tr>
+      <tr class="x2-art"><td class="x2-name ind">Расход — Перевод между счетами</td>
+        {{ cells(x.tr_out) }}</tr>
+
+      {# ── Остаток na oxiri ── #}
+      <tr class="x2-sec2"><td class="x2-name">Остаток ДС на конец периода</td>
+        {{ cells(x.close_tot) }}</tr>
+      {% for label, opens, closes in x.wallets %}
+      <tr class="x2-wal"><td class="x2-name">{{ label }}</td>{{ cells(closes) }}</tr>
+      {% endfor %}
+
+      {# ── Nazorat ── #}
+      <tr class="x2-ctl"><td class="x2-name">Разница</td>{{ cells(x.razn, '') }}</tr>
+      <tr class="x2-ctl"><td class="x2-name">Контроль</td>
+        {% for i in range(12) %}<td class="r">{{ 'ОК' if x.razn[i] > -1 and x.razn[i] < 1 else '!' }}</td>{% endfor %}
+        <td class="r tt">{{ 'ОК' if x.ok else '!' }}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p class="hint" style="margin-top:12px">«Контроль: ОК» — hamyonlar bo'yicha qoldiq
+  bilan moddalar yig'indisi mos kelganini bildiradi, Sheets'dagi kabi.
+  Yangi qator «ДДС данные»ga tushishi bilan bu jadval o'zi yangilanadi.</p>
+{% endblock %}

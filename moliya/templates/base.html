@@ -1,0 +1,2488 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Moliya">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>{% block title %}Mfaktor Moliya{% endblock %}</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="theme-color" content="#0b0e13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Moliya">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Moliya">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* mavzu: localStorage → tizim sozlamasi → dark. FOUC oldini olish uchun head'da */
+(function(){
+  var t = localStorage.getItem("mf-theme");
+  if (!t) t = "dark";
+  document.documentElement.dataset.theme = t;
+  addEventListener("DOMContentLoaded", function(){ syncThemeColor(t); });
+})();
+function syncThemeColor(t){
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = t === "light" ? "#efebe1" : "#0b0e13";
+}
+</script>
+<style>
+:root{
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",-apple-system,Segoe UI,sans-serif;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,monospace;
+  --r:14px;
+  /* tungi mavzu (asosiy) */
+  color-scheme:dark;
+  --ink:#05070e; --ink2:#0a0d17; --ink3:#111527;
+  --line:rgba(160,180,255,.1); --line2:rgba(160,180,255,.2);
+  --txt:#f2f4fb; --mut:#9ba7c2; --dim:#5e6a85;
+  --gold:#f5c15c; --gold2:#ffe3a1; --gold-dim:rgba(245,193,92,.15);
+  --green:#3ee59a; --green-dim:rgba(62,229,154,.13);
+  --red:#ff7a88; --red-dim:rgba(255,122,136,.13);
+  --blue:#82b9ff;
+  --hover:rgba(160,180,255,.06); --track:rgba(160,180,255,.1);
+  --card-top:rgba(158,180,255,.07); --card-bot:rgba(158,180,255,.02);
+  --card-faint:rgba(158,180,255,.03);
+  --btn-g1:#ffe3a1; --btn-g2:#f0b342; --btn-txt:#241a05;
+  --row-strong:rgba(160,180,255,.07);
+  --row-inc:rgba(62,229,154,.09); --row-exp:rgba(255,122,136,.08);
+  --row-fin:rgba(130,185,255,.09);
+  --hint-bg:rgba(130,185,255,.07);
+  --shadow:0 14px 44px rgba(0,0,0,.6);
+}
+:root[data-theme="light"]{
+  /* yorug' mavzu — "qog'oz daftar": iliq oq-qaymoq fon, quyuq siyoh matn */
+  color-scheme:light;
+  --ink:#eef1f9; --ink2:#e4e9f5; --ink3:#ffffff;
+  --line:rgba(40,60,120,.1); --line2:rgba(40,60,120,.18);
+  --txt:#1a2137; --mut:#5b6682; --dim:#8f9ab5;
+  --gold:#9a6f10; --gold2:#7a570b; --gold-dim:rgba(200,150,30,.14);
+  --green:#0d8a57; --green-dim:rgba(13,138,87,.11);
+  --red:#cc3d4e; --red-dim:rgba(204,61,78,.10);
+  --blue:#2563c4;
+  --hover:rgba(40,60,120,.05); --track:rgba(40,60,120,.08);
+  --card-top:rgba(255,255,255,.82); --card-bot:rgba(255,255,255,.55);
+  --card-faint:rgba(255,255,255,.55);
+  --btn-g1:#f6cd6d; --btn-g2:#e3a92f; --btn-txt:#241a05;
+  --row-strong:rgba(40,60,120,.06);
+  --row-inc:rgba(13,138,87,.08); --row-exp:rgba(204,61,78,.07);
+  --row-fin:rgba(37,99,196,.08);
+  --hint-bg:rgba(37,99,196,.06);
+  --shadow:0 14px 40px rgba(40,60,120,.16);
+}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+a,button,summary,.chip{touch-action:manipulation}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:6px}
+summary{cursor:pointer}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--txt);font:14px/1.55 var(--sans);min-height:100vh;
+  transition:background .25s,color .25s}
+body::before{content:"";position:fixed;inset:-20%;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(42% 34% at 78% 6%, rgba(245,193,92,.13), transparent 70%),
+    radial-gradient(38% 30% at 8% 88%, rgba(130,185,255,.12), transparent 70%),
+    radial-gradient(30% 26% at 88% 78%, rgba(62,229,154,.09), transparent 70%);
+  animation:aurora 26s ease-in-out infinite alternate}
+:root[data-theme="light"] body::before{opacity:.55}
+@keyframes aurora{
+  0%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(-2.5%,2%) scale(1.06)}
+  100%{transform:translate(2%,-2.5%) scale(1.02)}}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(rgba(160,180,255,.09) 1px, transparent 1px);
+  background-size:26px 26px;
+  mask-image:radial-gradient(70% 60% at 50% 30%, #000, transparent)}
+:root[data-theme="light"] body::after{opacity:.5}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+::-webkit-scrollbar{height:9px;width:9px}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ── Layout: sidebar + content ── */
+.shell{display:grid;grid-template-columns:228px 1fr;min-height:100vh;position:relative;z-index:1}
+:root{--side-bg1:rgba(10,14,26,.82); --side-bg2:rgba(5,7,14,.92); --side-line:rgba(160,180,255,.12);
+  --side-txt:#eef1fa; --side-mut:#93a0bd; --side-dim:#5c6883; --side-hover:rgba(160,180,255,.08)}
+aside{border-right:1px solid var(--side-line);
+  background:linear-gradient(180deg,var(--side-bg1),var(--side-bg2));
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+aside::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(400px 200px at 20% 0%, rgba(232,182,76,.08), transparent 70%)}
+aside > *{position:relative;z-index:1}
+.brand{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:.01em;
+  color:#f0c25e;padding:0 8px 20px;display:flex;align-items:center;gap:11px}
+.brand .dot{width:34px;height:34px;border-radius:11px;flex:none;
+  background:linear-gradient(135deg,#f6d489,#d9a538);
+  display:flex;align-items:center;justify-content:center;
+  color:#241a05;font:700 16px var(--sans);
+  box-shadow:0 4px 14px rgba(217,165,58,.4)}
+.brand img.dot{object-fit:cover}
+.brand small{display:block;font-family:var(--sans);font-weight:500;font-size:9.5px;
+  color:var(--side-dim);letter-spacing:.24em;text-transform:uppercase;margin-top:1px}
+aside nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;
+  color:var(--side-mut);font-weight:500;font-size:13.5px;transition:.15s;
+  text-decoration:none;position:relative}
+aside nav a:hover{color:var(--side-txt);background:var(--side-hover);text-decoration:none}
+aside nav a.on{color:#f0c25e;background:rgba(232,182,76,.13);font-weight:600}
+aside nav a.on::before{content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:3px;
+  border-radius:0 3px 3px 0;background:linear-gradient(180deg,#f6d489,#d9a538)}
+aside nav a svg{width:17px;height:17px;flex:none;opacity:.85}
+nav .sep{margin:14px 12px 6px;font-size:10px;letter-spacing:.2em;color:var(--side-dim);
+  text-transform:uppercase}
+.side-foot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid var(--side-line);
+  font-size:11.5px;color:var(--side-dim)}
+/* kompyuterda mavzu/sozlama yuqori panelda — chap panel ostidagisi kerak emas */
+@media(min-width:901px){ .side-foot{display:none} }
+.side-foot b{color:#f0c25e;font-family:var(--sans);font-variant-numeric:tabular-nums;font-weight:600;font-size:13px;display:block}
+.theme-btn{display:flex;align-items:center;gap:9px;width:100%;margin-top:10px;
+  background:transparent;border:1px solid var(--side-line);color:var(--side-mut);border-radius:10px;
+  padding:8px 12px;font:600 12.5px var(--sans);cursor:pointer;box-shadow:none;transition:.15s}
+.theme-btn:hover{color:var(--side-txt);border-color:var(--side-mut);transform:none;filter:none}
+.theme-btn svg{width:15px;height:15px}
+:root[data-theme="dark"] .tl-sun{display:none}
+:root[data-theme="light"] .tl-moon{display:none}
+
+main{padding:22px 34px 70px;max-width:1560px;width:100%;min-width:0}
+
+/* ══ Yuqori panel — sozlama, mavzu, chiqish (chap paneldan ko'chirildi) ══ */
+.topbar{display:flex;align-items:center;gap:10px;margin:0 0 16px;
+  position:sticky;top:0;z-index:30;padding:10px 0 12px;
+  background:linear-gradient(180deg,var(--bg) 72%,transparent)}
+.tb-spacer{flex:1;min-width:0}
+.tb-cash{display:flex;align-items:baseline;gap:8px;padding:7px 14px;border-radius:11px;
+  border:1px solid var(--line);background:var(--card-faint);
+  font:600 11px var(--sans);color:var(--mut);
+  text-transform:uppercase;letter-spacing:.09em;white-space:nowrap}
+.tb-cash b{font:700 14.5px var(--sans);color:var(--gold);
+  font-variant-numeric:tabular-nums;letter-spacing:0;text-transform:none}
+.tb-btn{width:38px;height:38px;flex:none;border-radius:11px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--card-faint);color:var(--mut);
+  box-shadow:none;transition:.15s;padding:0}
+.tb-btn:hover{color:var(--txt);border-color:var(--mut);transform:none;filter:none}
+.tb-btn:active{transform:scale(.92)}
+.tb-btn.on{color:var(--gold);border-color:var(--gold);background:var(--gold-dim)}
+.tb-btn svg{width:18px;height:18px}
+@media(max-width:900px){
+  .topbar{display:none}          /* mobilda yuqori panel allaqachon bor */
+}
+h1{font-family:var(--serif);font-weight:600;font-size:31px;letter-spacing:-.01em;margin:0 0 4px}
+h1::after{content:"";display:block;width:52px;height:4px;border-radius:4px;margin-top:10px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
+h2{font:600 15px var(--sans);color:var(--txt);margin:26px 0 12px;display:flex;align-items:center;gap:8px}
+h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--gold)}
+.card h2:first-child{margin-top:0}
+.sub{color:var(--mut);margin-bottom:22px;font-size:13.5px}
+
+/* ── Cards / grids ── */
+.grid{display:grid;gap:14px;align-items:start}
+.g4{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}
+/* KPI kartalari: ichidagi 5 ustunli jadval qisilmasligi uchun kengroq */
+.gkpi{grid-template-columns:repeat(auto-fit,minmax(min(560px,100%),1fr))}
+.card{background:linear-gradient(160deg,var(--card-top),var(--card-bot));
+  border:1px solid var(--line);border-radius:18px;padding:18px 18px 16px;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 0 8px 28px rgba(0,0,0,.22);
+  transition:background .25s;position:relative}
+.card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;
+  border-radius:18px 18px 0 0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);
+  pointer-events:none}
+:root[data-theme="light"] .card{box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 8px 26px rgba(40,60,120,.1)}
+.card.kpi{position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s,background .25s}
+.card.kpi:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(60,48,20,.13)}
+:root[data-theme="dark"] .card.kpi:hover{box-shadow:0 10px 26px rgba(0,0,0,.45)}
+.kpi .l{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.09em;font-weight:600;padding-right:44px}
+.kpi .v{font-family:var(--sans);font-variant-numeric:tabular-nums;font-size:26px;font-weight:700;margin-top:8px;letter-spacing:-.01em}
+.kpi .v.gold{background:linear-gradient(120deg,var(--gold2),var(--gold));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.kpi .h{font-size:12.5px;color:var(--mut);margin-top:6px}
+.kpi .ic{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;background:var(--gold-dim);color:var(--gold)}
+.kpi .ic svg{width:18px;height:18px}
+.kpi .ic.green{background:var(--green-dim);color:var(--green)}
+.kpi .ic.red{background:var(--red-dim);color:var(--red)}
+.kpi .ic.blue{background:var(--hint-bg);color:var(--blue)}
+.kpi.alert{border-color:var(--red);background:linear-gradient(180deg,var(--red-dim),transparent)}
+.delta{display:inline-flex;align-items:center;gap:2px;font:600 11px var(--sans);font-variant-numeric:tabular-nums;
+  padding:2px 8px;border-radius:99px;vertical-align:2px;margin-left:7px}
+.delta.up{background:var(--green-dim);color:var(--green)}
+.delta.down{background:var(--red-dim);color:var(--red)}
+
+/* ── Kurs kartochkalari ── */
+.course-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));margin-top:14px}
+.ccard{background:linear-gradient(180deg,var(--card-top),var(--card-bot));
+  border:1px solid var(--line);border-radius:var(--r);padding:18px;position:relative;
+  display:flex;flex-direction:column;gap:13px;transition:transform .18s,box-shadow .18s}
+.ccard:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(60,48,20,.13)}
+:root[data-theme="dark"] .ccard:hover{box-shadow:0 10px 26px rgba(0,0,0,.45)}
+.ccard::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;
+  border-radius:var(--r) var(--r) 0 0;background:linear-gradient(90deg,var(--btn-g2),var(--btn-g1))}
+.ccard .chead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ccard .cname{font:600 15.5px var(--sans);line-height:1.3}
+.ccard .cname small{display:block;font:500 12px var(--sans);color:var(--mut);margin-top:2px}
+.ccard .status-pill{font:600 11px var(--sans);padding:4px 11px;border-radius:99px;white-space:nowrap}
+.meter{display:flex;flex-direction:column;gap:5px}
+.meter .mrow{display:flex;justify-content:space-between;font-size:12px;color:var(--mut)}
+.meter .mrow b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:700}
+.meter .bar{margin:0}
+.cstats{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.cstats .cs .l{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.cstats .cs .n{font:700 15px var(--sans);font-variant-numeric:tabular-nums;margin-top:3px}
+.ccard .cfoot{display:flex;gap:8px;margin-top:auto}
+.pos{color:var(--green)}.neg{color:var(--red)}.gold{color:var(--gold)}
+.num{font-family:var(--sans);font-variant-numeric:tabular-nums}
+
+/* ── Tables ── */
+.tablewrap{overflow-x:auto;border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{color:var(--mut);text-align:left;font-size:10.5px;text-transform:uppercase;font-weight:600;
+   letter-spacing:.08em;padding:9px 11px;border-bottom:1px solid var(--line2);white-space:nowrap;
+   position:sticky;top:0;background:var(--ink2);z-index:1}
+td{padding:10px 11px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.r{text-align:right}
+td.r{text-align:right;font-family:var(--sans);font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:var(--hover)}
+tr.row-strong td{background:var(--row-strong)}
+tr.row-inc td{background:var(--row-inc)}
+tr.row-exp td{background:var(--row-exp)}
+tr.row-fin td{background:var(--row-fin)}
+.empty{color:var(--dim);padding:26px 12px;text-align:center;font-size:13px}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:600;
+  letter-spacing:.02em;white-space:nowrap}
+.b-green{background:var(--green-dim);color:var(--green)}
+.b-red{background:var(--red-dim);color:var(--red)}
+.b-gold{background:var(--gold-dim);color:var(--gold)}
+.b-gray{background:var(--track);color:var(--mut)}
+a.badge:hover{text-decoration:none;filter:brightness(1.2)}
+
+/* ── Forms ── */
+details.adder{border:1px dashed var(--line2);border-radius:var(--r);margin-bottom:16px;
+  background:var(--card-faint)}
+details.adder summary{cursor:pointer;list-style:none;padding:13px 18px;font-weight:600;
+  color:var(--gold);display:flex;align-items:center;gap:9px;user-select:none}
+details.adder summary::-webkit-details-marker{display:none}
+details.adder summary::before{content:"+";font-family:var(--mono);font-size:17px;line-height:1;
+  width:24px;height:24px;border-radius:8px;background:var(--gold-dim);color:var(--gold);
+  display:flex;align-items:center;justify-content:center;transition:.2s;flex:none}
+details.adder[open] summary::before{transform:rotate(45deg)}
+details.adder .body{padding:4px 18px 18px}
+form.inline{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));align-items:end}
+label{font-size:11px;color:var(--mut);display:block;margin:0 0 5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em}
+input,select,textarea{background:var(--ink3);border:1px solid var(--line2);color:var(--txt);
+  border-radius:10px;padding:9px 11px;font:13.5px var(--sans);width:100%;transition:.15s}
+input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-dim)}
+input[type=number]{font-variant-numeric:tabular-nums}
+button,.btn{background:linear-gradient(180deg,var(--btn-g1),var(--btn-g2));color:var(--btn-txt);border:0;
+  border-radius:10px;padding:10px 18px;font:600 13.5px var(--sans);cursor:pointer;transition:.15s;
+  box-shadow:0 2px 18px rgba(240,179,66,.45), 0 1px 0 rgba(255,255,255,.4) inset}
+button:hover{filter:brightness(1.06);transform:translateY(-1px)}
+button:active{transform:translateY(0) scale(.95)}
+button.ghost,.btn.ghost{background:transparent;color:var(--mut);border:1px solid var(--line2);box-shadow:none}
+button.ghost:hover,.btn.ghost:hover{color:var(--txt);border-color:var(--mut);text-decoration:none}
+button.danger{background:transparent;color:var(--red);border:1px solid var(--red-dim);
+  padding:5px 11px;box-shadow:none;font-size:12px}
+
+/* ── Flash toast ── */
+.flash{position:fixed;right:22px;top:20px;z-index:50;padding:12px 18px;border-radius:12px;
+  font-weight:600;font-size:13.5px;box-shadow:var(--shadow);
+  animation:toast .35s cubic-bezier(.2,.9,.3,1.2), fadeout .5s 3.5s forwards;backdrop-filter:blur(8px)}
+.flash.ok{background:var(--green-dim);color:var(--green);border:1px solid var(--green)}
+.flash.error{background:var(--red-dim);color:var(--red);border:1px solid var(--red)}
+@keyframes toast{from{transform:translateY(-14px);opacity:0}}
+@keyframes fadeout{to{opacity:0;visibility:hidden}}
+
+/* ── Misc ── */
+.bar{height:7px;background:var(--track);border-radius:6px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--btn-g2),var(--btn-g1));border-radius:6px}
+.monthnav{display:flex;gap:8px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;
+  border:1px solid var(--line2);color:var(--mut);font-weight:600;font-size:12.5px;transition:.15s}
+.chip:hover{color:var(--txt);border-color:var(--mut);text-decoration:none}
+.chip:active{transform:scale(.94)}
+.chip.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold)}
+.hint{border:1px solid var(--line);border-radius:var(--r);padding:13px 17px 13px 44px;color:var(--mut);
+  font-size:12.5px;background:var(--hint-bg);position:relative}
+.hint::before{content:"i";position:absolute;left:14px;top:12px;width:19px;height:19px;
+  border-radius:50%;background:var(--blue);color:#fff;font:700 11px/19px var(--serif);
+  text-align:center;font-style:italic}
+code{font-family:var(--mono);font-size:12px;background:var(--track);
+  padding:2px 6px;border-radius:6px}
+
+/* ── Chart ── */
+.chart{display:flex;align-items:flex-end;gap:10px;height:130px;padding:8px 4px 0;
+  background:linear-gradient(to top, transparent 0, transparent calc(25% - 1px), var(--line) 25%,
+    transparent calc(25% + 1px), transparent calc(50% - 1px), var(--line) 50%,
+    transparent calc(50% + 1px), transparent calc(75% - 1px), var(--line) 75%,
+    transparent calc(75% + 1px), transparent 100%);border-radius:4px}
+.chart .grp{flex:1;display:flex;align-items:flex-end;gap:3px;height:100%;position:relative}
+.chart .b{flex:1;border-radius:4px 4px 0 0;min-height:2px;transition:.2s}
+.chart .b.inc{background:linear-gradient(180deg,var(--green),rgba(62,229,154,.25));
+  box-shadow:0 0 14px rgba(62,229,154,.35)}
+.chart .b.exp{background:linear-gradient(180deg,var(--red),rgba(255,122,136,.22));
+  box-shadow:0 0 14px rgba(255,122,136,.3)}
+.chart .grp:hover .b{filter:brightness(1.2)}
+.chart-x{display:flex;gap:10px;padding:6px 4px 0;color:var(--dim);font-size:10.5px}
+.chart-x span{flex:1;text-align:center}
+.legend{display:flex;gap:16px;font-size:11.5px;color:var(--mut);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+/* ── Jonlanish (staggered reveal) ── */
+main > *{animation:rise .5s cubic-bezier(.16,.84,.3,1) both}
+main > *:nth-child(2){animation-delay:.05s}
+main > *:nth-child(3){animation-delay:.1s}
+main > *:nth-child(4){animation-delay:.15s}
+main > *:nth-child(5){animation-delay:.2s}
+main > *:nth-child(6){animation-delay:.25s}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
+/* ── Donut diagramma ── */
+.donut-wrap{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.donut{width:150px;height:150px;border-radius:50%;position:relative;flex:none}
+.donut::after{content:"";position:absolute;inset:26px;border-radius:50%;
+  background:var(--ink2);border:1px solid var(--line);box-shadow:0 0 18px rgba(0,0,0,.3) inset}
+.donut .dc{position:absolute;inset:26px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:1;text-align:center}
+.donut .dc b{font:700 13px var(--sans)}
+.donut .dc span{font-size:9.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.dlegend{flex:1;min-width:200px;display:flex;flex-direction:column;gap:7px}
+.dlegend .dl{display:flex;align-items:center;gap:9px;font-size:12.5px}
+.dlegend .dl i{width:11px;height:11px;border-radius:4px;flex:none}
+.dlegend .dl span{color:var(--mut);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlegend .dl b{font-family:var(--mono);font-size:12px}
+
+
+/* ══ Diagrammalar ══ */
+:root{ --s1:#3987e5; --s2:#d95926; }
+:root[data-theme="light"]{ --s1:#2a78d6; --s2:#eb6834; }
+.viz{position:relative;width:100%}
+.viz-svg{width:100%;height:auto;display:block;overflow:visible}
+.viz-grid{stroke:var(--line);stroke-width:1}
+.viz-zero{stroke:var(--line2);stroke-width:1.5;stroke-dasharray:4 4}
+.viz-conn{stroke:var(--line2);stroke-width:1;stroke-dasharray:3 3}
+.viz-ytxt,.viz-xtxt{fill:var(--dim);font:500 10.5px var(--sans);
+  font-variant-numeric:tabular-nums}
+.viz-mtxt{fill:var(--gold);font:700 11px var(--sans)}
+.wf-val{font:700 11px var(--sans);font-variant-numeric:tabular-nums;fill:var(--mut)}
+.wf-bar{transition:opacity .15s}
+.wf-bar:hover{opacity:.8}
+.wf-start,.wf-end{fill:var(--mut);opacity:.55}
+.wf-plus{fill:var(--s1)}
+.wf-minus{fill:var(--s2)}
+.viz-crossline{stroke:var(--line2);stroke-width:1.5}
+.viz-dot{stroke:var(--ink2);stroke-width:2}
+.viz-dot.d1{fill:var(--s1)} .viz-dot.d2{fill:var(--s2)}
+.viz-cross{transition:opacity .12s;pointer-events:none}
+.viz-hit{fill:transparent;cursor:crosshair}
+.viz-bepdot{fill:var(--gold);stroke:var(--ink2);stroke-width:2.5}
+.viz-marker{stroke:var(--gold);stroke-width:1.5;stroke-dasharray:3 4;opacity:.7}
+.viz-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;
+  font-size:12px;color:var(--mut)}
+.viz-legend i{display:inline-block;width:14px;height:3px;border-radius:2px;
+  margin-right:7px;vertical-align:3px}
+.viz-legend .lg1{background:var(--s1)}
+.viz-legend .lg2{background:var(--s2);
+  background-image:linear-gradient(90deg,var(--s2) 60%,transparent 60%);
+  background-size:6px 3px}
+.viz-tip{position:absolute;z-index:5;pointer-events:none;min-width:150px;
+  background:var(--ink3);border:1px solid var(--line2);border-radius:12px;
+  padding:9px 12px;box-shadow:var(--shadow);transform:translate(-50%,-118%);
+  transition:opacity .12s}
+.viz-tip .tt-title{font:700 11.5px var(--sans);color:var(--txt);margin-bottom:6px}
+.viz-tip .tt-row{display:flex;align-items:center;gap:7px;font-size:12px;
+  color:var(--mut);white-space:nowrap;line-height:1.9}
+.viz-tip .tt-row i{width:9px;height:9px;border-radius:3px;flex:none}
+.viz-tip .tt-row b{margin-left:auto;color:var(--txt);
+  font-variant-numeric:tabular-nums}
+
+/* Reyting chiziqlari (bitta o'lchov — bitta rang shkalasi) */
+.rank{display:flex;flex-direction:column;gap:11px}
+.rank-head{display:flex;justify-content:space-between;font-size:12.5px;
+  color:var(--mut);margin-bottom:4px}
+.rank-head b{color:var(--txt);font-variant-numeric:tabular-nums}
+.rank-track{position:relative;height:24px;background:var(--track);
+  border-radius:7px;overflow:hidden;display:flex;align-items:center}
+.rank-track i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;
+  background:linear-gradient(90deg,var(--s1),color-mix(in srgb,var(--s1) 72%,var(--ink)));
+  animation:growx .7s cubic-bezier(.2,.8,.3,1) both}
+@keyframes growx{from{transform:scaleX(0);transform-origin:left}}
+.rank-track em{position:relative;margin-left:auto;padding-right:10px;
+  font:600 12px var(--sans);font-variant-numeric:tabular-nums;
+  font-style:normal;color:var(--txt)}
+.spark{width:76px;height:22px;vertical-align:middle;overflow:visible}
+@media(max-width:900px){
+  .viz-ytxt,.viz-xtxt{font-size:13px}
+  .wf-val{font-size:13px}
+  .viz-legend{font-size:12.5px}
+}
+
+
+/* ══ SUPER-APP: jonli hamyon kartalari ══ */
+.wallet-deck{position:relative;margin:0 -34px}
+@media(max-width:900px){.wallet-deck{margin:0 -14px}}
+.wtrack{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;
+  cursor:grab;-webkit-overflow-scrolling:touch;
+  padding:6px 34px 14px;scrollbar-width:none}
+@media(max-width:900px){.wtrack{padding:6px 14px 14px;gap:12px}}
+/* sensorli qurilmada bir yengil svayp — aynan keyingi karta (pager) */
+@media (pointer:coarse){
+  .wtrack{scroll-snap-type:x mandatory}
+  .wcard{scroll-snap-stop:always}
+}
+.wtrack::-webkit-scrollbar{display:none}
+/* sudrash paytida: kursor va snap'ni bo'shatamiz — erkin yuradi */
+.wtrack.dragging{cursor:grabbing;scroll-snap-type:none;scroll-behavior:auto}
+.wtrack.dragging .wcard{pointer-events:none}
+.wcard{position:relative;flex:0 0 272px;height:160px;border-radius:19px;
+  scroll-snap-align:center;padding:15px 17px;color:#fff;overflow:hidden;
+  cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.3,1), box-shadow .25s;
+  box-shadow:0 10px 26px rgba(0,0,0,.32);user-select:none;-webkit-user-select:none}
+@media(max-width:900px){.wcard{flex:0 0 68vw;max-width:270px;height:154px}}
+.wcard:active{transform:scale(.97)}
+.wcard.active{box-shadow:0 14px 36px rgba(0,0,0,.48), 0 0 0 2px var(--gold)}
+.wcard::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 90% at 85% -10%, rgba(255,255,255,.26), transparent 55%),
+             radial-gradient(80% 60% at 10% 110%, rgba(0,0,0,.25), transparent 60%)}
+.wcard::after{content:"";position:absolute;top:-60%;left:-20%;width:60%;height:220%;
+  background:linear-gradient(70deg,transparent,rgba(255,255,255,.13),transparent);
+  transform:rotate(8deg)}
+.wg0{background:linear-gradient(135deg,#b78628,#7a5010 55%,#4a3008)}
+.wg1{background:linear-gradient(135deg,#1e3a8a,#14275e 55%,#0b1638)}
+.wg2{background:linear-gradient(135deg,#155e75,#0e4a5e 55%,#062b38)}
+.wg3{background:linear-gradient(135deg,#4c1d95,#331367 55%,#1e0b3e)}
+.wg4{background:linear-gradient(135deg,#7f1d1d,#581414 55%,#320a0a)}
+.wg5{background:linear-gradient(135deg,#334155,#1e293b 55%,#0f172a)}
+/* dollar kartasi — dollar banknoti yashili, boshqa gradientlardan ustun */
+.wcard.cur-usd{background:
+  linear-gradient(135deg,#2e7d57,#175c3d 52%,#0a3a25)}
+/* nozik guilloche halqalari — barcha kartalarda, deyarli sezilmas */
+.wguil{position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background:
+  repeating-radial-gradient(circle at 112% -20%, transparent 0 8px,
+    rgba(255,255,255,.04) 8px 9px),
+  repeating-radial-gradient(circle at -12% 118%, transparent 0 10px,
+    rgba(255,255,255,.03) 10px 11px)}
+.cur-usd .wguil{background:
+  repeating-radial-gradient(circle at 118% 50%, transparent 0 7px,
+    rgba(255,255,255,.055) 7px 8px),
+  repeating-radial-gradient(circle at -18% 120%, transparent 0 9px,
+    rgba(255,255,255,.04) 9px 10px)}
+/* dollar: banknot oval ramkasi ichida katta $ */
+.wmark{position:absolute;z-index:0;pointer-events:none;
+  font-family:var(--serif);font-weight:700;line-height:1;
+  color:rgba(255,255,255,.09);text-shadow:0 0 1px rgba(255,255,255,.05)}
+.cur-usd .wmark{font-size:96px;right:16px;top:50%;transform:translateY(-50%)}
+.cur-usd .woval{position:absolute;right:14px;top:50%;transform:translateY(-54%);
+  width:78px;height:100px;border-radius:50%;z-index:0;pointer-events:none;
+  border:1.5px solid rgba(255,255,255,.14);
+  box-shadow:inset 0 0 0 5px transparent, inset 0 0 0 6px rgba(255,255,255,.07)}
+/* naqd pul: banknot dastasi (faqat «Наличные» kartasida) */
+.wcash{position:absolute;right:16px;top:50%;transform:translateY(-52%);
+  width:84px;height:52px;z-index:1;pointer-events:none;
+  filter:drop-shadow(0 5px 9px rgba(0,0,0,.4))}
+.wcash i{position:absolute;inset:0;border-radius:6px;
+  background:linear-gradient(135deg,#e9edda,#c3d3b2 60%,#a8bd96);
+  border:1px solid rgba(60,80,45,.35)}
+.wcash i:nth-child(1){transform:rotate(-9deg) translate(-3px,7px)}
+.wcash i:nth-child(2){transform:rotate(-3deg) translateY(3px)}
+.wcash i:nth-child(3){transform:rotate(4deg)}
+/* ustki banknot: oval va «so'm» yozuvi */
+.wcash i:nth-child(3)::before{content:"";position:absolute;left:60%;top:50%;
+  width:34px;height:34px;border-radius:50%;transform:translate(-50%,-50%);
+  border:1.5px solid rgba(60,80,45,.4);
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.5)}
+.wcash i:nth-child(3)::after{content:"so'm";position:absolute;left:60%;top:50%;
+  transform:translate(-50%,-50%);
+  font:700 12px var(--serif);color:#41552f;letter-spacing:-.02em}
+/* pul tasmasi (banderol) — chetroqda, yozuvni to'smaydi */
+.wcash b{position:absolute;left:24%;top:-4px;bottom:-4px;width:14px;
+  transform:translateX(-50%) rotate(4deg);border-radius:3px;
+  background:linear-gradient(180deg,#f5c15c,#dda73f);
+  border:1px solid rgba(120,80,10,.45);opacity:.95}
+.wcard .wtop{display:flex;justify-content:space-between;align-items:flex-start;
+  position:relative;z-index:2}
+.wcard .wname{font:600 11.5px var(--sans);letter-spacing:.03em;opacity:.92;
+  max-width:66%;line-height:1.3}
+.wcard .wcur{font:700 10px var(--sans);letter-spacing:.09em;opacity:.9;
+  padding:3px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.32);
+  background:rgba(255,255,255,.1)}
+.wcard .wchip{position:absolute;left:17px;top:44px;width:34px;height:25px;
+  border-radius:6px;z-index:2;
+  background:linear-gradient(135deg,#f1d492,#c9a24a);
+  box-shadow:0 1px 3px rgba(0,0,0,.35) inset, 0 1px 2px rgba(0,0,0,.3)}
+.wcard .wchip::before{content:"";position:absolute;inset:6px 4px;
+  border:1px solid rgba(90,60,10,.5);border-radius:3px}
+.wcard .wwave{position:absolute;left:60px;top:47px;z-index:2;opacity:.8;
+  width:18px;height:18px}
+.wcard .wbal{position:absolute;left:17px;bottom:36px;z-index:2;
+  font:700 21px var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  text-shadow:0 2px 8px rgba(0,0,0,.35)}
+.wcard .wbal small{font:600 11px var(--sans);opacity:.75;margin-left:5px}
+.wcard .wnum{position:absolute;left:17px;bottom:14px;z-index:2;
+  font:500 11px var(--sans);letter-spacing:.2em;opacity:.7;
+  font-variant-numeric:tabular-nums}
+.wdots{display:flex;gap:7px;justify-content:center;margin-top:2px}
+.wdots i{width:7px;height:7px;border-radius:50%;background:var(--line2);
+  transition:.25s}
+.wdots i.on{background:var(--gold);width:20px;border-radius:5px}
+
+/* karta tarixi paneli */
+.whist{margin-top:16px}
+.whist-head{display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:6px}
+.whist-head b{font:600 14px var(--sans)}
+.whist-row{display:flex;align-items:center;gap:12px;padding:11px 4px;
+  border-bottom:1px solid var(--line)}
+.whist-row:last-child{border-bottom:0}
+.whist-ic{width:38px;height:38px;border-radius:12px;flex:none;
+  display:flex;align-items:center;justify-content:center}
+.whist-ic.in{background:var(--green-dim);color:var(--green)}
+.whist-ic.out{background:var(--red-dim);color:var(--red)}
+.whist-ic svg{width:17px;height:17px}
+.whist-mid{flex:1;min-width:0}
+.whist-mid b{display:block;font:600 13.5px var(--sans);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.whist-mid span{font-size:11.5px;color:var(--dim)}
+.whist-amt{font:700 14px var(--sans);font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.whist-amt.in{color:var(--green)}
+.whist .empty{padding:18px}
+
+/* ══ Namoz vaqtlari — jonli osmon manzarasi ══ */
+.pray{position:relative;margin:12px 0 0;padding:0;border-radius:20px;
+  border:1px solid var(--line);overflow:hidden;
+  background:linear-gradient(160deg,var(--card-top),var(--card-bot))}
+.sky-canvas{position:relative;height:118px;overflow:hidden}
+.sky-bg{position:absolute;inset:0;transition:opacity 1.2s}
+/* osmon fazalari — mavzudan qat'i nazar REAL osmon ranglari */
+.ph-night .sky-bg{background:linear-gradient(180deg,#10173a,#070a18 88%)}
+.ph-dawn .sky-bg{background:linear-gradient(180deg,#2c3a76,#7f5aa0 45%,#ef975a 84%,#f6bf85)}
+.ph-day .sky-bg{background:linear-gradient(180deg,#6fb0ec,#a5cdf4 55%,#d9edfb)}
+.ph-dusk .sky-bg{background:linear-gradient(180deg,#222a63,#5c3d8f 45%,#e8734f 84%,#f2a56b)}
+/* kunduzi yorug' osmonda: matn va siluetlar to'q rangga o'tadi */
+.ph-day .pray-next b{color:#17253f;text-shadow:0 1px 6px rgba(255,255,255,.6)}
+.ph-day .pray-next em{color:#33456b}
+.ph-day .pray-next span{background:rgba(255,255,255,.6);border-color:rgba(30,50,90,.18);color:#17253f}
+.ph-day .arc-base{stroke:rgba(23,37,63,.38)}
+.ph-day .sky-dot{background:#e5eefb;border-color:#5b6c8f}
+.ph-day .sky-clouds i{background:rgba(255,255,255,.8);filter:blur(8px)}
+.ph-dawn .sky-clouds i{background:rgba(255,235,215,.35)}
+.ph-day .sky-caravan path,.ph-day .sky-caravan rect,
+.ph-day .sky-caravan use,.ph-day .sky-caravan circle{fill:#3d4a66}
+.ph-day .sky-caravan svg{filter:drop-shadow(0 2px 3px rgba(30,50,90,.35))}
+/* yulduzlar */
+.sky-stars i{position:absolute;width:2px;height:2px;border-radius:50%;
+  background:#dfe8ff;opacity:0;transition:opacity 1.2s;
+  animation:twinkle 3.4s ease-in-out infinite}
+.ph-night .sky-stars i{opacity:.85}
+.ph-dusk .sky-stars i,.ph-dawn .sky-stars i{opacity:.4}
+@keyframes twinkle{0%,100%{transform:scale(1)}50%{transform:scale(1.7);
+  box-shadow:0 0 4px 1px rgba(207,224,255,.8)}}
+/* kun yoyi */
+.sky-arc{position:absolute;inset:0;width:100%;height:100%;display:block}
+.arc-base{fill:none;stroke:var(--line2);stroke-width:1.5;
+  vector-effect:non-scaling-stroke;stroke-dasharray:.8 1.4;stroke-linecap:round;
+  animation:roadflow 26s linear infinite}
+@keyframes roadflow{from{stroke-dashoffset:0}to{stroke-dashoffset:-22}}
+.arc-prog{fill:none;stroke:url(#skyg);stroke-width:2.5;
+  vector-effect:non-scaling-stroke;stroke-linecap:round;
+  filter:drop-shadow(0 0 5px rgba(245,193,92,.5))}
+/* karvon izlari — bosib o'tilgan yo'ldagi oltin dog'lar (JS chizadi) */
+.sky-foot{position:absolute;width:4px;height:4px;margin:-2px 0 0 -2px;
+  border-radius:50%;background:var(--gold);opacity:.75;z-index:1;
+  box-shadow:0 0 5px rgba(245,193,92,.7)}
+/* tuyalar karvoni — professional siluet (SVG-maska, rang fazadan) */
+.sky-caravan{position:absolute;width:96px;aspect-ratio:1127/287;z-index:3;
+  pointer-events:none;transition:left 1.2s,top 1.2s;
+  transform:translate(-88%,-100%);transform-origin:88% 100%;
+  filter:drop-shadow(0 0 5px rgba(245,193,92,.3)) drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+@media(max-width:900px){.sky-caravan{width:78px}}
+.sky-caravan .cimg{width:100%;height:100%;background:#e8d29e;
+  --cm:url(/static/img/caravan.svg);
+  -webkit-mask:var(--cm) center/contain no-repeat;
+  mask:var(--cm) center/contain no-repeat;
+  animation:camwalk 1.7s ease-in-out infinite}
+.ph-day .sky-caravan{filter:drop-shadow(0 2px 3px rgba(30,50,90,.35))}
+.ph-day .sky-caravan .cimg{background:#31405f}
+/* rasm chapga qaragan — yo'nalishga ko'zgu, yurish tebranishi bilan */
+@keyframes camwalk{0%,100%{transform:scaleX(-1) translateY(0)}
+  50%{transform:scaleX(-1) translateY(-1.6px)}}
+/* namoz nuqtalari yoy ustida */
+.sky-dot{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;
+  background:var(--ink3);border:2px solid var(--dim);z-index:2;transition:.4s}
+.sky-dot.passed{background:var(--gold);border-color:var(--gold);
+  box-shadow:0 0 7px rgba(245,193,92,.55)}
+.sky-dot.next{background:var(--green);border-color:var(--green);
+  box-shadow:0 0 9px rgba(62,229,154,.6)}
+.sky-dot.next::after{content:"";position:absolute;inset:-7px;border-radius:50%;
+  border:2px solid var(--green);animation:ringp 2s ease-out infinite}
+@keyframes ringp{0%{transform:scale(.45);opacity:.9}100%{transform:scale(1.35);opacity:0}}
+/* ufqdagi JONLI rangli masjid (Registon uslubi) — faza CSS-filtr bilan */
+.sky-city{position:absolute;left:0;right:0;bottom:-1px;height:58px;z-index:1;pointer-events:none}
+.sky-city .cfade{position:absolute;inset:0;transition:filter 1.2s}
+.ph-dawn .sky-city .cfade{filter:brightness(.82) saturate(.85)}
+.ph-dusk .sky-city .cfade{filter:brightness(.55) saturate(.75) sepia(.15)}
+.ph-night .sky-city .cfade{filter:brightness(.34) saturate(.55)}
+.sky-city .mimg{position:absolute;inset:0;
+  --mm:url(/static/img/mosque_color.svg);
+  background:var(--mm) center bottom/auto 100% no-repeat}
+.sky-city .mwall{position:absolute;left:0;right:0;bottom:0;height:8px;background:#c9a55e}
+.sky-city .mwall::before{content:"";position:absolute;left:0;right:0;top:-4px;height:4px;
+  background:repeating-linear-gradient(90deg,#c9a55e 0 9px,transparent 9px 15px)}
+/* derazalar — qorong'uda chiroq yonadi */
+.city-win{position:absolute;inset:0}
+.city-win i{position:absolute;width:3px;height:5px;border-radius:1.5px;
+  background:#f7c96b;opacity:0;transition:opacity 1.2s}
+.ph-night .city-win i{opacity:.95;box-shadow:0 0 5px 1px rgba(247,201,107,.75)}
+.ph-dusk .city-win i,.ph-dawn .city-win i{opacity:.6}
+/* kunduzgi bulutlar */
+.sky-clouds i{position:absolute;border-radius:50%;filter:blur(9px);
+  background:rgba(255,255,255,.15);opacity:0;transition:opacity 1.2s}
+.ph-day .sky-clouds i,.ph-dawn .sky-clouds i{opacity:1}
+.sky-clouds .c1{width:74px;height:18px;top:22%;left:-22%;
+  animation:drift 44s linear infinite}
+.sky-clouds .c2{width:52px;height:13px;top:46%;left:-30%;
+  animation:drift 62s linear infinite;animation-delay:-26s}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(560px)}}
+/* tungi uchar yulduz */
+.sky-shoot{position:absolute;top:16%;left:72%;width:72px;height:1.5px;
+  border-radius:2px;opacity:0;transform:rotate(-24deg);
+  background:linear-gradient(90deg,rgba(223,232,255,.95),transparent)}
+.ph-night .sky-shoot{animation:shoot 7.5s ease-in infinite}
+@keyframes shoot{0%,86%{opacity:0;transform:translate(0,0) rotate(-24deg)}
+  89%{opacity:.95}100%{opacity:0;transform:translate(-140px,62px) rotate(-24deg)}}
+/* quyosh / oy shari */
+.sky-orb{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;
+  border-radius:50%;z-index:3;transition:left 1.2s,top 1.2s;
+  animation:orbfloat 5.5s ease-in-out infinite}
+.sky-orb.sun{background:radial-gradient(circle at 35% 30%,#fff3c8,#f5c15c 55%,#dd8a1e);
+  animation:orbfloat 5.5s ease-in-out infinite,sunpulse 3.6s ease-in-out infinite}
+@keyframes sunpulse{
+  0%,100%{box-shadow:0 0 22px 5px rgba(245,185,62,.5),0 0 64px 20px rgba(245,185,62,.14)}
+  50%{box-shadow:0 0 32px 9px rgba(245,185,62,.68),0 0 88px 30px rgba(245,185,62,.24)}}
+.sky-orb.moon{background:radial-gradient(circle at 64% 34%,#ffffff,#ccd7f4 52%,#8fa0cc);
+  box-shadow:0 0 18px 4px rgba(190,205,255,.42),0 0 50px 16px rgba(150,170,255,.13)}
+.sky-orb.moon::after{content:"";position:absolute;left:2%;top:6%;width:64%;height:64%;
+  border-radius:50%;background:radial-gradient(circle at 32% 36%,rgba(24,32,66,.5),transparent 62%)}
+@keyframes orbfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+/* keyingi namoz matni — osmon ustida */
+.pray-next{position:absolute;left:15px;top:11px;z-index:4}
+.pray-next em{display:block;font:600 9px var(--sans);font-style:normal;
+  color:#aab6d4;text-transform:uppercase;letter-spacing:.16em;margin-bottom:2px}
+.pray-next b{display:block;color:#f2f4fb;font:700 16.5px var(--sans);
+  text-shadow:0 1px 8px rgba(0,0,0,.35)}
+.pray-next span{display:inline-flex;align-items:center;gap:6px;margin-top:3px;
+  font:600 11px var(--sans);color:#f2f4fb;
+  background:rgba(0,0,0,.28);border:1px solid rgba(160,180,255,.18);
+  padding:3px 9px;border-radius:99px;backdrop-filter:blur(6px)}
+/* vaqt chiplari */
+.pray-times{display:flex;gap:2px;justify-content:space-between;padding:2px 10px 10px}
+.pray-t{flex:1;min-width:0;text-align:center;padding:5px 2px;border-radius:10px;overflow:hidden}
+.pray-t span{display:block;font-size:10px;color:var(--dim);
+  text-transform:uppercase;font-weight:600}
+.pray-t b{font:600 13px var(--sans);font-variant-numeric:tabular-nums}
+.pray-t.next{background:var(--green-dim)}
+.pray-t.next b{color:var(--green)}
+.pray-t.passed{opacity:.45}
+@media(prefers-reduced-motion:reduce){
+  .sky-orb,.sky-stars i,.sky-dot.next::after,.arc-base,.cam,
+  .sky-clouds i,.sky-shoot{animation:none}
+  .arc-prog,.arc-steps,.sky-orb,.sky-caravan{transition:none}
+}
+
+.hint.warn{border-color:var(--gold);background:var(--gold-dim)}
+.hint.warn::before{color:var(--gold)}
+
+/* nav yonidagi navbat soni */
+.nbadge{margin-left:auto;font:700 10.5px var(--sans);font-style:normal;
+  background:var(--gold);color:#1a1206;border-radius:99px;
+  padding:2px 7px;min-width:20px;text-align:center}
+
+/* ══ To'lovlar navbati ══ */
+.mtr-top{display:flex;justify-content:space-between;align-items:baseline;
+  font:500 13px var(--sans);color:var(--mut);margin-bottom:9px}
+.mtr-top b{font:700 16px var(--sans);color:var(--txt);
+  font-variant-numeric:tabular-nums}
+.mtr{height:9px;border-radius:99px;background:var(--card-faint);
+  border:1px solid var(--line);overflow:hidden}
+.mtr i{display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--green),#7ee0a8);
+  transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.mtr-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:11px;
+  font:500 12px var(--sans);color:var(--mut)}
+.mtr-legend b{color:var(--txt);font-variant-numeric:tabular-nums}
+.dot{width:8px;height:8px;border-radius:99px;display:inline-block;
+  margin-right:6px;vertical-align:1px}
+.dot.g{background:var(--green)} .dot.b{background:#5b9cf5}
+.dot.y{background:var(--gold)} .dot.m{background:var(--dim)}
+
+.pay{display:grid;grid-template-columns:minmax(240px,1fr) minmax(320px,1.45fr);
+  gap:0;margin-bottom:12px;border:1px solid var(--line);border-radius:16px;
+  overflow:hidden;background:linear-gradient(180deg,var(--card-top),var(--card-bot))}
+.pay-src{padding:16px 18px;border-right:1px solid var(--line)}
+.pay-amt{font:700 22px var(--sans);color:var(--txt);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pay-amt small{font:500 12px var(--sans);color:var(--mut)}
+.pay-meta{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:8px 0 10px;
+  font:500 12px var(--sans);color:var(--mut)}
+.pay-meta .dim{color:var(--dim)}
+.pay-name{font:600 14px var(--sans);color:var(--txt)}
+.pay-name.noname{color:var(--dim);font-style:italic;font-weight:500}
+.pay-warn{margin-top:9px;font:500 11.5px var(--sans);color:var(--gold);
+  background:var(--gold-dim);border-radius:9px;padding:7px 10px;line-height:1.45}
+.tag{display:inline-flex;padding:2px 8px;border-radius:6px;
+  font:700 10.5px var(--sans);letter-spacing:.3px;
+  background:var(--card-faint);border:1px solid var(--line);color:var(--mut)}
+.tag.dir{background:var(--gold-dim);color:var(--gold)}
+.tag.w2{background:rgba(91,156,245,.16);color:#7fb2f7}
+.tag.auto{background:rgba(52,199,123,.16);color:var(--green)}
+.tag.man{background:rgba(91,156,245,.16);color:#7fb2f7}
+
+.pay-act{padding:14px 16px;display:flex;flex-direction:column;gap:9px}
+.cands{display:flex;flex-direction:column;gap:7px}
+.cand{display:flex;align-items:center;gap:12px;padding:9px 12px;
+  border:1px solid var(--line);border-radius:11px;background:var(--card-faint)}
+.cand:hover{border-color:var(--mut)}
+.cand-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cand-info b{font:600 13.5px var(--sans);color:var(--txt)}
+.cand-info .dim{font:500 11.5px var(--sans);color:var(--dim)}
+.cand-why{font:500 11px var(--sans);color:var(--mut)}
+.cand-right{display:flex;align-items:center;gap:10px;flex:none}
+.score{font:700 12px var(--sans);font-variant-numeric:tabular-nums;
+  padding:3px 8px;border-radius:7px}
+.score.hi{background:rgba(52,199,123,.16);color:var(--green)}
+.score.mid{background:var(--gold-dim);color:var(--gold)}
+.score.lo{background:var(--card-faint);color:var(--dim)}
+.cands-none{font:500 12.5px var(--sans);color:var(--dim);padding:6px 2px}
+.btn.sm,button.sm{padding:6px 13px;font-size:12px;border-radius:9px}
+.pay-done{display:flex;flex-direction:column;gap:4px;font:500 13px var(--sans)}
+.pay-done .dim{font-size:11.5px;color:var(--dim)}
+.newc summary{cursor:pointer;font:600 12.5px var(--sans);color:var(--gold);
+  padding:6px 2px;list-style:none}
+.newc summary::-webkit-details-marker{display:none}
+.newc summary:hover{text-decoration:underline}
+.newc-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:10px;padding:12px;margin-top:6px;border:1px solid var(--line);
+  border-radius:12px;background:var(--card-faint)}
+.newc-form label{display:block;font:600 10.5px var(--sans);color:var(--mut);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.newc-form .acts{grid-column:1/-1}
+.skipf{margin-top:auto}
+@media(max-width:820px){
+  .pay{grid-template-columns:1fr}
+  .pay-src{border-right:0;border-bottom:1px solid var(--line)}
+}
+
+/* ══ «ДДС данные» — Excel varag'i ko'rinishi ══ */
+.xl-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.xl-badge{font:600 11px var(--sans);color:#8a5a1a;background:#ffe9b8;
+  border:1px solid #e8c98a;padding:4px 10px;border-radius:99px}
+.xl-status{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  margin:12px 0 8px;padding:9px 14px;border-radius:12px;
+  background:var(--card-faint);border:1px solid var(--line);
+  font:500 12.5px var(--sans);color:var(--mut)}
+.xl-status b{font-variant-numeric:tabular-nums;color:var(--txt)}
+.xl-sep{flex:1}
+/* Sheets kabi: bu sahifalar butun ekranni oladi */
+main:has(.xl-wrap){max-width:none}
+/* «Katta ekran» rejimi — jadval butun ekranni qoplaydi (Esc — chiqish) */
+.xl-fs{margin-left:auto;display:inline-flex;align-items:center;gap:7px;
+  padding:7px 14px;border-radius:99px;cursor:pointer;
+  background:var(--card-faint);border:1px solid var(--line);color:var(--mut);
+  font:600 12px var(--sans);box-shadow:none;transform:none;white-space:nowrap}
+.xl-fs:hover{color:var(--txt);border-color:var(--mut);filter:none;transform:none}
+body.xlfull{overflow:hidden}
+body.xlfull .xl-wrap{position:fixed;inset:0;z-index:300;
+  height:100dvh;max-height:none;min-height:0;border:0;border-radius:0;
+  box-shadow:none}
+/* rejimdan chiqish tugmasi jadval ustida suzib turadi */
+.xl-fs-exit{display:none;position:fixed;right:16px;bottom:16px;z-index:310;
+  padding:10px 18px;border-radius:99px;cursor:pointer;
+  background:#1a73e8;border:0;color:#fff;font:700 13px var(--sans);
+  box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.xl-fs-exit:hover{background:#1765cc;filter:none;transform:none}
+body.xlfull .xl-fs-exit{display:block}
+.xl-wrap{overflow:auto;height:calc(100dvh - 300px);min-height:420px;
+  border:1px solid #c9ccd1;
+  border-radius:8px;background:#fff;color-scheme:light;
+  box-shadow:0 6px 22px rgba(0,0,0,.28)}
+/* Sheets zichligi: Arial 10pt (~13px), qator ~21px */
+.xl{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;
+  font:400 13px/1.3 Arial,Helvetica,sans-serif;color:#202124;background:#fff}
+.xl th,.xl td{border-right:1px solid #d7d9dd;border-bottom:1px solid #d7d9dd;
+  padding:2px 6px;height:21px;box-sizing:border-box;
+  vertical-align:middle;white-space:nowrap;background:#fff;
+  text-transform:none;letter-spacing:normal}
+/* sarlavha — Google Sheets qizil (E06666) */
+.xl thead th{position:sticky;top:0;z-index:3;background:#e06666;color:#fff;
+  font:700 12.5px Arial,sans-serif;text-align:left;padding:4px 6px;
+  border-right:1px solid #cf5252;border-bottom:1px solid #cf5252;
+  white-space:normal;vertical-align:middle;
+  text-transform:none;letter-spacing:normal}
+/* qator raqami — Sheets'dagi kulrang chap ustun */
+.xl th.rn,.xl td.rn{background:#f8f9fa;color:#666;text-align:center;
+  font:400 11px Arial,sans-serif;width:46px;min-width:46px;
+  position:sticky;left:0;z-index:2;border-right:1px solid #c9ccd1}
+.xl thead th.rn{z-index:4;background:#e06666;color:#fff}
+.xl tbody tr:hover td.rn{background:#e8eaed}
+.xl-th{display:flex;align-items:center;gap:6px;justify-content:space-between}
+.xl-fbtn{background:rgba(255,255,255,.22);border:0;color:#fff;cursor:pointer;
+  font-size:9px;line-height:1;padding:3px 5px;border-radius:3px;
+  box-shadow:none;transform:none;flex:none}
+.xl-fbtn:hover{background:rgba(255,255,255,.42);filter:none;transform:none}
+.xl-fbtn.on{background:#fff;color:#e06666}
+/* ustun ranglari — Excel bilan bir xil */
+.xl td.cC,.xl td.cE,.xl td.cF,.xl td.cG,.xl td.cH{background:#fff2cc}
+.xl td.cD{background:#f4c7c3;text-align:right;font-variant-numeric:tabular-nums}
+.xl td.cA,.xl td.cB{background:#fff;text-align:center;color:#5f6368}
+.xl td.cI,.xl td.cJ{background:#fff;color:#3c4043}
+.xl td.cG{max-width:330px;overflow:hidden;text-overflow:ellipsis}
+.xl td.cH{max-width:270px;overflow:hidden;text-overflow:ellipsis}
+.xl tbody tr:hover td{background:#e8f0fe}
+.xl tbody tr:hover td.cD{background:#f6d5d1}
+.xl-del{background:transparent;border:0;color:#b3261e;cursor:pointer;
+  font-size:12px;padding:2px 5px;box-shadow:none;transform:none}
+.xl-del:hover{background:#fce8e6;filter:none;transform:none}
+.xl-edit{background:transparent;border:0;color:#1a73e8;cursor:pointer;
+  font-size:12px;padding:2px 5px;box-shadow:none;transform:none}
+.xl-edit:hover{background:#e8f0fe;filter:none;transform:none}
+.xl-ok{background:#1a73e8;border:0;color:#fff;cursor:pointer;border-radius:3px;
+  font-size:12px;padding:2px 7px;margin-right:3px;box-shadow:none;transform:none}
+.xl-ok:hover{background:#1765cc;filter:none;transform:none}
+.xl td.cX{background:#fff;text-align:center;padding:0;white-space:nowrap;min-width:58px}
+/* qatorni joyida tahrirlash — Sheets katak rejimi */
+.xl tr.editing td{background:#fff!important;box-shadow:inset 0 0 0 1px #1a73e8}
+.xl tr.editing td.rn{box-shadow:none}
+.xl tr.editing td input,.xl tr.editing td select{
+  width:100%;min-width:72px;box-sizing:border-box;border:0;outline:0;
+  background:#fff;color:#202124;font:400 13px Arial,sans-serif;
+  padding:1px 2px;border-radius:0;color-scheme:light;height:17px}
+.xl tr.editing td.cD input{text-align:right}
+.xl tr.editing td.cG input{min-width:200px}
+/* filtr menyusi — Google Sheets menyusining nusxasi
+   position:fixed => .xl-wrap ning overflow'i uni qirqmaydi */
+.xl-menu{display:none;position:fixed;z-index:400;
+  width:288px;background:#fff;color:#202124;
+  border:1px solid #dadce0;border-radius:8px;overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.30),0 2px 6px rgba(0,0,0,.15);
+  font:400 12.5px Arial,sans-serif;text-align:left;font-weight:400;
+  white-space:normal}
+.xl-menu,.xl-menu *{text-transform:none;letter-spacing:normal}
+.xl-menu .xl-menu-ttl{text-transform:uppercase;letter-spacing:.4px}
+.xl-menu.open{display:block}
+.xl-menu-sort{padding:5px 0;border-bottom:1px solid #e8eaed}
+.xl-menu-sort a{display:block;padding:7px 14px;color:#202124;font-size:12.5px;
+  text-decoration:none}
+.xl-menu-sort a:hover{background:#f1f3f4}
+.xl-menu-ttl{padding:9px 14px 4px;font:700 11px Arial,sans-serif;color:#5f6368;
+  text-transform:uppercase;letter-spacing:.4px}
+.xl-menu-head{display:flex;gap:14px;padding:2px 14px 8px}
+.xl-menu-head a{color:#1a73e8;font-size:12px;text-decoration:none}
+.xl-menu-head a:hover{text-decoration:underline}
+.xl-menu-src{padding:0 10px 8px}
+.xl-menu-src input{width:100%;box-sizing:border-box;border:1px solid #dadce0;
+  border-radius:4px;padding:6px 9px;font:400 12.5px Arial,sans-serif;
+  color:#202124;background:#fff;color-scheme:light}
+.xl-menu-src input:focus{outline:0;border-color:#1a73e8}
+.xl-menu-body{max-height:252px;overflow:auto;padding:2px 4px 6px;
+  border-top:1px solid #e8eaed}
+.xl-menu-body label{display:flex;align-items:center;gap:9px;padding:5px 10px;
+  border-radius:5px;cursor:pointer;color:#202124;font-weight:400}
+.xl-menu-body label:hover{background:#f1f3f4}
+.xl-menu-body label.hid{display:none}
+.xl-menu-body input{width:14px;height:14px;accent-color:#1a73e8;margin:0;flex:none;
+  color-scheme:light}
+.xl-menu-body span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xl-menu-foot{display:flex;justify-content:flex-end;gap:8px;
+  padding:9px 12px;border-top:1px solid #e8eaed;background:#fff}
+.xl-menu-foot button,.xl-menu-foot a{background:#1a73e8;color:#fff;border:0;
+  border-radius:5px;padding:6px 16px;font:600 12px Arial,sans-serif;
+  cursor:pointer;box-shadow:none;text-decoration:none;line-height:1.5}
+.xl-menu-foot .gh{background:#fff;color:#1a73e8;border:1px solid #dadce0}
+.xl-menu-foot button:hover{background:#1765cc;filter:none;transform:none}
+.xl-menu-foot .gh:hover{background:#f1f3f4;filter:none;transform:none}
+@media(max-width:900px){
+  .xl-wrap{max-height:66vh}
+  .xl td.cG{max-width:190px}
+  .xl td.cH{max-width:170px}
+  .xl-menu{width:min(288px,calc(100vw - 24px))}
+}
+
+/* ══ «ДДС_2026» — yillik varaq, Sheets'dagi kulrang palitra ══ */
+.x2 td{font-variant-numeric:tabular-nums}
+.x2 .r{text-align:right}
+.x2 thead th{background:#666;border-right:1px solid #575757;
+  border-bottom:1px solid #575757;text-align:right}
+.x2 thead th.x2-name{text-align:left}
+.x2 .x2-name{text-align:left;min-width:265px;max-width:315px;
+  overflow:hidden;text-overflow:ellipsis;
+  position:sticky;left:0;z-index:2;border-right:1px solid #c9ccd1}
+.x2 thead th.x2-name{z-index:4}
+.x2 .x2-name.ind{padding-left:22px}
+/* qator turlari — Excel'dagi fillar */
+.x2 tr.x2-sec td{background:#b7b7b7;color:#1d1d1d;font-weight:700}
+.x2 tr.x2-sec2 td{background:#999;color:#111;font-weight:700}
+.x2 tr.x2-sub td{background:#ccc;color:#222}
+.x2 tr.x2-art td{background:#fff2cc}
+.x2 tr.x2-wal td{background:#fff;color:#3c4043}
+.x2 tr.x2-ctl td{background:#e6b8af;color:#5a1f16;font-weight:700}
+.x2 td.tt{font-weight:700;border-left:2px solid #b5b8bd}
+.x2 td.nv{color:#b3261e}
+/* oy ustunlari bir tekis — Sheets'dagi kabi */
+.x2 td.r,.x2 th.r{min-width:92px}
+.x2 tbody tr:hover td{filter:brightness(.96)}
+
+/* Kassa filtr paneli */
+.filt{padding:14px 16px}
+/* ── Yig'iladigan filtr paneli: bitta tugma bilan ochib-yopiladi ── */
+.fwrap{display:grid;grid-template-rows:0fr;
+  transition:grid-template-rows .4s cubic-bezier(.3,.9,.25,1)}
+.fwrap>.fwrap-in{overflow:hidden;min-height:0}
+.fwrap.open{grid-template-rows:1fr}
+.fwrap .card.filt{margin-top:2px;margin-bottom:10px}
+.filt-toggle{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;
+  border-radius:99px;cursor:pointer;background:transparent;
+  border:1px solid var(--line2);color:var(--mut);
+  font:600 12.5px var(--sans);box-shadow:none;transform:none;white-space:nowrap}
+.filt-toggle:hover{color:var(--txt);border-color:var(--mut);filter:none;transform:none}
+.filt-toggle svg{width:14px;height:14px}
+.filt-toggle .n{min-width:17px;height:17px;padding:0 5px;border-radius:99px;
+  background:var(--gold);color:#241a05;font:700 10.5px var(--sans);
+  display:inline-flex;align-items:center;justify-content:center}
+.filt-toggle.on{color:var(--gold);border-color:var(--gold);background:var(--gold-dim)}
+.filt-toggle .chev{transition:transform .3s;display:flex}
+.fwrap.open ~ * .filt-toggle .chev, .filt-toggle.opened .chev{transform:rotate(180deg)}
+.filt-grid{display:grid;gap:10px 12px;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));align-items:end}
+.filt-grid .wide{grid-column:span 2}
+.filt-grid label{display:block;font:600 10.5px var(--sans);color:var(--mut);
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.filt-grid input,.filt-grid select{width:100%}
+.filt-grid .acts{display:flex;gap:8px;align-items:center}
+.filt-grid .acts .btn{white-space:nowrap}
+@media(max-width:900px){
+  .filt-grid{grid-template-columns:1fr 1fr}
+  .filt-grid .wide,.filt-grid .acts{grid-column:span 2}
+}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px}
+
+/* Tahlil xulosalari */
+.ins-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.ins{display:flex;gap:11px;padding:13px 15px;border-radius:16px;
+  border:1px solid var(--line);background:linear-gradient(160deg,var(--card-top),var(--card-bot))}
+.ins-ic{width:30px;height:30px;border-radius:10px;flex:none;display:flex;
+  align-items:center;justify-content:center}
+.ins-ic svg{width:16px;height:16px}
+.ins b{display:block;font:700 13.5px var(--sans);margin-bottom:2px}
+.ins p{margin:0;font-size:12.5px;color:var(--mut);line-height:1.5}
+.ins.bad{border-color:var(--red)}
+.ins.bad .ins-ic{background:var(--red-dim);color:var(--red)}
+.ins.bad b{color:var(--red)}
+.ins.warn .ins-ic{background:var(--gold-dim);color:var(--gold)}
+.ins.warn b{color:var(--gold)}
+.ins.good .ins-ic{background:var(--green-dim);color:var(--green)}
+.ins.good b{color:var(--green)}
+
+/* ECharts idishlari */
+.ech{width:100%;height:272px}
+@media(max-width:900px){.ech{height:232px}}
+
+/* ══ Bosh ekran: umumiy balans + katalog ══ */
+.hero-bal{display:block;margin-bottom:12px;padding:18px 20px 14px;
+  cursor:pointer;border-radius:24px;border:1px solid var(--line);
+  background:linear-gradient(160deg,var(--card-top),var(--card-bot));
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 8px 28px rgba(0,0,0,.22);
+  transition:transform .15s;user-select:none;-webkit-tap-highlight-color:transparent}
+.hero-bal:active{transform:scale(.985)}
+.hb-top{display:flex;align-items:center;gap:14px}
+.hero-bal .mstat{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.hb-l{display:block;color:var(--mut);font:600 11px var(--sans);
+  text-transform:uppercase;letter-spacing:.12em}
+.hb-v{font:700 31px var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  margin-top:4px;background:linear-gradient(120deg,var(--gold2),var(--gold));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.hb-v small{font-size:15px;font-weight:600;margin-left:5px}
+.hb-sub{font-size:12px;color:var(--mut);margin-top:3px}
+.hb-side{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--mut)}
+.hb-btn,.hb-btn:hover{width:40px;height:40px;padding:0;border-radius:13px;
+  border:1px solid var(--line2);background:var(--card-faint);color:var(--mut);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:none;filter:none;transform:none;flex:none}
+.hb-btn:active{transform:scale(.9)}
+.hb-btn svg{width:19px;height:19px}
+.hb-chev{transition:transform .3s;display:flex}
+.hb-chev svg{width:20px;height:20px}
+.hero-bal.open .hb-chev{transform:rotate(180deg)}
+/* ── Hamyonlar katalogi: sahifани surmaydigan suzuvchi panel ──
+   Balandlik animatsiyasi o'rniga transform+opacity — har kadr faqat
+   kompozitorda, sahifa qayta joylashmaydi: mutlaqo silliq. */
+.wwrap{position:relative;z-index:70}
+.wcat{position:absolute;left:0;right:0;top:calc(100% + 10px);z-index:60;
+  opacity:0;transform:translateY(-14px) scale(.985);transform-origin:top center;
+  pointer-events:none;visibility:hidden;
+  border-radius:22px;border:1px solid var(--line2);
+  background:linear-gradient(180deg,var(--ink3),var(--ink2));
+  box-shadow:0 30px 80px rgba(0,0,0,.5), 0 6px 22px rgba(0,0,0,.3);
+  transition:opacity .28s cubic-bezier(.25,.9,.3,1),
+             transform .32s cubic-bezier(.25,.9,.3,1),
+             visibility 0s .32s;
+  will-change:transform,opacity}
+.wcat.open{opacity:1;transform:none;pointer-events:auto;visibility:visible;
+  transition:opacity .26s cubic-bezier(.25,.9,.3,1),
+             transform .38s cubic-bezier(.3,1.16,.34,1)}
+.wcat > .wcat-in{max-height:min(72vh,680px);overflow-y:auto;overflow-x:hidden;
+  padding:16px 16px 4px;overscroll-behavior:contain;contain:content}
+.wcat .wallet-deck{margin:0 -16px}
+.wcat .wtrack{padding:6px 16px 12px}
+/* orqa parda — dashboard biroz xiralashadi */
+.wcat-dim{position:fixed;inset:0;z-index:55;background:rgba(4,6,12,.45);
+  backdrop-filter:blur(5px) saturate(1.1);
+  -webkit-backdrop-filter:blur(5px) saturate(1.1);
+  opacity:0;pointer-events:none;transition:opacity .3s;
+  -webkit-tap-highlight-color:transparent}
+.wcat-dim.open{opacity:1;pointer-events:auto}
+/* kartalar birin-ketin suzib chiqadi (kompozitor animatsiyasi) */
+.wcat .wcard{opacity:0;transform:translateY(18px) scale(.95)}
+.wcat.open .wcard{opacity:1;transform:none;
+  transition:opacity .4s cubic-bezier(.22,.9,.3,1),
+             transform .5s cubic-bezier(.3,1.22,.36,1),
+             box-shadow .25s;
+  transition-delay:calc(.05s + var(--wi, 0) * .07s)}
+.wcat:not(.open) .wcard{transition:opacity .15s, transform .15s}
+.wcat .wdots,.wcat .whist{opacity:0;transform:translateY(10px)}
+.wcat.open .wdots{opacity:1;transform:none;
+  transition:opacity .35s .28s, transform .35s .28s}
+.wcat.open .whist{opacity:1;transform:none;
+  transition:opacity .4s .36s cubic-bezier(.22,.9,.3,1),
+             transform .4s .36s cubic-bezier(.22,.9,.3,1)}
+.wcat:not(.open) .wdots,.wcat:not(.open) .whist{transition:opacity .12s, transform .12s}
+@media(max-width:900px){
+  .wcat > .wcat-in{max-height:calc(100dvh - 210px)}
+}
+@media (prefers-reduced-motion: reduce){
+  .wcat{transition:none}
+  .wcat .wcard,.wcat .wdots,.wcat .whist{transition:none !important;
+    opacity:1;transform:none}
+}
+
+/* tez amallar — ramkasiz, Click uslubida */
+.qacts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 2px}
+.qact{display:flex;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;
+  border-radius:16px;color:var(--txt);font:600 11px var(--sans);text-align:center;
+  line-height:1.25;transition:transform .15s;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.qact:active{transform:scale(.88)}
+.qact:hover{color:var(--txt)}
+.qact .app-ic{width:48px;height:48px;border-radius:16px}
+.qact .app-ic svg{width:21px;height:21px}
+
+/* bo'lim sarlavhasi — fonda, karta ichida emas */
+.sec-l{margin:18px 4px 8px;font:600 11px var(--sans);color:var(--mut);
+  text-transform:uppercase;letter-spacing:.11em}
+
+/* bo'limlar katalogi (mini-apps) */
+.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 4px;margin-top:4px}
+@media(min-width:901px){.apps{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}}
+.app-t{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px 10px;
+  border-radius:16px;color:var(--txt);font:600 11px var(--sans);text-align:center;line-height:1.25;
+  transition:transform .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.app-t:active{transform:scale(.88)}
+.app-t:hover{color:var(--txt);background:var(--card-faint)}
+.app-ic{width:52px;height:52px;border-radius:18px;display:flex;align-items:center;
+  justify-content:center;position:relative;overflow:hidden;flex:none;
+  border:1px solid var(--line2);
+  background:radial-gradient(120% 100% at 50% 0%,var(--tint),transparent 75%),
+             linear-gradient(160deg,var(--card-top),var(--card-bot));
+  box-shadow:0 6px 14px -6px rgba(0,0,0,.35)}
+.app-ic::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(130% 95% at 28% -8%,rgba(255,255,255,.14),rgba(255,255,255,0) 50%)}
+.app-ic::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 6px rgba(0,0,0,.2)}
+.app-ic svg{width:24px;height:24px;position:relative;z-index:1;
+  filter:drop-shadow(0 0 7px var(--tint)) drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+.app-ic svg *{stroke-width:2.2}
+:root[data-theme="light"] .app-ic{box-shadow:0 5px 12px -6px rgba(40,60,120,.25)}
+.ai0{--tint:rgba(245,193,92,.24);color:var(--gold)}
+.ai1{--tint:rgba(62,229,154,.2);color:var(--green)}
+.ai2{--tint:rgba(255,122,136,.2);color:var(--red)}
+.ai3{--tint:rgba(130,185,255,.2);color:var(--blue)}
+.ai4{--tint:rgba(177,140,242,.2);color:#b18cf2}
+.ai5{--tint:rgba(76,195,207,.2);color:#4cc3cf}
+.ai6{--tint:rgba(242,154,92,.22);color:#f29a5c}
+.ai7{--tint:rgba(159,208,106,.2);color:#9fd06a}
+.ai8{--tint:rgba(155,167,194,.18);color:var(--mut)}
+:root[data-theme="light"] .ai4{color:#7a4bd6}
+:root[data-theme="light"] .ai5{color:#177f92}
+:root[data-theme="light"] .ai6{color:#c15c1d}
+:root[data-theme="light"] .ai7{color:#4f8a1e}
+
+/* oy xulosasi (hero ichida) */
+.mstat{display:grid;grid-template-columns:repeat(3,1fr)}
+.mstat>div{padding:2px 8px;text-align:center;min-width:0}
+.mstat>div+div{border-left:1px solid var(--line)}
+/* 4 ko'rsatkichli variant: keng ekranda 4 ustun, telefonda 2×2 */
+.mstat.m4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:900px){
+  .mstat.m4{grid-template-columns:repeat(2,1fr);row-gap:10px}
+  .mstat.m4>div:nth-child(odd){border-left:0}
+  .mstat.m4>div:nth-child(n+3){border-top:1px solid var(--line);padding-top:10px}
+}
+/* qiymat katakka sig'masa — kesilmasin, kichrayib sig'sin */
+.mstat .v{font-size:clamp(12.5px,1.6vw,15.5px);white-space:nowrap}
+.mstat .l{font-size:10px;color:var(--mut);text-transform:uppercase;
+  letter-spacing:.08em;font-weight:600}
+.mstat .v{font:600 15.5px var(--sans);font-variant-numeric:tabular-nums;margin-top:3px}
+.alert-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.alert-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;
+  border-radius:99px;font:600 12.5px var(--sans);border:1px solid var(--line2);
+  color:var(--txt);background:var(--card-faint);-webkit-tap-highlight-color:transparent}
+.alert-chip:active{transform:scale(.95)}
+.alert-chip.warn{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+.alert-chip svg{width:15px;height:15px}
+
+/* ── Print (ДДС chop etish uchun) ── */
+@media print{
+  aside,.monthnav,details.adder,.flash,.hint{display:none!important}
+  .shell{display:block}
+  body{background:#fff;color:#000}
+  body::before{display:none}
+  .card{border:1px solid #ddd;box-shadow:none;background:#fff}
+  main{padding:0;max-width:none}
+}
+
+/* ── Pastki tab-bar (mobil, PWA) ── */
+.tabbar{display:none}
+@media(max-width:900px){
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;
+    background:linear-gradient(180deg,rgba(9,12,22,.97),rgba(4,6,12,.99));
+    border-top:1px solid var(--side-line);
+    padding:8px 6px calc(12px + env(safe-area-inset-bottom, 0px));
+    backdrop-filter:blur(20px) saturate(1.3);
+    -webkit-backdrop-filter:blur(20px) saturate(1.3);
+    box-shadow:0 -8px 24px rgba(0,0,0,.3)}
+  .tabbar a,.tabbar button.tab{flex:1;position:relative;display:flex;flex-direction:column;
+    align-items:center;gap:4px;min-width:0;
+    padding:7px 2px 5px;border-radius:14px;color:var(--side-mut);
+    background:none;border:0;box-shadow:none;
+    font:600 10px var(--sans);text-decoration:none;letter-spacing:.01em;cursor:pointer;
+    transition:transform .16s cubic-bezier(.2,.9,.4,1.4),color .18s;
+    user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  /* ikonka uchun kapsula — faol holatda oltin nur bilan to'ladi */
+  .tabbar a svg,.tabbar button.tab svg{display:block;width:22px;height:22px;
+    position:relative;z-index:1;transition:transform .2s cubic-bezier(.2,.9,.3,1.5)}
+  .tabbar .tb-pill{position:absolute;top:3px;left:50%;transform:translateX(-50%) scale(.6);
+    width:48px;height:30px;border-radius:99px;
+    background:linear-gradient(180deg,rgba(245,205,119,.26),rgba(240,194,94,.08));
+    border:1px solid rgba(245,205,119,.24);
+    box-shadow:0 3px 12px -4px rgba(240,194,94,.45),
+               inset 0 1px 0 rgba(255,235,190,.28);
+    opacity:0;transition:opacity .22s,transform .22s cubic-bezier(.2,.9,.3,1.5)}
+  .tabbar a.on{color:#f5cd77;font-weight:700}
+  .tabbar a:not(.on) svg,.tabbar button.tab svg{opacity:.72}
+  .tabbar a.on .tb-pill{opacity:1;transform:translateX(-50%) scale(1)}
+  .tabbar a.on svg{transform:translateY(-1px);
+    filter:drop-shadow(0 0 8px rgba(240,194,94,.55))}
+  .tabbar a:active,.tabbar button.tab:active{transform:scale(.9)}
+  .tabbar a:active svg,.tabbar button.tab:active svg{transform:scale(.86)}
+  .tabbar button.tab:hover{filter:none;transform:none}
+  main{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+}
+
+/* ── Mobil menyu sheet ── */
+.msheet-wrap{display:none}
+@media(max-width:900px){
+  .msheet-wrap{display:block;position:fixed;inset:0;z-index:40;pointer-events:none}
+  .msheet-ovl{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;
+    transition:opacity .25s;backdrop-filter:blur(3px)}
+  .msheet{position:absolute;left:0;right:0;bottom:0;transform:translateY(105%);
+    transition:transform .32s cubic-bezier(.2,.9,.3,1);
+    background:linear-gradient(180deg,var(--ink2),var(--ink));
+    border-radius:22px 22px 0 0;border:1px solid var(--line2);border-bottom:0;
+    padding:10px 16px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -14px 50px rgba(0,0,0,.5)}
+  .msheet::before{content:"";display:block;width:40px;height:4px;border-radius:4px;
+    background:var(--line2);margin:2px auto 14px}
+  .msheet-wrap.open{pointer-events:auto}
+  .msheet-wrap.open .msheet-ovl{opacity:1}
+  .msheet-wrap.open .msheet{transform:translateY(0)}
+  .msheet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .msheet-grid a{display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:15px 6px;border-radius:14px;background:var(--card-faint);
+    border:1px solid var(--line);color:var(--txt);font:600 11.5px var(--sans);
+    text-decoration:none;transition:transform .12s}
+  .msheet-grid a:active{transform:scale(.92)}
+  .msheet-grid a svg{width:22px;height:22px;color:var(--gold)}
+}
+
+/* ── Mobile ── */
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr}
+  aside{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:2px;
+    padding:calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+    overflow-x:auto;z-index:20;border-right:0;border-bottom:1px solid var(--side-line)}
+  aside nav a.on::before{display:none}
+  .brand .dot{width:26px;height:26px;border-radius:8px}
+  .brand{padding:0 10px 0 4px;font-size:16px}
+  .brand small,.cash-line{display:none}
+  aside nav{display:none!important}
+  .side-foot{margin:0 0 0 auto;padding:0;border:0;flex:none}
+  .theme-btn{margin:0;padding:7px 9px;width:auto}
+  .theme-btn .tl-moon:not(svg),.theme-btn .tl-sun:not(svg){display:none}
+  aside nav a{padding:8px 11px;white-space:nowrap;font-size:12.5px}
+  aside nav a svg{display:none}
+  main{padding:20px 14px calc(96px + env(safe-area-inset-bottom))}
+  h1{font-size:24px}
+  .g4{grid-template-columns:1fr 1fr;gap:10px}
+  .grid{gap:10px}
+  .card{padding:14px 14px 12px}
+  .kpi .l{font-size:9.5px;letter-spacing:.06em;padding-right:34px}
+  .kpi .v{font-size:17.5px;margin-top:5px}
+  .kpi .h{font-size:11px;margin-top:4px}
+  .kpi .ic{width:28px;height:28px;top:11px;right:11px;border-radius:8px}
+  .kpi .ic svg{width:14px;height:14px}
+  .delta{font-size:9.5px;padding:1px 6px;margin-left:4px}
+  .chip{padding:9px 16px;font-size:13px}
+  button,.btn{padding:12px 18px}
+  .donut{width:120px;height:120px}
+  .donut::after{inset:20px}
+  .donut .dc{inset:20px}
+  h2{font-size:14px;margin:20px 0 10px}
+  .course-grid{grid-template-columns:1fr;gap:12px}
+  .m-hide{display:none!important}
+}
+
+/* ══ Shartnomalar taxtasi: oqim kartochkalari + o'quvchi kartochkalari ══ */
+.cob{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
+.co{background:linear-gradient(160deg,var(--card-top),var(--card-bot));
+  border:1px solid var(--line);border-radius:20px;overflow:hidden;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 0 8px 28px rgba(0,0,0,.22);
+  transition:border-color .25s, transform .25s, box-shadow .25s}
+.co.open{grid-column:1/-1;border-color:var(--gold);
+  box-shadow:0 1px 0 rgba(255,255,255,.1) inset, 0 16px 48px rgba(0,0,0,.36)}
+.co-head{display:flex;gap:14px;align-items:center;padding:16px 18px;cursor:pointer;
+  user-select:none;-webkit-tap-highlight-color:transparent}
+.co-head:hover{background:var(--hover)}
+.co-ttl{flex:1;min-width:0}
+.co-ttl b{display:block;font:600 15.5px var(--sans);color:var(--txt);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.co-ttl span{display:block;font-size:12px;color:var(--mut);margin-top:2px}
+.co-chev{width:22px;height:22px;flex:none;color:var(--dim);transition:transform .3s}
+.co.open .co-chev{transform:rotate(180deg);color:var(--gold)}
+/* to'ldirilish halqasi */
+.ring{width:52px;height:52px;flex:none;position:relative;display:grid;place-items:center}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:5;stroke-linecap:round}
+.ring .bg{stroke:var(--track)}
+.ring .fg{stroke:var(--gold);transition:stroke-dashoffset .8s cubic-bezier(.3,1.1,.35,1)}
+.ring .fg.g{stroke:var(--green)} .ring .fg.r{stroke:var(--red)}
+.ring b{font:700 13px var(--sans);color:var(--txt);font-variant-numeric:tabular-nums}
+.ring.sm{width:44px;height:44px} .ring.sm b{font-size:11.5px}
+/* oqim statistikasi */
+.co-st{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+  border-top:1px solid var(--line)}
+.co-st>div{background:var(--ink2);padding:10px 12px;text-align:center;min-width:0}
+.co-st .l{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
+.co-st .v{font:600 14px var(--sans);font-variant-numeric:tabular-nums;margin-top:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* kurs davomiyligi chizig'i */
+.co-prog{height:3px;background:var(--track);position:relative}
+.co-prog i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--gold2),var(--gold));
+  border-radius:0 3px 3px 0}
+/* ochiladigan o'quvchilar qismi */
+.co-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s cubic-bezier(.3,1.1,.35,1)}
+.co.open .co-body{grid-template-rows:1fr}
+.co-body>div{overflow:hidden}
+.stg{display:grid;gap:12px;padding:14px;
+  grid-template-columns:repeat(auto-fit,minmax(min(290px,100%),1fr))}
+.st{display:block;background:var(--card-faint);border:1px solid var(--line);
+  border-radius:16px;padding:13px 14px;text-decoration:none;color:inherit;
+  transition:border-color .2s, transform .2s, background .2s}
+.st,.st:hover{text-decoration:none}
+.st:hover{border-color:var(--line2);background:var(--hover);transform:translateY(-2px)}
+.st:active{transform:translateY(0) scale(.99)}
+.st.due{border-color:rgba(255,122,136,.35)}
+.st-top{display:flex;gap:11px;align-items:center}
+.st-nm{flex:1;min-width:0}
+.st-nm b{display:block;font:600 14px var(--sans);color:var(--txt);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-nm span{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.st-money{display:flex;justify-content:space-between;gap:8px;margin-top:11px;
+  padding-top:10px;border-top:1px solid var(--line)}
+.st-money div{min-width:0}
+.st-money .l{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.st-money .v{font:600 13.5px var(--sans);font-variant-numeric:tabular-nums;margin-top:2px;
+  white-space:nowrap}
+.st-note{margin-top:9px;font-size:11.5px;display:flex;align-items:center;gap:6px}
+.st-note.ok{color:var(--green)} .st-note.warn{color:var(--gold)} .st-note.bad{color:var(--red)}
+.st-note i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+@media (max-width:520px){
+  .co-st .v{font-size:12.5px}
+  .stg{padding:11px;gap:10px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside>
+  <div class="brand"><img class="dot" src="/static/icons/logo.svg" alt=""><span>MFAKTOR<small>Moliya markazi</small></span></div>
+  {% set p = request.path %}
+  <nav style="display:contents">
+  <span class="sep">Kundalik</span>
+  <a class="{{ 'on' if p=='/' }}" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</a>
+  <a class="{{ 'on' if p.startswith('/transactions') }}" href="/transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 8l4 4-4 4M3 12h18M7 4L3 8l4 4" transform="translate(0 -2) scale(.9)"/><path d="M21 16H3"/></svg>Kassa</a>
+  <a class="{{ 'on' if p.startswith('/debtors') }}" href="/debtors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Qarzdorlik</a>
+  <a class="{{ 'on' if p.startswith('/automation') }}" href="/automation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>Avtomatika</a>
+  <span class="sep">O'quv sotuvi</span>
+  <a class="{{ 'on' if p.startswith('/inbox') }}" href="/inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>To'lovlar navbati{% if inbox_open %}<i class="nbadge">{{ inbox_open }}</i>{% endif %}</a>
+  <a class="{{ 'on' if p.startswith('/contracts') }}" href="/contracts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-5z"/><path d="M9 13h6M9 17h6"/></svg>Shartnomalar</a>
+  <a class="{{ 'on' if p.startswith('/cohorts') }}" href="/cohorts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Oqimlar</a>
+  <a class="{{ 'on' if p.startswith('/planner') }}" href="/planner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h3M13 10h3M8 14h3M13 14h3M8 18h3M13 18h3"/></svg>Launch-hisob</a>
+  <span class="sep">Hisobot</span>
+  <a class="{{ 'on' if p.startswith('/ddsdata') }}" href="/ddsdata"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>ДДС данные</a>
+  <a class="{{ 'on' if p == '/dds' }}" href="/dds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>ДДС (yillik)</a>
+  <a class="{{ 'on' if p.startswith('/reports') }}" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Tahlillar</a>
+  <a class="{{ 'on' if p.startswith('/kpi') }}" href="/kpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>KPI</a>
+  </nav>
+  {# mobil sarlavhada mavzu tugmasi (kompyuterda yuqori panelda) #}
+  <div class="side-foot">
+    <button class="theme-btn" onclick="toggleTheme()" title="Mavzuni almashtirish">
+      <svg class="tl-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+      <svg class="tl-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <span class="tl-moon">Yorug' mavzu</span><span class="tl-sun">Tungi mavzu</span>
+    </button>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <div class="tb-spacer"></div>
+    {% if total_cash is not none %}
+    <span class="tb-cash">Jami pul <b>{{ total_cash|grp }}</b></span>
+    {% endif %}
+    <button class="tb-btn" onclick="toggleTheme()" title="Mavzuni almashtirish"
+            aria-label="Mavzuni almashtirish">
+      <svg class="tl-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+      <svg class="tl-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+    <a class="tb-btn {{ 'on' if p.startswith('/settings') }}" href="/settings"
+       title="Sozlamalar" aria-label="Sozlamalar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </a>
+    {% if session.get('auth') %}
+    <form method="post" action="/logout" style="display:flex">
+      <button class="tb-btn" title="Tizimdan chiqish" aria-label="Chiqish">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+</main>
+</div>
+
+<nav class="tabbar">
+  {% set p = request.path %}
+  <a class="{{ 'on' if p=='/' }}" href="/">
+    <span class="tb-pill"></span><svg viewBox="0 0 256 256" fill="currentColor"><path d="M120,56v48a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V56A16,16,0,0,1,56,40h48A16,16,0,0,1,120,56Zm80-16H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm-96,96H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm96,0H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Z"/></svg>
+    Panel</a>
+  <a class="{{ 'on' if p.startswith('/transactions') }}" href="/transactions">
+    <span class="tb-pill"></span><svg viewBox="0 0 256 256" fill="currentColor"><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm-36,80a12,12,0,1,1,12-12A12,12,0,0,1,180,144Z"/></svg>
+    Kassa</a>
+  <a class="{{ 'on' if p.startswith('/debtors') }}" href="/debtors">
+    <span class="tb-pill"></span><svg viewBox="0 0 256 256" fill="currentColor"><path d="M61.66,37.66l-32,32A8,8,0,0,1,18.34,58.34l32-32A8,8,0,0,1,61.66,37.66Zm176,20.68-32-32a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32-11.32ZM224,136a96,96,0,1,1-96-96A96.11,96.11,0,0,1,224,136Zm-32,0a8,8,0,0,0-8-8H136V80a8,8,0,0,0-16,0v56a8,8,0,0,0,8,8h56A8,8,0,0,0,192,136Z"/></svg>
+    Qarzlar</a>
+  <a class="{{ 'on' if p.startswith('/dds') }}" href="/dds">
+    <span class="tb-pill"></span><svg viewBox="0 0 256 256" fill="currentColor"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1,0-16h8V136a8,8,0,0,1,8-8H72a8,8,0,0,1,8,8v64H96V88a8,8,0,0,1,8-8h32a8,8,0,0,1,8,8V200h16V40a8,8,0,0,1,8-8h40a8,8,0,0,1,8,8V200h8A8,8,0,0,1,232,208Z"/></svg>
+    ДДС</a>
+  <button class="tab" type="button" onclick="toggleSheet()" aria-label="Menyu">
+    <svg viewBox="0 0 256 256" fill="currentColor"><path d="M156,128a28,28,0,1,1-28-28A28,28,0,0,1,156,128ZM48,100a28,28,0,1,0,28,28A28,28,0,0,0,48,100Zm160,0a28,28,0,1,0,28,28A28,28,0,0,0,208,100Z"/></svg>
+    Menyu</button>
+</nav>
+
+<div class="msheet-wrap" id="msheet">
+  <div class="msheet-ovl" onclick="toggleSheet(false)"></div>
+  <div class="msheet">
+    <div class="msheet-grid">
+      <a href="/inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>To'lovlar navbati{% if inbox_open %}<i class="nbadge">{{ inbox_open }}</i>{% endif %}</a>
+      <a href="/ddsdata"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>ДДС данные</a>
+      <a href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Tahlillar</a>
+      <a href="/kpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>KPI</a>
+      <a href="/contracts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-5z"/><path d="M9 13h6M9 17h6"/></svg>Shartnomalar</a>
+      <a href="/cohorts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Oqimlar</a>
+      <a href="/planner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h3M13 10h3M8 14h3M13 14h3M8 18h3M13 18h3"/></svg>Launch-hisob</a>
+      <a href="/automation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>Avtomatika</a>
+      <a href="/settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Sozlamalar</a>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='echarts.min.js') }}"></script>
+<script>
+/* ══ ECharts — wow-grafiklar ══ */
+function echShort(v){
+  var a = Math.abs(v);
+  if (a >= 1e9) return (v/1e9).toFixed(1).replace(".0","").replace(".",",") + " mlrd";
+  if (a >= 1e6) return Math.round(v/1e6) + " mln";
+  if (a >= 1e3) return Math.round(v/1e3) + " ming";
+  return "" + Math.round(v);
+}
+function echFull(v){
+  return Math.round(v).toLocaleString("ru-RU").replace(/ /g," ") + " so'm";
+}
+function initCharts(){
+  if (typeof echarts === "undefined") return;
+  var dataEl = document.getElementById("ech-data");
+  var D = dataEl ? JSON.parse(dataEl.textContent) : null;
+  var css = getComputedStyle(document.documentElement);
+  var light = document.documentElement.dataset.theme === "light";
+  var C = {
+    s1: css.getPropertyValue("--s1").trim() || "#3987e5",
+    s2: css.getPropertyValue("--s2").trim() || "#d95926",
+    mut: css.getPropertyValue("--mut").trim() || "#9ba7c2",
+    gold: css.getPropertyValue("--gold").trim() || "#f5c15c",
+    green: light ? "#0d8a57" : "#3ee59a",
+    red: light ? "#cc3d4e" : "#ff7a88",
+    line: light ? "rgba(40,60,120,.12)" : "rgba(160,180,255,.12)",
+    tipBg: light ? "rgba(255,255,255,.96)" : "rgba(10,14,26,.94)",
+    tipTx: light ? "#1a2137" : "#f2f4fb"
+  };
+  var anim = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var FONT = "IBM Plex Sans, sans-serif";
+  function make(id){
+    var el = document.getElementById(id);
+    if (!el) return null;
+    var old = echarts.getInstanceByDom(el);
+    if (old) old.dispose();
+    return echarts.init(el);
+  }
+  // KPI o'lchagichlari
+  document.querySelectorAll(".ech-gauge").forEach(function(el){
+    var old = echarts.getInstanceByDom(el);
+    if (old) old.dispose();
+    var val = parseFloat(el.dataset.val || "0");
+    var col = val < 70 ? C.red : (val < 90 ? C.gold : C.green);
+    var g = echarts.init(el);
+    g.setOption({
+      series: [{type: "gauge", startAngle: 210, endAngle: -30,
+        min: 0, max: 120, radius: "100%", center: ["50%", "62%"],
+        progress: {show: true, width: 9, roundCap: true,
+          itemStyle: {color: col, shadowColor: col, shadowBlur: 8}},
+        axisLine: {lineStyle: {width: 9, color: [[1, C.line]]}},
+        pointer: {show: false}, axisTick: {show: false},
+        splitLine: {show: false}, axisLabel: {show: false},
+        anchor: {show: false},
+        detail: {valueAnimation: anim, offsetCenter: [0, 0],
+          formatter: function(v){ return Math.round(v) + "%"; },
+          color: col, fontSize: 19, fontWeight: 700, fontFamily: FONT},
+        data: [{value: val}]}]
+    });
+  });
+  // ══ Tahlillar sahifasi grafiklari ══
+  var anEl = document.getElementById("an-data");
+  if (anEl){
+    var A = JSON.parse(anEl.textContent);
+    function grad2(c1, c2){
+      return new echarts.graphic.LinearGradient(0, 0, 0, 1,
+        [{offset: 0, color: c1}, {offset: 1, color: c2}]);
+    }
+    // 1) P&L sharshara — custom render (musbat/manfiy to'g'ri chiziladi)
+    var pe = make("an-pnl");
+    if (pe && A.pnl){
+      var segs = [], run = 0;
+      A.pnl.forEach(function(s){
+        if (s.kind === "start"){ segs.push({n: s.name, a: 0, b: s.value, k: s.kind, v: s.value}); run = s.value; }
+        else if (s.kind === "end"){ segs.push({n: s.name, a: 0, b: s.value, k: s.kind, v: s.value}); }
+        else { segs.push({n: s.name, a: run, b: run - s.value, k: s.kind, v: s.value}); run -= s.value; }
+      });
+      function segColor(sg){
+        if (sg.k === "start") return grad2("#ffe3a1", C.gold);
+        if (sg.k === "end") return grad2(sg.v >= 0 ? C.green : C.red,
+                                         (sg.v >= 0 ? C.green : C.red) + "88");
+        return grad2(C.red, C.red + "88");
+      }
+      pe.setOption({
+        animationDuration: anim ? 900 : 0, animationEasing: "cubicOut",
+        grid: {left: 4, right: 12, top: 26, bottom: 16, containLabel: true},
+        tooltip: {trigger: "item", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){
+            var sg = segs[p.dataIndex];
+            return sg.n + "<br><b>" + echFull(sg.v) + "</b>";
+          }},
+        xAxis: {type: "category", data: segs.map(function(s){ return s.n; }),
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10, fontFamily: FONT, interval: 0, rotate: 22}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT, formatter: echShort}},
+        series: [{
+          type: "custom", data: segs.map(function(s, i){ return [i, s.a, s.b]; }),
+          renderItem: function(params, api){
+            var idx = api.value(0);
+            var p1 = api.coord([idx, api.value(1)]);
+            var p2 = api.coord([idx, api.value(2)]);
+            var w = api.size([1, 0])[0] * 0.55;
+            var top = Math.min(p1[1], p2[1]), h = Math.max(Math.abs(p2[1] - p1[1]), 2);
+            return {type: "rect",
+              shape: {x: p1[0] - w / 2, y: top, width: w, height: h, r: 6},
+              style: api.style({fill: segColor(segs[idx])})};
+          }
+        }]
+      });
+      // qiymat yorliqlarini ustidan grafik markerlar bilan qo'shamiz
+      pe.setOption({series: [{}, {
+        type: "scatter", symbolSize: 0.1, silent: true,
+        data: segs.map(function(s, i){ return [i, Math.max(s.a, s.b)]; }),
+        label: {show: true, position: "top", fontSize: 10, fontFamily: FONT,
+          color: C.mut, formatter: function(p){ return echShort(segs[p.dataIndex].v); }}
+      }]});
+    }
+    // 2) Trend + prognoz
+    var te = make("an-trend");
+    if (te && A.trend){
+      te.setOption({
+        animationDuration: anim ? 1100 : 0,
+        grid: {left: 4, right: 12, top: 32, bottom: 4, containLabel: true},
+        legend: {top: 0, left: 0, icon: "roundRect", itemWidth: 15, itemHeight: 5,
+          itemGap: 14, textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT},
+          data: ["Tushum", "Xarajat", "Prognoz"]},
+        tooltip: {trigger: "axis", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "category", data: A.trend.labels, boundaryGap: false,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10, fontFamily: FONT}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        series: [
+          {name: "Tushum", type: "line", data: A.trend.inc, smooth: .4,
+            showSymbol: false, lineStyle: {width: 3, color: C.s1,
+              shadowColor: C.s1, shadowBlur: 12, shadowOffsetY: 6},
+            itemStyle: {color: C.s1},
+            areaStyle: {color: grad2(C.s1 + "45", C.s1 + "00")}},
+          {name: "Xarajat", type: "line", data: A.trend.exp, smooth: .4,
+            showSymbol: false, lineStyle: {width: 2.5, color: C.s2, type: [6, 6]},
+            itemStyle: {color: C.s2}},
+          {name: "Prognoz", type: "line", data: A.trend.f_inc, smooth: .4,
+            symbol: "circle", symbolSize: 7,
+            lineStyle: {width: 2.5, color: C.gold, type: [3, 5]},
+            itemStyle: {color: C.gold, borderColor: "#fff", borderWidth: 1.5}},
+          {name: "Prognoz", type: "line", data: A.trend.f_exp, smooth: .4,
+            showSymbol: false, legendHoverLink: false,
+            lineStyle: {width: 1.6, color: C.gold, opacity: .5, type: [3, 5]},
+            tooltip: {show: false}}
+        ]
+      });
+    }
+    // 2b) Kassa prognozi — uch stsenariyli balans traektoriyasi
+    var ce = make("an-cast");
+    if (ce && A.cast){
+      var hasSched = A.cast.sched.some(function(v){ return v > 0; });
+      var castSeries = [
+        {name: "Baza", type: "line", data: A.cast.bal.base, smooth: .35,
+          symbol: "circle", symbolSize: 6,
+          lineStyle: {width: 3, color: C.gold,
+            shadowColor: C.gold, shadowBlur: 12, shadowOffsetY: 5},
+          itemStyle: {color: C.gold, borderColor: "#fff", borderWidth: 1.5},
+          areaStyle: {color: grad2(C.gold + "33", C.gold + "00")},
+          markLine: {silent: true, symbol: "none", label: {show: false},
+            lineStyle: {color: C.red, type: [4, 5], width: 1.4, opacity: .7},
+            data: [{yAxis: 0}]}},
+        {name: "Ehtiyot (−15%)", type: "line", data: A.cast.bal.pes, smooth: .35,
+          showSymbol: false,
+          lineStyle: {width: 2, color: C.red, type: [4, 5]},
+          itemStyle: {color: C.red}},
+        {name: "Yaxshi (+10%)", type: "line", data: A.cast.bal.opt, smooth: .35,
+          showSymbol: false,
+          lineStyle: {width: 1.8, color: C.green, type: [4, 5], opacity: .8},
+          itemStyle: {color: C.green}}
+      ];
+      if (hasSched){
+        castSeries.push({name: "Grafik to'lovlar", type: "bar",
+          data: A.cast.sched, barWidth: "34%",
+          itemStyle: {color: grad2(C.s1 + "aa", C.s1 + "44"),
+            borderRadius: [5, 5, 0, 0]}});
+      }
+      ce.setOption({
+        animationDuration: anim ? 1100 : 0,
+        grid: {left: 4, right: 14, top: 32, bottom: 4, containLabel: true},
+        legend: {top: 0, left: 0, icon: "roundRect", itemWidth: 15, itemHeight: 5,
+          itemGap: 12, textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+        tooltip: {trigger: "axis", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "category", data: A.cast.labels, boundaryGap: hasSched,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        series: castSeries
+      });
+    }
+    // 3) Yo'nalishlar
+    var de = make("an-dirs");
+    if (de && A.dirs && A.dirs.length){
+      de.setOption({
+        animationDuration: anim ? 900 : 0,
+        grid: {left: 4, right: 44, top: 26, bottom: 4, containLabel: true},
+        legend: {top: 0, left: 0, icon: "roundRect", itemWidth: 15, itemHeight: 5,
+          textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+        tooltip: {trigger: "axis", axisPointer: {type: "shadow"}, padding: [10, 14],
+          backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        yAxis: {type: "category", data: A.dirs.map(function(d){ return d.name; }).reverse(),
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.txt, fontSize: 12, fontWeight: 600, fontFamily: FONT}},
+        series: [
+          {name: "Tushum", type: "bar", barWidth: 13,
+            data: A.dirs.map(function(d){ return d.income; }).reverse(),
+            itemStyle: {color: new echarts.graphic.LinearGradient(0, 0, 1, 0,
+              [{offset: 0, color: C.s1 + "66"}, {offset: 1, color: C.s1}]),
+              borderRadius: [0, 6, 6, 0]}},
+          {name: "Marja", type: "bar", barWidth: 13,
+            data: A.dirs.map(function(d){ return d.margin; }).reverse(),
+            itemStyle: {color: new echarts.graphic.LinearGradient(0, 0, 1, 0,
+              [{offset: 0, color: C.green + "55"}, {offset: 1, color: C.green}]),
+              borderRadius: [0, 6, 6, 0]},
+            label: {show: true, position: "right", fontSize: 10.5, fontFamily: FONT,
+              color: C.mut, formatter: function(p){
+                var d = A.dirs.slice().reverse()[p.dataIndex];
+                return d.margin_pct + "%";
+              }}}
+        ]
+      });
+    }
+    // 4) Xarajat tarkibi — donut
+    var me = make("an-mix");
+    if (me && A.mix && A.mix.length){
+      var pal = [C.s2, C.gold, C.s1, "#b18cf2", "#4cc3cf", "#9fd06a",
+                 "#f29a5c", C.red, C.mut];
+      me.setOption({
+        animationDuration: anim ? 900 : 0,
+        tooltip: {trigger: "item", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){
+            return p.name + "<br><b>" + echFull(p.value) + "</b> · " + p.percent + "%";
+          }},
+        legend: {type: "scroll", orient: "vertical", right: 0, top: "middle",
+          itemWidth: 9, itemHeight: 9, itemGap: 9,
+          textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT},
+          formatter: function(n){ return n.length > 20 ? n.slice(0, 19) + "…" : n; }},
+        series: [{type: "pie", radius: ["46%", "72%"], center: ["30%", "50%"],
+          avoidLabelOverlap: true, padAngle: 2,
+          itemStyle: {borderRadius: 6, borderColor: "transparent", borderWidth: 0},
+          label: {show: false}, labelLine: {show: false},
+          emphasis: {scale: true, scaleSize: 6,
+            itemStyle: {shadowBlur: 16, shadowColor: "rgba(0,0,0,.35)"}},
+          data: A.mix.map(function(r, i){
+            return {name: r.cat, value: r.val,
+                    itemStyle: {color: pal[i % pal.length]}};
+          })}]
+      });
+    }
+    // 5) Qarzdorlik yoshi
+    var ae = make("an-aging");
+    if (ae && A.aging){
+      var acols = [C.gold, "#f0a24a", C.s2, C.red];
+      ae.setOption({
+        animationDuration: anim ? 900 : 0,
+        grid: {left: 4, right: 10, top: 18, bottom: 4, containLabel: true},
+        tooltip: {trigger: "item", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){
+            return p.name + "<br><b>" + echFull(p.value) + "</b> · " +
+                   A.aging[p.dataIndex].n + " kishi";
+          }},
+        xAxis: {type: "category", data: A.aging.map(function(b){ return b.label; }),
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        series: [{type: "bar", barWidth: "48%",
+          data: A.aging.map(function(b, i){
+            return {value: b.val, itemStyle: {
+              color: grad2(acols[i], acols[i] + "77"), borderRadius: 7,
+              shadowColor: acols[i] + "55", shadowBlur: 10, shadowOffsetY: 3}};
+          }),
+          label: {show: true, position: "top", fontSize: 10.5, fontFamily: FONT,
+            color: C.mut, formatter: function(p){ return echShort(p.value); }}}]
+      });
+    }
+    // 6) Qaytarishlar
+    var re = make("an-ref");
+    if (re && A.refunds){
+      var MN = ["Yan","Fev","Mar","Apr","May","Iyn","Iyl","Avg","Sen","Okt","Noy","Dek"];
+      re.setOption({
+        animationDuration: anim ? 900 : 0,
+        grid: {left: 4, right: 10, top: 18, bottom: 4, containLabel: true},
+        tooltip: {trigger: "axis", axisPointer: {type: "shadow"}, padding: [10, 14],
+          backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "category", data: MN,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10, fontFamily: FONT}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            formatter: echShort}},
+        series: [{type: "bar", barWidth: "52%", data: A.refunds,
+          itemStyle: {color: grad2(C.red, C.red + "66"), borderRadius: 5}}]
+      });
+    }
+  }
+  // ══ Launch-kalkulyator grafiklari ══
+  var lpEl = document.getElementById("lp-data");
+  if (lpEl){
+    var L = JSON.parse(lpEl.textContent);
+    function lgrad(c1, c2){
+      return new echarts.graphic.LinearGradient(0, 0, 0, 1,
+        [{offset: 0, color: c1}, {offset: 1, color: c2}]);
+    }
+    // 1) Foyda egri chizig'i + BEP markerlari
+    var ce = make("lp-curve");
+    if (ce && L.curve){
+      var marks = [];
+      var last = L.curve.x[L.curve.x.length - 1];
+      var bepIdx = (L.bep_full != null && L.bep_full >= 0)
+        ? Math.min(Math.round(L.bep_full), last) : 0;
+      if (L.bep_full != null && L.bep_full >= 0)
+        marks.push({xAxis: Math.round(L.bep_full), lineStyle: {color: C.gold, width: 2, type: "dashed"},
+          label: {formatter: "BEP " + L.bep_full.toFixed(1), color: C.gold,
+                  fontSize: 11, fontFamily: FONT, position: "insideEndTop"}});
+      if (L.bep_cash != null && L.bep_cash >= 0)
+        marks.push({xAxis: Math.round(L.bep_cash), lineStyle: {color: C.s1, width: 1.6, type: "dotted"},
+          label: {formatter: "o'zini oqlaydi", color: C.s1, fontSize: 10,
+                  fontFamily: FONT, position: "insideEndBottom"}});
+      marks.push({xAxis: L.curve.capacity, lineStyle: {color: C.mut, width: 1.4},
+        label: {formatter: "sig'im", color: C.mut, fontSize: 10, fontFamily: FONT}});
+      ce.setOption({
+        animationDuration: anim ? 1000 : 0,
+        grid: {left: 4, right: 14, top: 26, bottom: 4, containLabel: true},
+        tooltip: {trigger: "axis", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(ps){
+            var n = ps[0].axisValue;
+            var out = n + " o'quvchi<br>";
+            ps.forEach(function(p){
+              out += p.marker + p.seriesName + ": <b>" + echFull(p.value) + "</b><br>";
+            });
+            return out;
+          }},
+        xAxis: {type: "category", data: L.curve.x, boundaryGap: false,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT,
+            interval: Math.max(1, Math.round(L.curve.x.length / 12))}},
+        yAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT, formatter: echShort}},
+        series: [
+          {name: "To'liq foyda", type: "line", data: L.curve.profit, smooth: false,
+            showSymbol: false,
+            lineStyle: {width: 3, color: C.gold, shadowColor: C.gold,
+              shadowBlur: 10, shadowOffsetY: 5},
+            itemStyle: {color: C.gold},
+            areaStyle: {color: lgrad(C.gold + "3a", C.gold + "00")},
+            markArea: {silent: true, data: [
+              [{xAxis: 0, itemStyle: {color: C.red + "16"}},
+               {xAxis: bepIdx}],
+              [{xAxis: bepIdx, itemStyle: {color: C.green + "14"}},
+               {xAxis: L.curve.x[L.curve.x.length - 1]}]
+            ]},
+            markLine: {silent: true, symbol: "none", data: marks}},
+          {name: "Kurs o'z foydasi", type: "line", data: L.curve.direct,
+            showSymbol: false, lineStyle: {width: 1.6, color: C.s1, type: [5, 5]}}
+        ]
+      });
+    }
+    // 2) Xarajat tarkibi
+    var xe = make("lp-cost");
+    if (xe && L.cost){
+      var items = [
+        {name: "Sotuvchi ulushi", value: L.cost.sales, color: "#b18cf2"},
+        {name: "Qaytarish zaxirasi", value: L.cost.refunds, color: C.red},
+        {name: "Materiallar", value: L.cost.materials, color: "#4cc3cf"},
+        {name: "Reklama", value: L.cost.marketing, color: C.s2},
+        {name: "O'qituvchi", value: L.cost.teacher, color: C.gold},
+        {name: "Qo'shimcha", value: L.cost.extra, color: "#f29a5c"},
+        {name: "Ofis ulushi", value: L.cost.fixed_alloc, color: C.mut},
+        {name: "FOYDA", value: Math.max(L.cost.profit, 0), color: C.green}
+      ].filter(function(i){ return i.value > 0; });
+      xe.setOption({
+        animationDuration: anim ? 900 : 0,
+        tooltip: {trigger: "item", padding: [10, 14], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){ return p.name + "<br><b>" + echFull(p.value) + "</b> · " + p.percent + "%"; }},
+        legend: {type: "scroll", orient: "vertical", right: 0, top: "middle",
+          itemWidth: 9, itemHeight: 9, itemGap: 9,
+          textStyle: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+        series: [{type: "pie", radius: ["45%", "72%"], center: ["32%", "50%"],
+          padAngle: 2, itemStyle: {borderRadius: 6},
+          label: {show: false}, labelLine: {show: false},
+          emphasis: {scale: true, scaleSize: 6},
+          data: items.map(function(i){
+            return {name: i.name, value: i.value, itemStyle: {color: i.color}};
+          })}]
+      });
+    }
+    // 3) Sezuvchanlik matritsasi (heatmap)
+    var he = make("lp-heat");
+    if (he && L.matrix){
+      var data = [], vals = [];
+      L.matrix.rows.forEach(function(row, ri){
+        row.vals.forEach(function(v, ci){ data.push([ci, ri, v]); vals.push(v); });
+      });
+      var mx = Math.max.apply(null, vals.map(Math.abs)) || 1;
+      he.setOption({
+        animationDuration: anim ? 700 : 0,
+        grid: {left: 4, right: 8, top: 10, bottom: 26, containLabel: true},
+        tooltip: {position: "top", padding: [9, 12], backgroundColor: C.tipBg,
+          borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px",
+          formatter: function(p){
+            return "Narx " + L.matrix.price_steps[p.value[1]] +
+                   " · to'lish " + L.matrix.fill_steps[p.value[0]] +
+                   "<br><b>" + echFull(p.value[2]) + "</b>";
+          }},
+        xAxis: {type: "category", data: L.matrix.fill_steps, splitArea: {show: false},
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT},
+          name: "to'lish", nameLocation: "middle", nameGap: 24,
+          nameTextStyle: {color: C.mut, fontSize: 10.5, fontFamily: FONT}},
+        yAxis: {type: "category", data: L.matrix.price_steps, splitArea: {show: false},
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+        visualMap: {show: false, min: -mx, max: mx,
+          inRange: {color: [C.red, "#3a3f52", C.green]}},
+        series: [{type: "heatmap", data: data, itemStyle: {borderRadius: 5,
+            borderWidth: 3, borderColor: "transparent"},
+          label: {show: true, fontSize: 10, fontFamily: FONT,
+            formatter: function(p){ return echShort(p.value[2]); },
+            color: "#fff"},
+          emphasis: {itemStyle: {shadowBlur: 10, shadowColor: "rgba(0,0,0,.4)"}}}]
+      });
+    }
+    // 4) Tornado — omillar ta'siri
+    var to = make("lp-tornado");
+    if (to && L.drivers && L.drivers.length){
+      var names = L.drivers.map(function(d){ return d.name; }).reverse();
+      var lows = L.drivers.map(function(d){ return d.low; }).reverse();
+      var highs = L.drivers.map(function(d){ return d.high; }).reverse();
+      to.setOption({
+        animationDuration: anim ? 800 : 0,
+        grid: {left: 4, right: 16, top: 10, bottom: 4, containLabel: true},
+        tooltip: {trigger: "axis", axisPointer: {type: "shadow"}, padding: [10, 14],
+          backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+          textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+          extraCssText: "border-radius:12px", valueFormatter: echFull},
+        xAxis: {type: "value", splitLine: {lineStyle: {color: C.line}},
+          axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT, formatter: echShort}},
+        yAxis: {type: "category", data: names,
+          axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+          axisLabel: {color: C.txt, fontSize: 11.5, fontFamily: FONT}},
+        series: [
+          {name: "−20%", type: "bar", stack: "t", data: lows, barWidth: 15,
+            itemStyle: {color: lgrad(C.red + "aa", C.red + "55"), borderRadius: [6, 0, 0, 6]}},
+          {name: "+20%", type: "bar", stack: "t", data: highs, barWidth: 15,
+            itemStyle: {color: lgrad(C.green + "aa", C.green + "55"), borderRadius: [0, 6, 6, 0]}}
+        ]
+      });
+    }
+  }
+  if (!D) return;
+  var tip = {
+    trigger: "axis", padding: [10, 14],
+    backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+    textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+    extraCssText: "border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);backdrop-filter:blur(8px)",
+    valueFormatter: echFull
+  };
+  var main = make("ech-main");
+  if (main){
+    main.setOption({
+      animationDuration: anim ? 1100 : 0, animationEasing: "cubicOut",
+      grid: {left: 6, right: 14, top: 34, bottom: 4, containLabel: true},
+      legend: {top: 0, left: 0, icon: "roundRect", itemWidth: 16, itemHeight: 5, itemGap: 18,
+        textStyle: {color: C.mut, fontSize: 11.5, fontFamily: FONT}},
+      tooltip: tip,
+      xAxis: {type: "category", data: D.months, boundaryGap: false,
+        axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+        axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT}},
+      yAxis: {type: "value",
+        splitLine: {lineStyle: {color: C.line}},
+        axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT, formatter: echShort}},
+      series: [
+        {name: "Tushum", type: "line", data: D.inc, smooth: .45,
+          symbol: "circle", symbolSize: 8, showSymbol: false,
+          lineStyle: {width: 3.5, color: C.s1,
+            shadowColor: C.s1, shadowBlur: 16, shadowOffsetY: 8},
+          itemStyle: {color: C.s1, borderColor: "#fff", borderWidth: 2},
+          emphasis: {scale: 1.6},
+          areaStyle: {color: new echarts.graphic.LinearGradient(0, 0, 0, 1,
+            [{offset: 0, color: C.s1 + "5c"}, {offset: 1, color: C.s1 + "00"}])}},
+        {name: "Xarajat", type: "line", data: D.exp, smooth: .45,
+          symbol: "circle", symbolSize: 8, showSymbol: false,
+          lineStyle: {width: 3, color: C.s2, type: [7, 7],
+            shadowColor: C.s2, shadowBlur: 12, shadowOffsetY: 6},
+          itemStyle: {color: C.s2, borderColor: "#fff", borderWidth: 2},
+          emphasis: {scale: 1.6},
+          areaStyle: {color: new echarts.graphic.LinearGradient(0, 0, 0, 1,
+            [{offset: 0, color: C.s2 + "2e"}, {offset: 1, color: C.s2 + "00"}])}}
+      ]
+    });
+  }
+  var wfc = make("ech-wf");
+  if (wfc && D.wf){
+    // nol qadamlar ko'rsatilmaydi (masalan, dividend bo'lmagan yil)
+    var steps = D.wf.filter(function(s){
+      return s.value || s.kind === "start" || s.kind === "end";
+    });
+    var base = [], vals = [], run = 0;
+    steps.forEach(function(s){
+      if (s.kind === "start"){ base.push(0); vals.push({v: s.value, k: s.kind}); run = s.value; }
+      else if (s.kind === "end"){ base.push(0); vals.push({v: s.value, k: s.kind}); }
+      else if (s.kind === "plus"){ base.push(run); vals.push({v: s.value, k: s.kind}); run += s.value; }
+      else { run -= s.value; base.push(run); vals.push({v: s.value, k: s.kind}); }
+    });
+    function grad(c1, c2){
+      return new echarts.graphic.LinearGradient(0, 0, 0, 1,
+        [{offset: 0, color: c1}, {offset: 1, color: c2}]);
+    }
+    var colr = {start: grad("#ffe3a1", C.gold), end: grad("#ffe3a1", C.gold),
+                plus: grad(C.green, C.green + "88"), minus: grad(C.red, C.red + "88")};
+    var shad = {start: C.gold, end: C.gold, plus: C.green, minus: C.red};
+    wfc.setOption({
+      animationDuration: anim ? 1000 : 0, animationEasing: "elasticOut",
+      grid: {left: 6, right: 10, top: 30, bottom: 4, containLabel: true},
+      tooltip: {trigger: "item", padding: [10, 14],
+        backgroundColor: C.tipBg, borderColor: C.line, borderWidth: 1,
+        textStyle: {color: C.tipTx, fontSize: 12, fontFamily: FONT},
+        extraCssText: "border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3)",
+        formatter: function(p){
+          if (p.seriesIndex === 0) return "";
+          return p.name + "<br><b>" + echFull(vals[p.dataIndex].v) + "</b>";
+        }},
+      xAxis: {type: "category", data: steps.map(function(s){ return s.name; }),
+        axisLine: {lineStyle: {color: C.line}}, axisTick: {show: false},
+        axisLabel: {color: C.mut, fontSize: 10.5, fontFamily: FONT, interval: 0}},
+      yAxis: {type: "value",
+        splitLine: {lineStyle: {color: C.line}},
+        axisLabel: {color: C.mut, fontSize: 11, fontFamily: FONT, formatter: echShort}},
+      series: [
+        {type: "bar", stack: "wf", data: base, barWidth: "52%",
+          itemStyle: {color: "transparent"}, tooltip: {show: false}, silent: true},
+        {type: "bar", stack: "wf",
+          data: vals.map(function(s){
+            return {value: s.v, itemStyle: {
+              color: colr[s.k], borderRadius: 7,
+              shadowColor: shad[s.k] + "66", shadowBlur: 12, shadowOffsetY: 4}};
+          }),
+          label: {show: true, position: "top", fontSize: 10.5, fontFamily: FONT,
+            color: C.mut, formatter: function(p){ return echShort(vals[p.dataIndex].v); }}}
+      ]
+    });
+  }
+  if (!initCharts._r){
+    initCharts._r = 1;
+    addEventListener("resize", function(){
+      document.querySelectorAll(".ech-gauge").forEach(function(el){
+        var i = echarts.getInstanceByDom(el); if (i) i.resize();
+      });
+      ["ech-main", "ech-wf", "an-pnl", "an-trend", "an-dirs", "an-mix",
+       "an-aging", "an-ref", "lp-curve", "lp-cost", "lp-heat",
+       "lp-tornado"].forEach(function(id){
+        var el = document.getElementById(id);
+        var i = el && echarts.getInstanceByDom(el);
+        if (i) i.resize();
+      });
+    });
+  }
+}
+function countUp(){
+  document.querySelectorAll(".kpi .v").forEach(el => {
+    const node = el.childNodes[0];
+    if (!node || node.nodeType !== 3) return;
+    const raw = node.textContent.trim();
+    const num = parseFloat(raw.replace(/ /g, "").replace(",", "."));
+    if (isNaN(num) || Math.abs(num) < 10) return;
+    const dur = 650, t0 = performance.now();
+    const fmt = (v) => Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
+    function tick(t){
+      const p = Math.min((t - t0) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      node.textContent = fmt(num * ease);
+      if (p < 1) requestAnimationFrame(tick);
+      else node.textContent = raw;
+    }
+    requestAnimationFrame(tick);
+  });
+}
+addEventListener("DOMContentLoaded", () => {
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) countUp();
+});
+
+function initViz(){
+  document.querySelectorAll(".viz[data-viz]").forEach(function(box){
+    var svg = box.querySelector("svg"), tip = box.querySelector(".viz-tip"),
+        cross = box.querySelector(".viz-cross"),
+        dataEl = box.querySelector(".viz-data");
+    if (!svg || !dataEl) return;
+    var D = JSON.parse(dataEl.textContent);
+    var line = cross.querySelector(".viz-crossline");
+    var dots = cross.querySelectorAll(".viz-dot");
+    var slots = tip.querySelectorAll("[data-slot]");
+    var title = tip.querySelector(".tt-title");
+    function fmt(v){ return Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g," "); }
+    box.querySelectorAll(".viz-hit").forEach(function(hit){
+      function show(){
+        var i = +hit.dataset.i, x = D.cols[i];
+        line.setAttribute("x1", x); line.setAttribute("x2", x);
+        D.series.forEach(function(pts, k){
+          if (!pts[i] || !dots[k]) return;
+          dots[k].setAttribute("cx", pts[i].x);
+          dots[k].setAttribute("cy", pts[i].y);
+          if (slots[k]) slots[k].textContent = fmt(pts[i].v);
+        });
+        title.textContent = D.labels[i];
+        cross.style.opacity = 1;
+        tip.hidden = false;
+        var r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+        var px = (x / vb.width) * r.width;
+        var topY = Math.min.apply(null, D.series.map(function(p){
+          return p[i] ? p[i].y : 1e9; }));
+        tip.style.left = Math.max(78, Math.min(px, r.width - 78)) + "px";
+        tip.style.top = (topY / vb.height) * r.height + "px";
+      }
+      hit.addEventListener("mouseenter", show);
+      hit.addEventListener("touchstart", show, {passive:true});
+    });
+    box.addEventListener("mouseleave", function(){
+      cross.style.opacity = 0; tip.hidden = true;
+    });
+  });
+}
+addEventListener("DOMContentLoaded", initViz);
+
+
+function toggleWcat(force){
+  var h = document.getElementById("hero-bal"), c = document.getElementById("wcat");
+  if (!h || !c) return;
+  var open = force !== undefined ? force : !c.classList.contains("open");
+  c.classList.toggle("open", open);
+  h.classList.toggle("open", open);
+  var dim = document.getElementById("wcat-dim");
+  if (dim) dim.classList.toggle("open", open);
+  if (open && !c.dataset.init){ c.dataset.init = "1"; initDeck(); }
+}
+/* tashqarini bosganda yoki Escape'da yopiladi */
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape") toggleWcat(false);
+});
+function toggleEye(e){
+  if (e) e.stopPropagation();
+  var v = document.getElementById("hb-v");
+  if (!v) return;
+  if (v.dataset.hid === "1"){
+    v.innerHTML = v.dataset.raw; v.dataset.hid = "0";
+    try{ localStorage.setItem("balhide", "0"); }catch(_){}
+  } else {
+    v.dataset.raw = v.innerHTML; v.innerHTML = "•• ••• •••"; v.dataset.hid = "1";
+    try{ localStorage.setItem("balhide", "1"); }catch(_){}
+  }
+}
+function applyEye(){
+  try{
+    if (localStorage.getItem("balhide") === "1"){
+      var v = document.getElementById("hb-v");
+      if (v && v.dataset.hid !== "1") toggleEye();
+    }
+  }catch(_){}
+}
+function initDeck(){
+  var deck = document.querySelector(".wallet-deck");
+  if (!deck) return;
+  // yopiq katalog ichida bo'lsa — ochilganda toggleWcat o'zi chaqiradi
+  var cat = deck.closest(".wcat");
+  if (cat && !cat.classList.contains("open")) return;
+  var track = deck.querySelector(".wtrack");
+  var cards = [].slice.call(track.querySelectorAll(".wcard"));
+  var dots = [].slice.call(deck.parentElement.querySelectorAll(".wdots i"));
+  var histBox = document.getElementById("whist-list");
+  var histTitle = document.getElementById("whist-title");
+  var D = JSON.parse(document.getElementById("wcards-data").textContent);
+  function fmt(v){ return Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g," "); }
+  /* nuqta/halqa — darhol (arzon); tarix — alohida (qimmat) */
+  function setActive(i){
+    cards.forEach(function(c,k){ c.classList.toggle("active", k===i); });
+    dots.forEach(function(d,k){ d.classList.toggle("on", k===i); });
+  }
+  function renderHist(i){
+    var w = D[i];
+    if (histTitle) histTitle.textContent = w.name;
+    if (!histBox) return;
+    if (!w.hist.length){
+      histBox.innerHTML = '<div class="empty">Bu hisobda hali harakat yo\'q</div>';
+      return;
+    }
+    histBox.innerHTML = w.hist.map(function(h){
+      var dir = h["in"] ? "in" : "out";
+      var arrow = h["in"]
+        ? '<path d="M12 19V5M5 12l7 7 7-7"/>' : '<path d="M12 5v14M5 12l7-7 7 7"/>';
+      return '<div class="whist-row">'
+        + '<span class="whist-ic '+dir+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+arrow+'</svg></span>'
+        + '<span class="whist-mid"><b>'+h.t+'</b><span>'+h.d+' \u00b7 '+h.c+'</span></span>'
+        + '<span class="whist-amt '+dir+'">'+(h["in"]?"+":"\u2212")+fmt(h.a)+'</span>'
+        + '</div>';
+    }).join("");
+  }
+  /* karta markazlari keshda — scroll paytida layout o'qilmaydi */
+  var centers = [], halfW = 0;
+  function measure(){
+    halfW = track.clientWidth / 2;
+    centers = cards.map(function(c){ return c.offsetLeft + c.offsetWidth/2; });
+  }
+  measure();
+  addEventListener("resize", measure);
+
+  var cur = -1, ticking = false, settle = null;
+  function onScroll(){
+    ticking = false;
+    var center = track.scrollLeft + halfW;
+    var best = 0, bd = 1e9;
+    for (var k = 0; k < centers.length; k++){
+      var d = Math.abs(centers[k] - center);
+      if (d < bd){ bd = d; best = k; }
+    }
+    if (best !== cur){
+      cur = best;
+      setActive(best);
+      // tarix ro'yxati (qimmat innerHTML) — scroll tinishini kutadi
+      clearTimeout(settle);
+      settle = setTimeout(function(){ renderHist(cur); }, 130);
+    }
+  }
+  track.addEventListener("scroll", function(){
+    if (!ticking){ ticking = true; requestAnimationFrame(onScroll); }
+  }, {passive:true});
+
+  function centerOn(i){
+    track.scrollTo({left: centers[i] - halfW, behavior: "smooth"});
+  }
+  cards.forEach(function(c,k){
+    c.addEventListener("click", function(){ centerOn(k); });
+  });
+
+  /* g'ildirak: trek ustida vertikal aylantirish -> gorizontal yuradi */
+  track.addEventListener("wheel", function(e){
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){
+      track.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+  /* sichqoncha bilan sudrash (telefondagi svayp kabi) */
+  var drag = null;
+  track.addEventListener("pointerdown", function(e){
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    drag = {x: e.clientX, left: track.scrollLeft, moved: false};
+  });
+  addEventListener("pointermove", function(e){
+    if (!drag) return;
+    var dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) > 5){
+      drag.moved = true;
+      track.classList.add("dragging");
+    }
+    if (drag.moved) track.scrollLeft = drag.left - dx;
+  });
+  addEventListener("pointerup", function(){
+    if (!drag) return;
+    var moved = drag.moved;
+    drag = null;
+    track.classList.remove("dragging");
+    if (moved){
+      // qo'yib yuborilganda eng yaqin kartaga yumshoq o'tiradi
+      requestAnimationFrame(function(){
+        onScroll();
+        if (cur >= 0) centerOn(cur);
+      });
+    }
+  });
+
+  onScroll();
+  renderHist(cur < 0 ? 0 : cur);
+}
+function initPray(){
+  var el = document.querySelector(".pray");
+  if (!el) return;
+  var data = JSON.parse(document.getElementById("pray-data").textContent);
+  var canvas = el.querySelector(".sky-canvas");
+  var orb = el.querySelector(".sky-orb");
+  var prog = el.querySelector(".arc-prog");
+  var byKey = {};
+  data.times.forEach(function(t){ byKey[t.key] = t.minutes; });
+  // Toshkent vaqti — qurilma soat mintaqasidan mustaqil (UTC + tz)
+  function nowMin(){
+    var n = new Date();
+    return (n.getUTCHours()*60 + n.getUTCMinutes()
+            + Math.round((data.tz || 5) * 60)) % 1440;
+  }
+  // yoy ustidagi namoz nuqtalari
+  var dots = [];
+  if (canvas && !canvas.querySelector(".sky-dot")){
+    ["bomdod","peshin","asr","shom","xufton"].forEach(function(k){
+      var d = document.createElement("i");
+      d.className = "sky-dot"; d.dataset.m = byKey[k];
+      canvas.appendChild(d); dots.push(d);
+    });
+  } else if (canvas){
+    dots = [].slice.call(canvas.querySelectorAll(".sky-dot"));
+  }
+  // kvadratik Bezye: SVG'dagi M16,102 Q180,-34 344,102 yoyi bilan mos
+  function bez(t, W, H){
+    var x = (1-t)*(1-t)*16 + 2*(1-t)*t*180 + t*t*344;
+    var y = (1-t)*(1-t)*102 + 2*(1-t)*t*(-34) + t*t*102;
+    return [x*W/360, y*H/118];
+  }
+  function frac(m){
+    return Math.max(0, Math.min(1,
+      (m - byKey.bomdod) / (byKey.xufton - byKey.bomdod)));
+  }
+  function layout(cur){
+    if (!canvas) return;
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!W) return;
+    dots.forEach(function(d){
+      var p = bez(frac(+d.dataset.m), W, H);
+      d.style.left = p[0] + "px"; d.style.top = p[1] + "px";
+    });
+    var night = cur < byKey.bomdod || cur > byKey.xufton;
+    var f = night ? (cur > byKey.xufton ? 1 : 0) : frac(cur);
+    var p = bez(f, W, H);
+    if (orb){
+      // shar karvondan sal oldinda, tepada suzadi — karvonni to'sib qo'ymaydi
+      orb.style.left = (p[0] + 26) + "px"; orb.style.top = (p[1] - 34) + "px";
+      var day = cur >= byKey.quyosh && cur < byKey.shom;
+      orb.classList.toggle("sun", day);
+      orb.classList.toggle("moon", !day);
+    }
+    var car = el.querySelector(".sky-caravan");
+    if (car){
+      // yoy tangensi bo'yicha qiyalik — karvon yo'l bo'ylab "yuradi"
+      var dx = (2*(1-f)*(180-16) + 2*f*(344-180)) * W/360;
+      var dy = (2*(1-f)*(-34-102) + 2*f*(102+34)) * H/118;
+      var ang = Math.atan2(dy, dx) * 180 / Math.PI;
+      // sarban (old tomon) aynan joriy vaqt nuqtasida turadi
+      car.style.left = p[0] + "px"; car.style.top = (p[1] + 3) + "px";
+      car.style.transform = "translate(-88%,-94%) rotate(" + ang.toFixed(1) + "deg)";
+    }
+    // bosib o'tilgan yo'l: Bezyeni f nuqtada bo'lib, qism-egri chizamiz
+    if (prog){
+      if (f > 0.005){
+        var qx = 16 + f*(180-16), qy = 102 + f*(-34-102);   // de Casteljau
+        var bx = (1-f)*(1-f)*16 + 2*(1-f)*f*180 + f*f*344;
+        var by = (1-f)*(1-f)*102 + 2*(1-f)*f*(-34) + f*f*102;
+        prog.setAttribute("d", "M16,102 Q" + qx.toFixed(1) + "," + qy.toFixed(1)
+                               + " " + bx.toFixed(1) + "," + by.toFixed(1));
+      } else prog.setAttribute("d", "M16,102");
+    }
+    // izlar: har ~4.5% masofada oltin dog'
+    canvas.querySelectorAll(".sky-foot").forEach(function(x){ x.remove(); });
+    for (var u = 3; u < f*100 - 2; u += 4.5){
+      var fp = bez(u/100, W, H);
+      var dot = document.createElement("i");
+      dot.className = "sky-foot";
+      dot.style.left = fp[0] + "px"; dot.style.top = fp[1] + "px";
+      canvas.appendChild(dot);
+    }
+    var ph = night ? "ph-night"
+           : cur < byKey.quyosh ? "ph-dawn"
+           : cur >= byKey.shom ? "ph-dusk" : "ph-day";
+    el.classList.remove("ph-day","ph-night","ph-dawn","ph-dusk");
+    el.classList.add(ph);
+  }
+  function tick(){
+    var cur = nowMin();
+    var keys = {bomdod:1, peshin:1, asr:1, shom:1, xufton:1};
+    var nxt = null;
+    data.times.forEach(function(t){
+      if (keys[t.key] && t.minutes > cur && !nxt) nxt = t;
+    });
+    var left, name;
+    if (nxt){ left = nxt.minutes - cur; name = nxt.name; }
+    else { left = (24*60 - cur) + data.times[0].minutes; name = data.times[0].name; }
+    var h = Math.floor(left/60), m = left%60;
+    var lbl = el.querySelector(".pray-next div span");
+    var bl = el.querySelector(".pray-next div b");
+    if (bl) bl.textContent = name + " \u00b7 " + (nxt? nxt.time : data.times[0].time);
+    if (lbl) lbl.textContent = (h? h + " soat " : "") + m + " daqiqa qoldi";
+    function mark(node){
+      var mins = +node.dataset.m;
+      node.classList.toggle("passed", mins <= cur);
+      // hammasi o'tgan bo'lsa — keyingisi ertangi Bomdod
+      node.classList.toggle("next", nxt ? (mins === nxt.minutes) : mins === byKey.bomdod);
+    }
+    el.querySelectorAll(".pray-t").forEach(mark);
+    dots.forEach(mark);
+    layout(cur);
+  }
+  tick();
+  setInterval(tick, 30000);
+  addEventListener("resize", function(){ layout(nowMin()); });
+}
+addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); applyEye(); initCharts(); });
+
+/* ══ «ДДС данные» filtr menyulari ══ */
+/* Filtr panelini bitta tugma bilan ochib-yopish */
+function toggleFilt(btn){
+  var w = document.getElementById("fwrap");
+  if (!w) return;
+  var open = w.classList.toggle("open");
+  if (btn) btn.classList.toggle("opened", open);
+}
+
+/* «Katta ekran»: jadval butun ekranni oladi; Esc yoki tugma bilan chiqiladi */
+function xlFull(){
+  var on = document.body.classList.toggle("xlfull");
+  if (on && !document.querySelector(".xl-fs-exit")){
+    var b = document.createElement("button");
+    b.className = "xl-fs-exit";
+    b.type = "button";
+    b.textContent = "✕ Katta ekrandan chiqish (Esc)";
+    b.onclick = xlFull;
+    document.body.appendChild(b);
+  }
+}
+/* capture bosqichida: menyu yoki tahrir ochiq bo'lsa, Esc avval o'shani yopadi */
+document.addEventListener("keydown", function(e){
+  if (e.key !== "Escape") return;
+  if (!document.body.classList.contains("xlfull")) return;
+  if (document.querySelector(".xl-menu.open") ||
+      document.querySelector("tr.editing")) return;
+  xlFull();
+}, true);
+
+function xlClose(){
+  document.querySelectorAll(".xl-menu.open").forEach(function(x){
+    x.classList.remove("open");
+    // portal'dan o'z <th> iga qaytaramiz
+    if (x._home && x.parentNode !== x._home) x._home.appendChild(x);
+  });
+}
+function xlPlace(m, btn){
+  var b = btn.getBoundingClientRect();
+  m.style.left = "0px"; m.style.top = "0px";      // o'lchash uchun
+  var w = m.offsetWidth, h = m.offsetHeight, pad = 8;
+  var left = Math.min(Math.max(pad, b.left), innerWidth - w - pad);
+  var top = b.bottom + 4;
+  if (top + h > innerHeight - pad) top = Math.max(pad, b.top - h - 4);
+  m.style.left = left + "px"; m.style.top = top + "px";
+}
+function xlMenu(ev, key){
+  ev.stopPropagation();
+  var m = document.getElementById("fm-" + key);
+  if (!m) return;
+  var open = m.classList.contains("open");
+  xlClose();
+  if (open) return;
+  // ba'zi ota-elementlarda transform/filter bor — position:fixed ularga bog'lanib
+  // qolmasligi uchun menyuni vaqtincha <body> ga ko'chiramiz
+  if (!m._home) m._home = m.parentNode;
+  if (m.parentNode !== document.body) document.body.appendChild(m);
+  m.classList.add("open");
+  m._btn = ev.currentTarget;
+  xlPlace(m, ev.currentTarget);
+  var s = m.querySelector(".xl-menu-src input");
+  if (s) s.focus();
+}
+function xlAll(key, on){
+  document.querySelectorAll('#fm-' + key + ' .xl-menu-body label')
+    .forEach(function(l){
+      if (l.classList.contains("hid")) return;    // qidiruvdan yashiringanlarga tegmaydi
+      var c = l.querySelector("input[type=checkbox]");
+      if (c) c.checked = on;
+    });
+}
+/* menyu ichidagi qidiruv — Sheets'dagi «Поиск» kabi */
+function xlFind(inp, key){
+  var t = (inp.value || "").trim().toLowerCase();
+  document.querySelectorAll('#fm-' + key + ' .xl-menu-body label')
+    .forEach(function(l){
+      var v = (l.textContent || "").trim().toLowerCase();
+      l.classList.toggle("hid", t !== "" && v.indexOf(t) < 0);
+    });
+}
+document.addEventListener("click", function(e){
+  if (!e.target.closest(".xl-menu") && !e.target.closest(".xl-fbtn")) xlClose();
+});
+document.addEventListener("keydown", function(e){ if (e.key === "Escape") xlClose(); });
+addEventListener("resize", xlClose);
+/* jadval gorizontal siljiganda menyu tugma bilan birga yursin */
+addEventListener("scroll", function(){
+  var m = document.querySelector(".xl-menu.open");
+  if (m && m._btn) xlPlace(m, m._btn);
+}, true);
+
+function toggleSheet(open){
+  var w = document.getElementById("msheet");
+  if (!w) return;
+  var willOpen = open !== undefined ? open : !w.classList.contains("open");
+  w.classList.toggle("open", willOpen);
+}
+document.addEventListener("click", function(e){
+  var a = e.target.closest && e.target.closest(".msheet-grid a");
+  if (a) toggleSheet(false);
+});
+function toggleTheme(){
+  var el = document.documentElement;
+  var next = el.dataset.theme === "light" ? "dark" : "light";
+  el.dataset.theme = next;
+  localStorage.setItem("mf-theme", next);
+  syncThemeColor(next);
+  if (typeof initCharts === "function") setTimeout(initCharts, 60);
+}
+if ("serviceWorker" in navigator) {
+  addEventListener("load", function(){ navigator.serviceWorker.register("/sw.js"); });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% import "_charts.html" as viz %}
+{% block body %}
+
+{# ══ Umumiy balans — bosilganda hamyonlar katalogi ochiladi ══ #}
+<div class="wcat-dim" id="wcat-dim" onclick="toggleWcat(false)"></div>
+<div class="wwrap">
+<div class="hero-bal" id="hero-bal" onclick="toggleWcat()" role="button" tabindex="0"
+     onkeydown="if(event.key==='Enter')toggleWcat()">
+  <div class="hb-top">
+    <div>
+      <span class="hb-l">Umumiy balans</span>
+      <div class="hb-v" id="hb-v">{{ d.total_balance|grp }}<small>so'm</small></div>
+      <div class="hb-sub">{{ d.balances|length }} ta hisob</div>
+    </div>
+    <div class="hb-side">
+      <button class="hb-btn" onclick="toggleEye(event)" aria-label="Balansni yashirish">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <span class="hb-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+    </div>
+  </div>
+  <div class="mstat">
+    <div><span class="l">Bu oy kirdi</span>
+      <div class="v pos">{{ d.cashflow.income_total|grp }}</div></div>
+    <div><span class="l">Chiqdi</span>
+      <div class="v neg">{{ d.cashflow.expense_total|grp }}</div></div>
+    <div><span class="l">Natija</span>
+      <div class="v {{ 'pos' if d.cashflow.net >= 0 else 'neg' }}">{{ d.cashflow.net|grp }}</div></div>
+  </div>
+</div>
+
+{# ── Hamyonlar katalogi (yashirin, hero bosilganda ochiladi) ── #}
+<div class="wcat" id="wcat">
+ <div class="wcat-in">
+  <div class="wallet-deck">
+    <div class="wtrack">
+      {% for w in d.wcards.cards %}
+      <div class="wcard wg{{ w.grad }} cur-{{ w.cur }}" data-code="{{ w.code }}"
+           style="--wi:{{ loop.index0 }}">
+        <div class="wguil"></div>
+        {% if w.cur == 'usd' %}
+          <div class="woval"></div>
+          <div class="wmark">$</div>
+        {% elif w.cur == 'cash' %}
+          <div class="wcash"><i></i><i></i><i></i><b></b></div>
+        {% endif %}
+        <div class="wtop">
+          <div class="wname">{{ w.name }}</div>
+          <div class="wcur">{{ 'USD' if w.cur == 'usd'
+                              else ('NAQD' if w.cur == 'cash' else "SO'M") }}</div>
+        </div>
+        <div class="wchip"></div>
+        <svg class="wwave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8.5 8.5a5 5 0 0 1 0 7"/><path d="M11.5 5.5a9 9 0 0 1 0 13"/><path d="M14.5 2.5a13 13 0 0 1 0 19"/>
+        </svg>
+        <div class="wbal {{ 'neg' if w.balance < 0 }}">{{ w.balance|grp }}<small>{{ '$' if w.cur == 'usd' else "so'm" }}</small></div>
+        <div class="wnum">◆ MFAKTOR · •••• {{ '%04d'|format(loop.index * 1379 % 10000) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="wdots">
+    {% for w in d.wcards.cards %}<i class="{{ 'on' if loop.first }}"></i>{% endfor %}
+  </div>
+  <script type="application/json" id="wcards-data">{{ d.wcards.cards|tojson }}</script>
+
+  <div class="card whist" style="margin-bottom:14px">
+    <div class="whist-head">
+      <h2 style="margin:0" id="whist-title">{{ d.wcards.cards[0].name if d.wcards.cards }}</h2>
+      <a class="chip" href="/transactions">Hammasi →</a>
+    </div>
+    <div id="whist-list"></div>
+  </div>
+ </div>
+</div>
+</div>{# /wwrap #}
+
+{# ── Tez amallar ── #}
+<div class="qacts">
+  <a class="qact" href="/transactions">
+    <i class="app-ic ai1"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M119.39,172.94a8,8,0,0,1-1.73,8.72l-32,32a8,8,0,0,1-11.32,0l-32-32A8,8,0,0,1,48,168H72V48a8,8,0,0,1,16,0V168h24A8,8,0,0,1,119.39,172.94Zm94.27-98.6-32-32a8,8,0,0,0-11.32,0l-32,32A8,8,0,0,0,144,88h24V208a8,8,0,0,0,16,0V88h24a8,8,0,0,0,5.66-13.66Z"/></svg></i>
+    Kirim / Chiqim
+  </a>
+  <a class="qact" href="/contracts">
+    <i class="app-ic ai0"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M128.09,57.38a36,36,0,0,1,55.17-27.82,4,4,0,0,1-.56,7A52.06,52.06,0,0,0,152,84c0,1.17,0,2.34.12,3.49a4,4,0,0,1-6,3.76A36,36,0,0,1,128.09,57.38ZM240,160.61a24.47,24.47,0,0,1-13.6,22l-.44.2-38.83,16.54a6.94,6.94,0,0,1-1.19.4l-64,16A7.93,7.93,0,0,1,120,216H16A16,16,0,0,1,0,200V160a16,16,0,0,1,16-16H44.69l22.62-22.63A31.82,31.82,0,0,1,89.94,112H140a28,28,0,0,1,27.25,34.45l41.84-9.62A24.61,24.61,0,0,1,240,160.61Zm-16,0a8.61,8.61,0,0,0-10.87-8.3l-.31.08-67,15.41a8.32,8.32,0,0,1-1.79.2H112a8,8,0,0,1,0-16h28a12,12,0,0,0,0-24H89.94a15.86,15.86,0,0,0-11.31,4.69L56,155.31V200h63l62.43-15.61,38-16.18A8.56,8.56,0,0,0,224,160.61ZM168,84a36,36,0,1,0,36-36A36,36,0,0,0,168,84Z"/></svg></i>
+    To'lov qabul
+  </a>
+  <a class="qact" href="/automation">
+    <i class="app-ic ai3"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M213.85,125.46l-112,120a8,8,0,0,1-13.69-7l14.66-73.33L45.19,143.49a8,8,0,0,1-3-13l112-120a8,8,0,0,1,13.69,7L153.18,90.9l57.63,21.61a8,8,0,0,1,3,12.95Z"/></svg></i>
+    Kunni yopish
+  </a>
+  <a class="qact" href="/debtors">
+    <i class="app-ic ai2"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M61.66,37.66l-32,32A8,8,0,0,1,18.34,58.34l32-32A8,8,0,0,1,61.66,37.66Zm176,20.68-32-32a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32-11.32ZM224,136a96,96,0,1,1-96-96A96.11,96.11,0,0,1,224,136Zm-32,0a8,8,0,0,0-8-8H136V80a8,8,0,0,0-16,0v56a8,8,0,0,0,8,8h56A8,8,0,0,0,192,136Z"/></svg></i>
+    Qarzdorlar
+  </a>
+</div>
+
+<div class="alert-row">
+  {% if d.overdue_total %}
+  <a class="alert-chip warn" href="/debtors">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+    Kechikkan: {{ d.overdue_total|grp }} · {{ d.overdue|length }} kishi
+  </a>
+  {% endif %}
+  <a class="alert-chip" href="/debtors">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>
+    Shu hafta kutilmoqda: {{ d.upcoming_total|grp }}
+  </a>
+</div>
+
+{# ── Namoz vaqtlari — jonli osmon manzarasi ── #}
+<div class="pray ph-day">
+  <div class="sky-canvas">
+    <div class="sky-bg"></div>
+    <div class="sky-stars" aria-hidden="true">
+      <i style="left:9%;top:24%"></i><i style="left:16%;top:58%;animation-delay:.7s"></i>
+      <i style="left:26%;top:18%;animation-delay:1.4s"></i><i style="left:34%;top:44%;animation-delay:.3s"></i>
+      <i style="left:45%;top:12%;animation-delay:2.1s"></i><i style="left:54%;top:34%;animation-delay:1s"></i>
+      <i style="left:63%;top:20%;animation-delay:2.6s"></i><i style="left:71%;top:52%;animation-delay:.5s"></i>
+      <i style="left:79%;top:15%;animation-delay:1.8s"></i><i style="left:87%;top:38%;animation-delay:2.3s"></i>
+      <i style="left:93%;top:60%;animation-delay:1.2s"></i><i style="left:40%;top:66%;animation-delay:2.9s"></i>
+    </div>
+    <svg class="sky-arc" viewBox="0 0 360 118" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="skyg" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#f5c15c"/>
+          <stop offset="1" stop-color="#3ee59a"/>
+        </linearGradient>
+      </defs>
+      <path class="arc-base" d="M16,102 Q180,-34 344,102" pathLength="100"/>
+      <path class="arc-prog" d="M16,102"/>
+    </svg>
+    <div class="sky-clouds" aria-hidden="true"><i class="c1"></i><i class="c2"></i></div>
+    <span class="sky-shoot" aria-hidden="true"></span>
+    <span class="sky-orb sun" aria-hidden="true"></span>
+    <div class="sky-caravan" aria-hidden="true"><div class="cimg"></div></div>
+    <div class="sky-city" aria-hidden="true">
+      <div class="cfade">
+        <div class="mwall"></div>
+        <div class="mimg"></div>
+      </div>
+      <div class="city-win">
+        <i style="left:calc(50% - 32px);bottom:26%"></i>
+        <i style="left:calc(50% - 16px);bottom:26%"></i>
+        <i style="left:calc(50% - 1px);bottom:30%;height:7px"></i>
+        <i style="left:calc(50% + 14px);bottom:26%"></i>
+        <i style="left:calc(50% + 30px);bottom:26%"></i>
+        <i style="left:calc(50% - 60px);bottom:56%"></i>
+        <i style="left:calc(50% + 58px);bottom:56%"></i>
+      </div>
+    </div>
+    <div class="pray-next">
+      <div><em>Keyingi namoz</em>
+        <b>{{ pray.next.name }} · {{ pray.next.time }}</b>
+        <span>{{ (pray.left_h ~ ' soat ') if pray.left_h else '' }}{{ pray.left_m }} daqiqa qoldi</span></div>
+    </div>
+  </div>
+  <div class="pray-times">
+    {% for t in pray.times if t.key != 'quyosh' %}
+    <div class="pray-t {{ 'next' if t.is_next }}" data-m="{{ t.minutes }}" data-k="{{ t.key }}">
+      <span>{{ t.name }}</span><b>{{ t.time }}</b>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<script type="application/json" id="pray-data">{{ {'times': pray.times, 'tz': pray.tz}|tojson }}</script>
+
+{# ── Bo'limlar katalogi ── #}
+<div class="sec-l">Bo'limlar</div>
+<div class="apps">
+    <a class="app-t" href="/transactions">
+      <span class="app-ic ai0"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm-36,80a12,12,0,1,1,12-12A12,12,0,0,1,180,144Z"/></svg></span>
+      Kassa
+    </a>
+    <a class="app-t" href="/contracts">
+      <span class="app-ic ai1"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M200,32H163.74a47.92,47.92,0,0,0-71.48,0H56A16,16,0,0,0,40,48V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm-72,0a32,32,0,0,1,32,32H96A32,32,0,0,1,128,32Zm32,128H96a8,8,0,0,1,0-16h64a8,8,0,0,1,0,16Zm0-32H96a8,8,0,0,1,0-16h64a8,8,0,0,1,0,16Z"/></svg></span>
+      Shartnomalar
+    </a>
+    <a class="app-t" href="/debtors">
+      <span class="app-ic ai2"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M61.66,37.66l-32,32A8,8,0,0,1,18.34,58.34l32-32A8,8,0,0,1,61.66,37.66Zm176,20.68-32-32a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32-11.32ZM224,136a96,96,0,1,1-96-96A96.11,96.11,0,0,1,224,136Zm-32,0a8,8,0,0,0-8-8H136V80a8,8,0,0,0-16,0v56a8,8,0,0,0,8,8h56A8,8,0,0,0,192,136Z"/></svg></span>
+      Qarzdorlar
+    </a>
+    <a class="app-t" href="/cohorts">
+      <span class="app-ic ai3"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M176,207.24a119,119,0,0,0,16-7.73V240a8,8,0,0,1-16,0Zm11.76-88.43-56-29.87a8,8,0,0,0-7.52,14.12L171,128l17-9.06Zm64-29.87-120-64a8,8,0,0,0-7.52,0l-120,64a8,8,0,0,0,0,14.12L32,117.87v48.42a15.91,15.91,0,0,0,4.06,10.65C49.16,191.53,78.51,216,128,216a130,130,0,0,0,48-8.76V130.67L171,128l-43,22.93L43.83,106l0,0L25,96,128,41.07,231,96l-18.78,10-.06,0L188,118.94a8,8,0,0,1,4,6.93v73.64a115.63,115.63,0,0,0,27.94-22.57A15.91,15.91,0,0,0,224,166.29V117.87l27.76-14.81a8,8,0,0,0,0-14.12Z"/></svg></span>
+      Kurslar
+    </a>
+    <a class="app-t" href="/ddsdata">
+      <span class="app-ic ai8"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M224,48H32a8,8,0,0,0-8,8V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48ZM40,112H80v32H40Zm56,0H216v32H96ZM216,64V96H40V64ZM40,160H80v40H40Zm176,40H96V160H216v40Z"/></svg></span>
+      ДДС данные
+    </a>
+    <a class="app-t" href="/dds">
+      <span class="app-ic ai4"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1,0-16h8V136a8,8,0,0,1,8-8H72a8,8,0,0,1,8,8v64H96V88a8,8,0,0,1,8-8h32a8,8,0,0,1,8,8V200h16V40a8,8,0,0,1,8-8h40a8,8,0,0,1,8,8V200h8A8,8,0,0,1,232,208Z"/></svg></span>
+      ДДС
+    </a>
+    <a class="app-t" href="/reports">
+      <span class="app-ic ai5"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM200,192H56a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v76.69l34.34-34.35a8,8,0,0,1,11.32,0L128,132.69,172.69,88H144a8,8,0,0,1,0-16h48a8,8,0,0,1,8,8v48a8,8,0,0,1-16,0V99.31l-50.34,50.35a8,8,0,0,1-11.32,0L104,131.31l-40,40V176H200a8,8,0,0,1,0,16Z"/></svg></span>
+      Tahlillar
+    </a>
+    <a class="app-t" href="/kpi">
+      <span class="app-ic ai0"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M224,200h-8V40a8,8,0,0,0-8-8H152a8,8,0,0,0-8,8V80H96a8,8,0,0,0-8,8v40H48a8,8,0,0,0-8,8v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM160,48h40V200H160ZM104,96h40V200H104ZM56,144H88v56H56Z"/></svg></span>
+      KPI
+    </a>
+    <a class="app-t" href="/automation">
+      <span class="app-ic ai6"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M248,152a8,8,0,0,1-8,8H224v16a8,8,0,0,1-16,0V160H192a8,8,0,0,1,0-16h16V128a8,8,0,0,1,16,0v16h16A8,8,0,0,1,248,152ZM56,72H72V88a8,8,0,0,0,16,0V72h16a8,8,0,0,0,0-16H88V40a8,8,0,0,0-16,0V56H56a8,8,0,0,0,0,16ZM184,192h-8v-8a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16h8v8a8,8,0,0,0,16,0v-8h8a8,8,0,0,0,0-16ZM219.31,80,80,219.31a16,16,0,0,1-22.62,0L36.68,198.63a16,16,0,0,1,0-22.63L176,36.69a16,16,0,0,1,22.63,0l20.68,20.68A16,16,0,0,1,219.31,80ZM208,68.69,187.31,48l-32,32L176,100.69Z"/></svg></span>
+      Avtomatika
+    </a>
+    <a class="app-t" href="/planner">
+      <span class="app-ic ai7"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M101.85,191.14C97.34,201,82.29,224,40,224a8,8,0,0,1-8-8c0-42.29,23-57.34,32.86-61.85a8,8,0,0,1,6.64,14.56c-6.43,2.93-20.62,12.36-23.12,38.91,26.55-2.5,36-16.69,38.91-23.12a8,8,0,1,1,14.56,6.64Zm122-144a16,16,0,0,0-15-15c-12.58-.75-44.73.4-71.4,27.07h0L88,108.7A8,8,0,0,1,76.67,97.39l26.56-26.57A4,4,0,0,0,100.41,64H74.35A15.9,15.9,0,0,0,63,68.68L28.7,103a16,16,0,0,0,9.07,27.16l38.47,5.37,44.21,44.21,5.37,38.49a15.94,15.94,0,0,0,10.78,12.92,16.11,16.11,0,0,0,5.1.83A15.91,15.91,0,0,0,153,227.3L187.32,193A16,16,0,0,0,192,181.65V155.59a4,4,0,0,0-6.83-2.82l-26.57,26.56a8,8,0,0,1-11.71-.42,8.2,8.2,0,0,1,.6-11.1l49.27-49.27h0C223.45,91.86,224.6,59.71,223.85,47.12Z"/></svg></span>
+      Launch-hisob
+    </a>
+    <a class="app-t" href="/settings">
+      <span class="app-ic ai8"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M237.94,107.21a8,8,0,0,0-3.89-5.4l-29.83-17-.12-33.62a8,8,0,0,0-2.83-6.08,111.91,111.91,0,0,0-36.72-20.67,8,8,0,0,0-6.46.59L128,41.85,97.88,25a8,8,0,0,0-6.47-.6A111.92,111.92,0,0,0,54.73,45.15a8,8,0,0,0-2.83,6.07l-.15,33.65-29.83,17a8,8,0,0,0-3.89,5.4,106.47,106.47,0,0,0,0,41.56,8,8,0,0,0,3.89,5.4l29.83,17,.12,33.63a8,8,0,0,0,2.83,6.08,111.91,111.91,0,0,0,36.72,20.67,8,8,0,0,0,6.46-.59L128,214.15,158.12,231a7.91,7.91,0,0,0,3.9,1,8.09,8.09,0,0,0,2.57-.42,112.1,112.1,0,0,0,36.68-20.73,8,8,0,0,0,2.83-6.07l.15-33.65,29.83-17a8,8,0,0,0,3.89-5.4A106.47,106.47,0,0,0,237.94,107.21ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z"/></svg></span>
+      Sozlamalar
+    </a>
+</div>
+
+{# ── Grafiklar (ECharts) ── #}
+<script type="application/json" id="ech-data">{{ d.ech|tojson }}</script>
+<div class="grid g2" style="margin-top:14px">
+  <div class="card">
+    <h2>Tushum va xarajat dinamikasi</h2>
+    <div class="ech" id="ech-main"></div>
+  </div>
+  <div class="card m-hide">
+    <h2>Pul yil davomida qanday harakatlandi</h2>
+    <div class="ech" id="ech-wf"></div>
+    <p class="sub" style="margin:6px 0 0;font-size:12px">Yil boshidagi qoldiqdan bugungi holatgacha</p>
+  </div>
+</div>
+
+{% if d.overdue %}
+<div class="card m-hide" style="margin-top:14px">
+  <h2>Kim to'lovni kechiktiryapti</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>O'quvchi</th><th class="r">Qancha</th><th class="r">Necha kun</th></tr>
+    {% for r in d.overdue[:8] %}
+    <tr>
+      <td><a href="/contracts/{{ r.contract.id }}">{{ r.contract.student.name }}</a></td>
+      <td class="r neg">{{ r.rest|grp }}</td>
+      <td style="text-align:right"><span class="badge b-red">{{ r.days }} kun</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p class="sub" style="margin:10px 0 0;font-size:12.5px">Eslatma yuborish uchun: <a href="/automation">Avtomatika → Kunni yopish</a></p>
+</div>
+{% endif %}
+
+<div class="card m-hide" style="margin-top:14px">
+  <h2>Pul qayerga ketyapti — {{ d.today.year }}</h2>
+  {{ viz.rank_bars(d.rank) }}
+  <p class="sub" style="margin:14px 0 0;font-size:12px">Yil boshidan barcha xarajatlar, ulushi bo'yicha tartiblangan · <a href="/dds">to'liq ДДС →</a></p>
+</div>
+{% endblock %}

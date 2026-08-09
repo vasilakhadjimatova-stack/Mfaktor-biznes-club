@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block body %}
+{% set nfilt = ([sel.q, sel.d1, sel.d2, sel.s1, sel.s2] | select | list | length)
+   + (sel.m + sel.y + sel.w + sel.w2 + sel.a + sel.f + sel.v) | length %}
+<div class="xl-top">
+  <h1 style="margin:0">ДДС данные</h1>
+  <span class="xl-badge">Excel varag'ining 1:1 nusxasi</span>
+  <button type="button" class="filt-toggle {{ 'on opened' if nfilt }}"
+          onclick="toggleFilt(this)" style="margin-left:auto">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+    Filtr{% if nfilt %}<span class="n">{{ nfilt }}</span>{% endif %}
+    <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+  </button>
+  <button type="button" class="xl-fs" style="margin-left:0" onclick="xlFull()"
+          title="Jadval butun ekranni oladi (Esc — chiqish)">⛶ Katta ekran</button>
+</div>
+<p class="sub">Ustun sarlavhasidagi <b>▼</b> belgisini bosib filtrlang — Google Sheets'dagi kabi. «Мсц», «Год», «Платеж/поступл» va «Вид д-ти» ustunlari formulalar bilan avtomatik to'ladi.</p>
+
+{# ── Yuqori panel: qidiruv, sana/summa — «Filtr» tugmasi bilan ochiladi ── #}
+<div class="fwrap {{ 'open' if nfilt }}" id="fwrap">
+ <div class="fwrap-in">
+<form method="get" action="/ddsdata" id="xlf" class="card filt" style="padding:12px 14px">
+  {% for k in ['m','y','w','w2','a','f','v'] %}
+    {% for v in sel[k] %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  {% endfor %}
+  <input type="hidden" name="sort" value="{{ sel.sort }}">
+  <div class="filt-grid">
+    <div class="wide"><label>Поиск (назначение, статья)</label>
+      <input name="q" value="{{ sel.q }}" placeholder="Masalan: prixod klient"></div>
+    <div><label>Дата с</label><input type="date" name="d1" value="{{ sel.d1 }}"></div>
+    <div><label>Дата по</label><input type="date" name="d2" value="{{ sel.d2 }}"></div>
+    <div><label>Сумма от</label><input name="s1" value="{{ sel.s1 }}" placeholder="0"></div>
+    <div><label>Сумма до</label><input name="s2" value="{{ sel.s2 }}" placeholder="∞"></div>
+    <div class="acts">
+      <button type="submit">Фильтр</button>
+      <a class="btn ghost" href="/ddsdata">Сброс</a>
+      <a class="btn ghost" href="/ddsdata/export">⇩ CSV</a>
+    </div>
+  </div>
+</form>
+ </div>
+</div>
+
+{# ── Holat qatori ── #}
+<div class="xl-status">
+  <span><b>{{ total|grp }}</b> из {{ all_total|grp }} строк</span>
+  <span class="xl-sep"></span>
+  <span>Поступление: <b class="pos">{{ inc|grp }}</b></span>
+  <span>Выбытие: <b class="neg">{{ exp|grp }}</b></span>
+  <span>Итого: <b class="{{ 'pos' if (inc - exp) >= 0 else 'neg' }}">{{ (inc - exp)|grp }}</b></span>
+</div>
+
+{# ── Jadval — Excel ko'rinishida ── #}
+<div class="xl-wrap">
+  <table class="xl">
+    <thead>
+      <tr class="xl-head">
+        <th class="rn">№</th>
+        {# key = filtr ro'yxati bo'lgan ustunlar, srt = saralash kaliti #}
+        {% set cols = [
+          ('m','Мсц (цифрой)','A','m'), ('y','Год (цифрой)','B','y'),
+          (none,'Дата','C','date'), (none,'Сумма','D','sum'),
+          ('w','Кошелек','E','w'), ('w2','Кошелек','F','w2'),
+          (none,'Назначение платежа','G','purpose'), ('a','Статья','H','a'),
+          ('f','Платеж/поступл','I','f'), ('v','Вид д-ти','J','v')] %}
+        {% for key, label, letter, srt in cols %}
+        {% set mid = key or ('s' ~ letter) %}
+        <th class="c{{ letter }}">
+          <div class="xl-th">
+            <span>{{ label }}</span>
+            <button type="button" class="xl-fbtn {{ 'on' if key and sel[key] }}"
+                    onclick="xlMenu(event,'{{ mid }}')"
+                    title="Фильтр и сортировка">▼</button>
+          </div>
+          <div class="xl-menu" id="fm-{{ mid }}">
+            <div class="xl-menu-sort">
+              <a href="{{ qs(sort=srt) }}">Сортировать А → Я</a>
+              <a href="{{ qs(sort=srt ~ '_d') }}">Сортировать Я → А</a>
+            </div>
+            {% if key %}
+            <div class="xl-menu-ttl">Фильтр по значениям</div>
+            <div class="xl-menu-head">
+              <a href="#" onclick="xlAll('{{ key }}',true);return false">Выделить всё</a>
+              <a href="#" onclick="xlAll('{{ key }}',false);return false">Очистить</a>
+            </div>
+            <div class="xl-menu-src">
+              <input type="search" placeholder="Поиск" autocomplete="off"
+                     oninput="xlFind(this,'{{ key }}')">
+            </div>
+            <div class="xl-menu-body">
+              {% for v in uniq[key] %}
+              <label><input type="checkbox" name="{{ key }}" value="{{ v }}"
+                     form="xlf" {{ 'checked' if v in sel[key] }}>
+                <span>{{ v if v else '(пусто)' }}</span></label>
+              {% endfor %}
+            </div>
+            <div class="xl-menu-foot">
+              <a class="gh" href="{{ qs(**{key: none}) }}">Сбросить</a>
+              <button type="submit" form="xlf">Применить</button>
+            </div>
+            {% endif %}
+          </div>
+        </th>
+        {% endfor %}
+        <th style="width:34px"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="rn">{{ loop.index }}</td>
+        <td class="cA">{{ r.month }}</td>
+        <td class="cB">{{ r.year }}</td>
+        <td class="cC">{{ r.ddate.strftime('%d.%m.%Y') if r.ddate }}</td>
+        <td class="cD">{{ '{:,.2f}'.format(r.amount).replace(',', ' ').replace('.', ',') }}</td>
+        <td class="cE">{{ r.wallet }}</td>
+        <td class="cF">{{ r.wallet2 }}</td>
+        <td class="cG">{{ r.purpose }}</td>
+        <td class="cH">{{ r.article }}</td>
+        <td class="cI">{{ r.flow }}</td>
+        <td class="cJ">{{ r.activity }}</td>
+        <td class="cX">
+          <button type="button" class="xl-edit" title="Изменить"
+                  onclick='xlEdit(this, {{ {"id": r.id,
+                                      "ddate": r.ddate.isoformat() if r.ddate else "",
+                                      "amount": r.amount,
+                                      "wallet": r.wallet, "wallet2": r.wallet2,
+                                      "purpose": r.purpose,
+                                      "article": r.article}|tojson }})'>✎</button>
+          <form method="post" action="/ddsdata/{{ r.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Удалить строку? Кассовая запись и график тоже будут отменены.')">
+            <button class="xl-del" title="Удалить">✕</button></form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="12"><div class="empty">Нет строк по этому фильтру</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Yangi qator / tahrirlash ── #}
+<details class="adder" style="margin-top:14px" id="xladd">
+  <summary id="xladd-title">Добавить строку</summary>
+  <div class="body">
+  <form class="inline" method="post" action="/ddsdata/add" id="xladd-form">
+    <div><label>Дата</label><input type="date" name="ddate" value="{{ today.isoformat() }}" required></div>
+    <div><label>Сумма</label><input name="amount" required placeholder="0,00"></div>
+    <div><label>Кошелек</label>
+      <select name="wallet">{% for w in wallets %}<option>{{ w }}</option>{% endfor %}</select></div>
+    <div><label>Кошелек (2)</label>
+      <select name="wallet2"><option value=""></option>{% for w in wallets2 %}<option>{{ w }}</option>{% endfor %}</select></div>
+    <div style="flex:1;min-width:220px"><label>Назначение платежа</label><input name="purpose"></div>
+    <div><label>Статья</label>
+      <select name="article">{% for a in articles %}<option>{{ a }}</option>{% endfor %}</select></div>
+    <div><button id="xladd-btn">Сохранить</button></div>
+  </form>
+  <p class="hint" style="margin-top:10px">Строка сразу попадает в кассу: кошелёк, статья и вид деятельности
+    подставятся автоматически. Если это платёж клиента — система сама найдёт договор
+    или положит его в «To'lovlar navbati».</p>
+  </div>
+</details>
+
+<script type="application/json" id="xl-lists">{{ {"wallets": wallets,
+  "wallets2": wallets2, "articles": articles}|tojson }}</script>
+<script>
+/* ✎ yoki katakka ikki marta bosish — qator JOYIDA tahrirlanadi (Sheets kabi).
+   Enter yoki ✓ — saqlash, Esc yoki ✕ — bekor qilish. */
+function xlEdit(btn, d){
+  var old = document.querySelector("tr.editing");
+  if (old) xlCancel(old);                       // bittadan ortiq ochilmasin
+  var tr = btn.closest("tr");
+  tr.classList.add("editing");
+  tr.dataset.orig = tr.innerHTML;
+  var L = JSON.parse(document.getElementById("xl-lists").textContent);
+  function esc(s){ return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+  function sel(list, val, empty){
+    return '<select>' + (empty ? '<option value=""></option>' : '')
+      + list.map(function(o){
+          return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>';
+        }).join("") + '</select>';
+  }
+  tr.querySelector(".cC").innerHTML = '<input type="date" value="' + esc(d.ddate) + '">';
+  tr.querySelector(".cD").innerHTML = '<input inputmode="decimal" value="' + esc(d.amount) + '">';
+  tr.querySelector(".cE").innerHTML = sel(L.wallets, d.wallet);
+  tr.querySelector(".cF").innerHTML = sel(L.wallets2, d.wallet2, true);
+  tr.querySelector(".cG").innerHTML = '<input value="' + esc(d.purpose) + '">';
+  tr.querySelector(".cH").innerHTML = sel(L.articles, d.article);
+  tr.querySelector(".cX").innerHTML =
+    '<button type="button" class="xl-ok" title="Сохранить (Enter)" onclick="xlSave(this)">✓</button>'
+    + '<button type="button" class="xl-del" title="Отмена (Esc)" onclick="xlCancel(this)">✕</button>';
+  tr.dataset.id = d.id;
+  tr.addEventListener("keydown", function(e){
+    if (e.key === "Enter"){ e.preventDefault(); xlSave(tr); }
+    if (e.key === "Escape") xlCancel(tr);
+  });
+  var a = tr.querySelector(".cD input");
+  a.focus(); a.select();
+}
+function xlCancel(el){
+  var tr = el.tagName === "TR" ? el : el.closest("tr");
+  tr.innerHTML = tr.dataset.orig;
+  tr.classList.remove("editing");
+}
+function xlSave(el){
+  var tr = el.tagName === "TR" ? el : el.closest("tr");
+  var f = document.createElement("form");
+  f.method = "post"; f.action = "/ddsdata/" + tr.dataset.id + "/edit";
+  function add(n, v){
+    var i = document.createElement("input");
+    i.type = "hidden"; i.name = n; i.value = v; f.appendChild(i);
+  }
+  add("ddate",   tr.querySelector(".cC input").value);
+  add("amount",  tr.querySelector(".cD input").value);
+  add("wallet",  tr.querySelector(".cE select").value);
+  add("wallet2", tr.querySelector(".cF select").value);
+  add("purpose", tr.querySelector(".cG input").value);
+  add("article", tr.querySelector(".cH select").value);
+  document.body.appendChild(f);
+  f.submit();
+}
+/* Sheets odati: katakka ikki marta bosish ham tahrirni ochadi */
+document.addEventListener("dblclick", function(e){
+  var tr = e.target.closest("table.xl tbody tr");
+  if (!tr || tr.classList.contains("editing")) return;
+  var pen = tr.querySelector(".xl-edit");
+  if (pen) pen.click();
+});
+</script>
+{% endblock %}

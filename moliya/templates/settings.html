@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Sozlamalar</h1>
+<p class="sub">Hamyonlar va takrorlanuvchi to'lovlar</p>
+
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Excel'dan import (Mbm_2026.xlsx)</h2>
+  <p class="sub" style="margin-top:-4px">Google Sheets'dagi faylni
+    (Fayl → Yuklab olish → .xlsx) shu yerga yuklang. «ДДС данные» to'liq
+    almashtiriladi, hamyon qoldiqlari yangilanadi, kassa qayta quriladi va
+    to'lovlar shartnomalarga o'zi taqqoslanadi. Bir necha soniya davom etadi.</p>
+  <form class="inline" method="post" action="/settings/import"
+        enctype="multipart/form-data"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Yuklanmoqda…'">
+    <div style="flex:1;min-width:240px"><label>Excel fayl</label>
+      <input type="file" name="xlsx" accept=".xlsx,.xlsm" required></div>
+    <div><button>Import qilish</button></div>
+  </form>
+  <p class="hint warn" style="margin-top:10px">Diqqat: bu amal «ДДС данные»dagi
+    hozirgi qatorlarni fayl bilan to'liq almashtiradi. Saytda qo'lda kiritilgan
+    qatorlar bo'lsa, avval CSV eksport qilib oling.</p>
+</div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2 style="margin-top:0">Hamyonlar</h2>
+    <table>
+      <tr><th>Kod</th><th>Nomi</th><th class="r">Ochilish qoldig'i</th></tr>
+      {% for w in wallets %}
+      <tr><td>{{ w.code }}</td><td>{{ w.name }}</td><td class="r">{{ w.opening|grp }}</td></tr>
+      {% endfor %}
+    </table>
+    <form class="inline" method="post" action="/settings/wallet" style="margin-top:12px">
+      <div><label>Kod</label><input name="code" placeholder="payme" required></div>
+      <div><label>Nomi</label><input name="name" placeholder="Payme hisobi" required></div>
+      <div><label>Ochilish qoldig'i</label><input name="opening" type="number" step="any" value="0"></div>
+      <div><button class="ghost">Qo'shish</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Takrorlanuvchi to'lovlar</h2>
+    <table>
+      <tr><th>Nomi</th><th class="r">Summa</th><th class="r">Kun</th><th>Statya</th></tr>
+      {% for r in recurring %}
+      <tr><td>{{ r.name }}</td><td class="r">{{ r.amount|grp }}</td>
+          <td class="r">{{ r.pay_day }}</td><td>{{ r.category }}</td></tr>
+      {% else %}<tr><td colspan="4" class="sub">Yo'q</td></tr>{% endfor %}
+    </table>
+    <form class="inline" method="post" action="/settings/recurring" style="margin-top:12px">
+      <div><label>Nomi</label><input name="name" placeholder="Ofis ijarasi" required></div>
+      <div><label>Summa</label><input name="amount" type="number" step="any" required></div>
+      <div><label>Oyning kuni</label><input name="pay_day" type="number" min="1" max="31" value="1"></div>
+      <div><label>Statya</label>
+        <select name="category">{% for c in EXPENSE_CATS %}<option>{{ c }}</option>{% endfor %}</select></div>
+      <div><button class="ghost">Qo'shish</button></div>
+    </form>
+    <p class="sub" style="margin-top:10px">Bu ro'yxat BEP hisobida doimiy xarajat sifatida ishlatiladi.</p>
+  </div>
+</div>
+{% endblock %}
