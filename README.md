@@ -19,6 +19,7 @@ Mfaktor o'quv-ta'lim loyihasining barcha jarayonlariga — marketing, sotuv, o'q
 | [docs/02-dunyo-tajribasi.md](docs/02-dunyo-tajribasi.md) | Dunyodagi yetakchi ta'lim loyihalarining AI tajribalari (benchmark) |
 | [docs/03-ai-strategiya-roadmap.md](docs/03-ai-strategiya-roadmap.md) | AI integratsiya strategiyasi va bosqichma-bosqich yo'l xaritasi |
 | [docs/04-oquv-bolimi-ai-modul.md](docs/04-oquv-bolimi-ai-modul.md) | O'quv bo'limi ERP moduli: arxitektura, AI yechimlari va sprint rejasi |
+| [docs/05-bozor-oyinlari.md](docs/05-bozor-oyinlari.md) | O'zbekiston bozori tahlili va ayni damda qilinadigan konkret "o'yinlar" (90 kunlik reja) |
 
 ## Ish tartibi
 
