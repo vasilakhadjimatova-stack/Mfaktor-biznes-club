@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sertifikat tekshiruvi — {{ company_name }}</title>
+  <style>
+    body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:#0d0f14;
+         color:#e8e6e1;display:flex;align-items:center;justify-content:center;
+         min-height:100vh;padding:20px;box-sizing:border-box}
+    .card{max-width:460px;width:100%;background:#151821;border:1px solid #2a2e3a;
+          border-radius:16px;padding:36px 32px;text-align:center}
+    .gold{color:#d4af37}
+    .ok{color:#4ade80}
+    .bad{color:#f87171}
+    .serial{font-size:22px;font-weight:700;letter-spacing:1px;margin:10px 0}
+    .row{display:flex;justify-content:space-between;font-size:14px;
+         padding:8px 0;border-bottom:1px solid #2a2e3a}
+    .row span:first-child{color:#8b8fa3}
+  </style>
+</head>
+<body>
+  <div class="card">
+    {% if cert %}
+      <div style="font-size:42px">🎓</div>
+      <h2 class="ok">Sertifikat haqiqiy</h2>
+      <div class="serial gold">{{ cert.serial }}</div>
+      <div class="row"><span>Bitiruvchi</span><b>{{ e.student_name }}</b></div>
+      {% if course %}<div class="row"><span>Kurs</span><b>{{ course.name }}</b></div>{% endif %}
+      {% if g %}<div class="row"><span>Guruh</span><b>{{ g.name }}</b></div>{% endif %}
+      <div class="row"><span>Berilgan sana</span><b>{{ cert.issued_at.strftime('%d.%m.%Y') }}</b></div>
+      <p style="font-size:12px;color:#8b8fa3;margin-top:18px">
+        Ushbu sahifa {{ company_name }} rasmiy tizimi tomonidan taqdim etildi.</p>
+    {% else %}
+      <div style="font-size:42px">⚠️</div>
+      <h2 class="bad">Sertifikat topilmadi</h2>
+      <p style="color:#8b8fa3">Havola noto'g'ri yoki sertifikat bekor qilingan.
+        Iltimos, ma'lumotni qayta tekshiring.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -21,6 +21,23 @@ Mfaktor o'quv-ta'lim loyihasining barcha jarayonlariga — marketing, sotuv, o'q
 | [docs/04-oquv-bolimi-ai-modul.md](docs/04-oquv-bolimi-ai-modul.md) | O'quv bo'limi ERP moduli: arxitektura, AI yechimlari va sprint rejasi |
 | [docs/05-bozor-oyinlari.md](docs/05-bozor-oyinlari.md) | O'zbekiston bozori tahlili va ayni damda qilinadigan konkret "o'yinlar" (90 kunlik reja) |
 
+## Mfaktor ERP (erp/)
+
+Mfaktor biznes maktabining o'z ERP dasturi — `erp/` papkasida (Flask + SQLAlchemy).
+1-bosqich: **O'quv bo'limi** — kurslar, guruhlar, davomat, uy vazifalari,
+AI baholash, dropout risk-nazorat, QR-tekshiruvli sertifikatlar.
+
+```bash
+cd erp
+pip install -r requirements.txt
+python seed.py     # birinchi marta: admin + namunaviy kurslar
+python app.py      # → http://localhost:5070
+```
+
+Kirish kodlari (seed): `100001` — Direktor (admin), `200001` — O'quv bo'limi rahbari.
+AI baholash uchun `ANTHROPIC_API_KEY` muhit o'zgaruvchisi sozlanadi (ixtiyoriy —
+sozlanmasa modul to'liq qo'lda rejimda ishlaydi).
+
 ## Ish tartibi
 
 Har bir yo'nalish bo'yicha ish shu repozitoriyda alohida papka/hujjat sifatida yuritiladi, qarorlar va natijalar hujjatlashtiriladi.

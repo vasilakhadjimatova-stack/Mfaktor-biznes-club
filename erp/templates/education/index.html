@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}O'quv bo'limi{% endblock %}
+{% block page_title %}O'quv bo'limi{% endblock %}
+{% block page_crumb %}Kurslar · guruhlar · davomat · baholash · risk-nazorat{% endblock %}
+{% block content %}
+
+<div class="ph">
+  <div>
+    <div class="gold-bar"></div>
+    <div class="ph-title">O'quv bo'limi</div>
+    <div class="ph-sub">Guruhlar va o'quvchilar · AI baholash · dropout risk-nazorat</div>
+  </div>
+</div>
+
+<div class="grid g4 section">
+  <div class="kpi"><div class="kpi-top"><div>
+    <div class="kpi-label">Faol guruhlar</div>
+    <div class="kpi-val">{{ stats.active_cohorts }}</div>
+  </div><div class="kpi-ico gold"><i class="icon-graduation-cap"></i></div></div></div>
+  <div class="kpi"><div class="kpi-top"><div>
+    <div class="kpi-label">Faol o'quvchilar</div>
+    <div class="kpi-val" style="color:var(--green)">{{ stats.active_students }}</div>
+    {% if stats.completion_rate is not none %}
+    <div class="kpi-label" style="text-transform:none;margin-top:3px">Tugatish: {{ stats.completion_rate }}%</div>
+    {% endif %}
+  </div><div class="kpi-ico green"><i class="icon-users"></i></div></div></div>
+  <div class="kpi"><div class="kpi-top"><div>
+    <div class="kpi-label">Tekshirilmagan topshiriq</div>
+    <div class="kpi-val" style="color:{% if stats.pending_subs %}var(--red){% else %}var(--green){% endif %}">{{ stats.pending_subs }}</div>
+  </div><div class="kpi-ico blue"><i class="icon-clipboard-check"></i></div></div></div>
+  <div class="kpi"><div class="kpi-top"><div>
+    <div class="kpi-label">To'lov qarzdorligi</div>
+    <div class="kpi-val" style="font-size:19px;color:{% if stats.debtors %}var(--red){% else %}var(--green){% endif %}">{{ stats.debt_total|som }}</div>
+    {% if stats.debtors %}<div class="kpi-label" style="text-transform:none;color:var(--red);margin-top:3px">{{ stats.debtors }} o'quvchi</div>{% endif %}
+  </div><div class="kpi-ico" style="background:var(--red-bg);color:var(--red)"><i class="icon-wallet"></i></div></div></div>
+</div>
+
+{% if risk %}
+<div class="card section">
+  <div class="card-hd"><div class="card-title"><i class="icon-alert-triangle"></i> Diqqat: tashlab ketish xavfi</div></div>
+  <div class="card-bd">
+    <table class="tbl">
+      <thead><tr><th>O'quvchi</th><th>Guruh</th><th>Risk</th><th>Sabab</th><th>Telefon</th></tr></thead>
+      <tbody>
+        {% for e in risk %}
+        <tr>
+          <td><b>{{ e.student_name }}</b></td>
+          <td><a href="/education/cohort/{{ e.cohort_id }}">{{ e.cohort.name }}</a></td>
+          <td><b style="color:{% if e.risk_score >= 60 %}var(--red){% else %}var(--gold){% endif %}">{{ e.risk_score }}</b></td>
+          <td style="font-size:12px;color:var(--txt3)">{{ e.risk_reasons or '—' }}</td>
+          <td>{{ e.phone or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid g2">
+  <div class="card">
+    <div class="card-hd"><div class="card-title"><i class="icon-users"></i> Guruhlar</div></div>
+    <div class="card-bd">
+      <table class="tbl">
+        <thead><tr><th>Guruh</th><th>Kurs</th><th>Spiker</th><th>O'quvchi</th><th>Holat</th></tr></thead>
+        <tbody>
+          {% for g in cohorts %}
+          <tr>
+            <td><a href="/education/cohort/{{ g.id }}"><b>{{ g.name }}</b></a>
+              <div style="font-size:11px;color:var(--txt3)">{{ g.start_date|dmy }} · {{ g.schedule }}</div></td>
+            <td>{{ g.course.name if g.course else '—' }}</td>
+            <td>{{ g.teacher or '—' }}</td>
+            <td>{{ g.active_count }}/{{ g.capacity }}</td>
+            <td>{{ g.status_label }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5"><div class="empty"><i class="icon-graduation-cap"></i><p>Hali guruh yo'q — quyida yarating</p></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <details style="margin-top:12px">
+        <summary class="btn" style="cursor:pointer"><i class="icon-plus"></i> Yangi guruh</summary>
+        <form method="POST" action="/education/cohort/save" style="margin-top:12px">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <div class="grid g2">
+            <div class="field"><label>Guruh nomi *</label>
+              <input class="input" name="name" placeholder="Sotuv-13" required></div>
+            <div class="field"><label>Kurs *</label>
+              <select class="select" name="course_id" required>
+                {% for c in courses %}{% if c.is_active %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endif %}{% endfor %}
+              </select></div>
+            <div class="field"><label>Spiker/o'qituvchi</label>
+              <input class="input" name="teacher"></div>
+            <div class="field"><label>Jadval</label>
+              <input class="input" name="schedule" placeholder="Du/Chor/Ju 19:00"></div>
+            <div class="field"><label>Boshlanish</label>
+              <input class="input" type="date" name="start_date"></div>
+            <div class="field"><label>Tugash</label>
+              <input class="input" type="date" name="end_date"></div>
+            <div class="field"><label>Sig'im</label>
+              <input class="input" type="number" name="capacity" value="20"></div>
+            <div class="field"><label>Holat</label>
+              <select class="select" name="status">
+                {% for k, lbl in cohort_statuses.items() %}
+                <option value="{{ k }}">{{ lbl }}</option>
+                {% endfor %}
+              </select></div>
+          </div>
+          <button class="btn btn-gold" type="submit"><i class="icon-save"></i> Saqlash</button>
+        </form>
+      </details>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="card-title"><i class="icon-book-open"></i> Kurs katalogi</div></div>
+    <div class="card-bd">
+      <table class="tbl">
+        <thead><tr><th>Kurs</th><th>Davomiyligi</th><th>Narx</th><th>Holat</th></tr></thead>
+        <tbody>
+          {% for c in courses %}
+          <tr>
+            <td><b>{{ c.name }}</b></td>
+            <td>{{ c.duration_weeks }} hafta</td>
+            <td>{{ c.price|som }}</td>
+            <td>{% if c.is_active %}<span style="color:var(--green)">Faol</span>{% else %}<span style="color:var(--txt3)">Arxiv</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4"><div class="empty"><i class="icon-book-open"></i><p>Hali kurs yo'q — quyida yarating</p></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <details style="margin-top:12px">
+        <summary class="btn" style="cursor:pointer"><i class="icon-plus"></i> Yangi kurs</summary>
+        <form method="POST" action="/education/course/save" style="margin-top:12px">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <div class="field"><label>Kurs nomi *</label>
+            <input class="input" name="name" placeholder="Sotuv menejeri kursi" required></div>
+          <div class="grid g2">
+            <div class="field"><label>Davomiyligi (hafta)</label>
+              <input class="input" type="number" name="duration_weeks" value="8"></div>
+            <div class="field"><label>Narx (so'm)</label>
+              <input class="input" type="number" name="price" value="0"></div>
+          </div>
+          <div class="field"><label>Tavsif</label>
+            <textarea class="input" name="description" rows="2"></textarea></div>
+          <button class="btn btn-gold" type="submit"><i class="icon-save"></i> Saqlash</button>
+        </form>
+      </details>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
