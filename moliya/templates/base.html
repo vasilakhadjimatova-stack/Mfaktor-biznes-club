@@ -441,6 +441,11 @@ main > *:nth-child(6){animation-delay:.25s}
   cursor:grab;-webkit-overflow-scrolling:touch;
   padding:6px 34px 14px;scrollbar-width:none}
 @media(max-width:900px){.wtrack{padding:6px 14px 14px;gap:12px}}
+/* sensorli qurilmada bir yengil svayp — aynan keyingi karta (pager) */
+@media (pointer:coarse){
+  .wtrack{scroll-snap-type:x mandatory}
+  .wcard{scroll-snap-stop:always}
+}
 .wtrack::-webkit-scrollbar{display:none}
 /* sudrash paytida: kursor va snap'ni bo'shatamiz — erkin yuradi */
 .wtrack.dragging{cursor:grabbing;scroll-snap-type:none;scroll-behavior:auto}
@@ -1041,22 +1046,24 @@ body.xlfull .xl-fs-exit{display:block}
              visibility 0s .32s;
   will-change:transform,opacity}
 .wcat.open{opacity:1;transform:none;pointer-events:auto;visibility:visible;
-  transition:opacity .28s cubic-bezier(.25,.9,.3,1),
-             transform .32s cubic-bezier(.25,.9,.3,1)}
+  transition:opacity .26s cubic-bezier(.25,.9,.3,1),
+             transform .38s cubic-bezier(.3,1.16,.34,1)}
 .wcat > .wcat-in{max-height:min(72vh,680px);overflow-y:auto;overflow-x:hidden;
   padding:16px 16px 4px;overscroll-behavior:contain;contain:content}
 .wcat .wallet-deck{margin:0 -16px}
 .wcat .wtrack{padding:6px 16px 12px}
 /* orqa parda — dashboard biroz xiralashadi */
 .wcat-dim{position:fixed;inset:0;z-index:55;background:rgba(4,6,12,.45);
+  backdrop-filter:blur(5px) saturate(1.1);
+  -webkit-backdrop-filter:blur(5px) saturate(1.1);
   opacity:0;pointer-events:none;transition:opacity .3s;
   -webkit-tap-highlight-color:transparent}
 .wcat-dim.open{opacity:1;pointer-events:auto}
 /* kartalar birin-ketin suzib chiqadi (kompozitor animatsiyasi) */
 .wcat .wcard{opacity:0;transform:translateY(18px) scale(.95)}
 .wcat.open .wcard{opacity:1;transform:none;
-  transition:opacity .45s cubic-bezier(.22,.9,.3,1),
-             transform .45s cubic-bezier(.22,.9,.3,1),
+  transition:opacity .4s cubic-bezier(.22,.9,.3,1),
+             transform .5s cubic-bezier(.3,1.22,.36,1),
              box-shadow .25s;
   transition-delay:calc(.05s + var(--wi, 0) * .07s)}
 .wcat:not(.open) .wcard{transition:opacity .15s, transform .15s}
