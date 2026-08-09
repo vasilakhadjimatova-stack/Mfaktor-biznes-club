@@ -197,6 +197,9 @@ class Contract(db.Model):
     status      = db.Column(db.String(20), default="active")
     refund_amount = db.Column(db.Float, default=0.0)         # 1 haftalik kafolat bo'yicha
     note        = db.Column(db.Text, default="")
+    # O'quv bo'limi: dropout risk (education.py hisoblaydi)
+    risk_score   = db.Column(db.Integer, default=0)          # 0–100
+    risk_reasons = db.Column(db.String(300), default="")
     student = db.relationship("Student", backref="contracts")
     cohort  = db.relationship("Cohort")
     lines   = db.relationship("InstallmentLine", backref="contract",
@@ -427,3 +430,115 @@ class DdsRow(db.Model):
     @property
     def activity(self):                    # J: VLOOKUP(Статья → Вид д-ти)
         return dds_activity(self.article)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  O'QUV BO'LIMI (LMS) — davomat, vazifalar, AI baholash, sertifikat
+#  «O'quvchi oqimda» birligi = Contract (shartnoma) — moliya bilan
+#  bitta zanjir: davomat/vazifa signallari + to'lov kechikishi →
+#  dropout risk-skoring (education.py).
+# ══════════════════════════════════════════════════════════════════
+
+ATT_STATUSES = {
+    "present": "Keldi",
+    "late":    "Kechikdi",
+    "absent":  "Kelmadi",
+    "excused": "Sababli",
+}
+
+
+class LessonSession(db.Model):
+    """Dars mashg'uloti — oqimning bitta darsi."""
+    __tablename__ = "lesson_sessions"
+    id        = db.Column(db.Integer, primary_key=True)
+    cohort_id = db.Column(db.Integer, db.ForeignKey("cohorts.id"),
+                          nullable=False, index=True)
+    date      = db.Column(db.Date, nullable=False)
+    topic     = db.Column(db.String(200), default="")
+    held      = db.Column(db.Boolean, default=False)   # davomat olindimi
+    cohort    = db.relationship("Cohort", backref="sessions")
+
+
+class LessonAttendance(db.Model):
+    """Bitta dars bo'yicha bitta o'quvchi (shartnoma) davomati."""
+    __tablename__ = "lesson_attendance"
+    __table_args__ = (
+        db.UniqueConstraint("session_id", "contract_id",
+                            name="uq_att_session_contract"),
+    )
+    id          = db.Column(db.Integer, primary_key=True)
+    session_id  = db.Column(db.Integer, db.ForeignKey("lesson_sessions.id"),
+                            nullable=False, index=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            nullable=False, index=True)
+    status      = db.Column(db.String(12), nullable=False, default="present")
+    session     = db.relationship("LessonSession", backref="attendance")
+    contract    = db.relationship("Contract")
+
+
+class Assignment(db.Model):
+    """Uy vazifasi — oqimga beriladi."""
+    __tablename__ = "assignments"
+    id          = db.Column(db.Integer, primary_key=True)
+    cohort_id   = db.Column(db.Integer, db.ForeignKey("cohorts.id"),
+                            nullable=False, index=True)
+    title       = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default="")   # AI baholashda rubrika
+    due_date    = db.Column(db.Date)
+    max_score   = db.Column(db.Integer, default=100)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    cohort      = db.relationship("Cohort", backref="assignments")
+
+
+class Submission(db.Model):
+    """Topshiriq — AI birinchi bahoni taklif qiladi, kurator tasdiqlaydi."""
+    __tablename__ = "submissions"
+    __table_args__ = (
+        db.UniqueConstraint("assignment_id", "contract_id",
+                            name="uq_sub_assignment_contract"),
+    )
+    id            = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey("assignments.id"),
+                              nullable=False, index=True)
+    contract_id   = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                              nullable=False, index=True)
+    content       = db.Column(db.Text, default="")
+    submitted_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    status        = db.Column(db.String(12), default="pending")  # pending/graded
+    score         = db.Column(db.Integer)          # yakuniy ball
+    feedback      = db.Column(db.Text, default="")
+    ai_score      = db.Column(db.Integer)          # AI taklifi
+    ai_feedback   = db.Column(db.Text, default="")
+    graded_at     = db.Column(db.DateTime)
+    assignment    = db.relationship("Assignment", backref="submissions")
+    contract      = db.relationship("Contract")
+
+
+class EduCertificate(db.Model):
+    """Sertifikat — /cert/<token> orqali login'siz tekshiriladi (QR)."""
+    __tablename__ = "edu_certificates"
+    id          = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            unique=True, nullable=False, index=True)
+    token       = db.Column(db.String(48), unique=True, index=True,
+                            nullable=False)
+    serial      = db.Column(db.String(40), unique=True, nullable=False)
+    issued_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    contract    = db.relationship("Contract",
+                                  backref=db.backref("certificate",
+                                                     uselist=False))
+
+    @staticmethod
+    def issue(contract):
+        """Shartnoma uchun sertifikat (bor bo'lsa o'shani qaytaradi)."""
+        import secrets as _secrets
+        cert = EduCertificate.query.filter_by(contract_id=contract.id).first()
+        if cert:
+            return cert
+        n = (EduCertificate.query.count() or 0) + 1
+        cert = EduCertificate(
+            contract_id=contract.id,
+            token=_secrets.token_urlsafe(24),
+            serial=f"MF-{datetime.utcnow().year}-{n:05d}")
+        db.session.add(cert)
+        return cert

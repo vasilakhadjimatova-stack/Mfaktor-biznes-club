@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ a.title }}</h1>
+<p class="sub"><a href="/oquv/cohort/{{ a.cohort_id }}">← {{ a.cohort.course.name }} · {{ a.cohort.name }}</a> ·
+  muddat: {{ a.due_date|dmy if a.due_date else 'belgilanmagan' }} · maks {{ a.max_score }} ball</p>
+
+{% if a.description %}
+<div class="card"><div style="white-space:pre-wrap">{{ a.description }}</div></div>
+{% endif %}
+
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">Topshiriqlar ({{ subs|length }})</h2>
+  {% for s in subs %}
+  <details style="margin-bottom:10px" {% if s.status == 'pending' %}open{% endif %}>
+    <summary style="cursor:pointer;padding:6px 0">
+      <b>{{ s.contract.student.name }}</b>
+      {% if s.status == 'graded' %}
+        — <b class="pos">{{ s.score }}/{{ a.max_score }}</b>
+      {% else %}
+        — <span class="gold">tekshirilmagan</span>
+        {% if s.ai_score is not none %}<span style="font-size:12px;color:var(--mut)">· AI taklifi: {{ s.ai_score }}</span>{% endif %}
+      {% endif %}
+    </summary>
+    <div style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;white-space:pre-wrap;font-size:13px">{{ s.content or '(matn kiritilmagan)' }}</div>
+
+    {% if s.ai_feedback %}
+    <div style="margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:13px">
+      <b>🤖 AI tahlili{% if s.ai_score is not none %} — {{ s.ai_score }}/{{ a.max_score }} ball taklif{% endif %}:</b>
+      <div style="white-space:pre-wrap;margin-top:4px">{{ s.ai_feedback }}</div>
+    </div>
+    {% endif %}
+
+    {% if s.status == 'pending' %}
+    <form class="inline" method="post" action="/oquv/submission/{{ s.id }}/grade">
+      <div><label>Ball (0–{{ a.max_score }})</label>
+        <input type="number" name="score" min="0" max="{{ a.max_score }}"
+               value="{{ s.ai_score if s.ai_score is not none else '' }}"></div>
+      <div><label>Izoh (bo'sh qolsa AI izohi olinadi)</label>
+        <input name="feedback" style="min-width:240px"></div>
+      {% if s.ai_score is not none %}
+      <div><button name="use_ai" value="1">✓ AI bahosini tasdiqlash ({{ s.ai_score }})</button></div>
+      {% endif %}
+      <div><button>Qo'lda baholash</button></div>
+    </form>
+    {% elif s.feedback %}
+    <div style="font-size:13px;color:var(--mut)"><b>Izoh:</b> {{ s.feedback }}</div>
+    {% endif %}
+  </details>
+  {% else %}
+  <p class="sub">Hali topshiriq yo'q</p>
+  {% endfor %}
+</div>
+
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">Topshiriq qayd etish
+    {% if not_submitted %}<span style="font-size:12px;color:var(--mut)">· topshirmagan: {{ not_submitted|length }}</span>{% endif %}</h2>
+  {% if not_submitted %}
+  <form method="post" action="/oquv/assignment/{{ a.id }}/submit">
+    <div style="margin-bottom:8px"><label>O'quvchi</label><br>
+      <select name="contract_id">
+        {% for c in not_submitted %}
+        <option value="{{ c.id }}">{{ c.student.name }}</option>
+        {% endfor %}
+      </select></div>
+    <div style="margin-bottom:8px"><label>Javob matni (skript/insho) — saqlangach AI birinchi bahosini beradi</label>
+      <textarea name="content" rows="5" style="width:100%" required></textarea></div>
+    <button>Qabul qilish</button>
+  </form>
+  {% else %}
+  <p class="sub">Barcha faol o'quvchilar topshirgan ✓</p>
+  {% endif %}
+</div>
+{% endblock %}

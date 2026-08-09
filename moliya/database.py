@@ -26,6 +26,9 @@ NEW_COLUMNS = [
     ("dds_rows", "match_score", "FLOAT DEFAULT 0"),
     # NULL = eski qator (qancha yozilgani noma'lum) — 0 dan farqlanishi shart
     ("dds_rows", "applied_amount", "FLOAT"),
+    # O'quv bo'limi: dropout risk-skoring
+    ("contracts", "risk_score", "INTEGER DEFAULT 0"),
+    ("contracts", "risk_reasons", "VARCHAR(300) DEFAULT ''"),
 ]
 
 

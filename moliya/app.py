@@ -20,6 +20,7 @@ import analytics
 import automation
 import core
 import ddsflow
+import education
 import kpi
 import matching
 import planner
@@ -29,7 +30,9 @@ from models import (AppSetting, Budget, Cohort, Contract, Course, DdsRow, DDS_LO
                     DDS_SPRAVOCHNIK, DDS_WALLET2, DDS_WALLETS, EXPENSE_CATS, KpiCard,
                     INCOME_CATS, InstallmentLine, MARKETING_CHANNELS,
                     RecurringPayment, Student, Transaction, Wallet,
-                    CONTRACT_STATUSES, income_cat_for_course)
+                    CONTRACT_STATUSES, income_cat_for_course,
+                    ATT_STATUSES, LessonSession, LessonAttendance,
+                    Assignment, Submission, EduCertificate)
 
 
 def _session_secret(app):
@@ -95,7 +98,7 @@ def create_app():
     APP_PIN = os.environ.get("APP_PIN", "").strip()
     _pin_fails = {}                    # ip -> (soni, oxirgi urinish vaqti)
     _PUBLIC = ("/login", "/static/", "/manifest.json", "/sw.js",
-               "/offline.html", "/healthz")
+               "/offline.html", "/healthz", "/cert/")
 
     @app.before_request
     def _guard():
@@ -1170,6 +1173,205 @@ def register_routes(app):
         db.session.commit()
         flash("Qo'shildi", "ok")
         return redirect(url_for("settings"))
+
+    # ══════════════════════════════════════════════════════════════
+    #  O'QUV BO'LIMI — davomat, vazifalar, AI baholash, risk, sertifikat
+    #  «O'quvchi oqimda» = Contract: moliya bilan bitta zanjir.
+    # ══════════════════════════════════════════════════════════════
+    @app.route("/oquv")
+    def oquv():
+        today = date.today()
+        cohorts = (Cohort.query.order_by(Cohort.start_date.desc()).all())
+        rows = []
+        for ch in cohorts:
+            contracts = [c for c in Contract.query.filter_by(
+                cohort_id=ch.id, status="active").all()]
+            sessions = LessonSession.query.filter_by(cohort_id=ch.id).count()
+            pending = (Submission.query.join(Assignment)
+                       .filter(Assignment.cohort_id == ch.id,
+                               Submission.status == "pending").count())
+            rows.append({"cohort": ch, "students": len(contracts),
+                         "sessions": sessions, "pending": pending,
+                         "running": ch.start_date <= today <= ch.end_date})
+        return render_template("oquv.html", stats=education.edu_stats(),
+                               rows=rows, risk=education.risk_students())
+
+    @app.route("/oquv/cohort/<int:chid>")
+    def oquv_cohort(chid):
+        ch = Cohort.query.get_or_404(chid)
+        contracts = (Contract.query.filter_by(cohort_id=ch.id)
+                     .order_by(Contract.status.asc(),
+                               Contract.risk_score.desc()).all())
+        sessions = (LessonSession.query.filter_by(cohort_id=ch.id)
+                    .order_by(LessonSession.date).all())
+        assignments = (Assignment.query.filter_by(cohort_id=ch.id)
+                       .order_by(Assignment.created_at.desc()).all())
+        att = {}
+        if sessions:
+            for a in LessonAttendance.query.filter(
+                    LessonAttendance.session_id.in_(
+                        [s.id for s in sessions])).all():
+                att[(a.session_id, a.contract_id)] = a.status
+        sub_stats = {}
+        for a in assignments:
+            subs = a.submissions
+            sub_stats[a.id] = (len(subs),
+                               sum(1 for s in subs if s.status == "pending"))
+        return render_template("oquv_cohort.html", ch=ch,
+                               contracts=contracts, sessions=sessions,
+                               assignments=assignments, att=att,
+                               sub_stats=sub_stats,
+                               att_statuses=ATT_STATUSES, today=date.today())
+
+    @app.route("/oquv/cohort/<int:chid>/session/add", methods=["POST"])
+    def oquv_session_add(chid):
+        ch = Cohort.query.get_or_404(chid)
+        d = _parse_date(request.form.get("date"))
+        if not d:
+            flash("Dars sanasi majburiy", "error")
+            return redirect(url_for("oquv_cohort", chid=ch.id))
+        db.session.add(LessonSession(
+            cohort_id=ch.id, date=d,
+            topic=(request.form.get("topic") or "").strip()[:200]))
+        db.session.commit()
+        flash("Dars qo'shildi", "ok")
+        return redirect(url_for("oquv_cohort", chid=ch.id))
+
+    @app.route("/oquv/session/<int:sid>/attendance", methods=["POST"])
+    def oquv_attendance(sid):
+        s = LessonSession.query.get_or_404(sid)
+        s.held = True
+        for c in Contract.query.filter_by(cohort_id=s.cohort_id,
+                                          status="active").all():
+            st = request.form.get(f"st_{c.id}", "")
+            if st not in ATT_STATUSES:
+                continue
+            row = LessonAttendance.query.filter_by(
+                session_id=s.id, contract_id=c.id).first()
+            if row is None:
+                row = LessonAttendance(session_id=s.id, contract_id=c.id)
+                db.session.add(row)
+            row.status = st
+        db.session.commit()
+        # Riskni yangilash; YANGI yuqori riskka chiqqanlar (oldin past edi)
+        # avtomatika lentasiga tushadi — takror shovqin bo'lmaydi
+        actives = Contract.query.filter_by(cohort_id=s.cohort_id,
+                                           status="active").all()
+        before = {c.id: (c.risk_score or 0) for c in actives}
+        education.refresh_cohort_risk(s.cohort_id)
+        for c in actives:
+            if (c.risk_score >= education.RISK_HIGH
+                    and before.get(c.id, 0) < education.RISK_HIGH):
+                automation.log_event(
+                    "risk", f"⚠️ Dropout xavfi: {c.student.name}",
+                    c.risk_reasons, contract_id=c.id)
+        db.session.commit()
+        flash("Davomat saqlandi — risk yangilandi", "ok")
+        return redirect(url_for("oquv_cohort", chid=s.cohort_id))
+
+    @app.route("/oquv/cohort/<int:chid>/assignment/add", methods=["POST"])
+    def oquv_assignment_add(chid):
+        ch = Cohort.query.get_or_404(chid)
+        title = (request.form.get("title") or "").strip()
+        if not title:
+            flash("Vazifa sarlavhasi majburiy", "error")
+            return redirect(url_for("oquv_cohort", chid=ch.id))
+        db.session.add(Assignment(
+            cohort_id=ch.id, title=title[:200],
+            description=(request.form.get("description") or "")[:8000],
+            due_date=_parse_date(request.form.get("due_date")),
+            max_score=int(request.form.get("max_score") or 100)))
+        db.session.commit()
+        flash("Vazifa berildi", "ok")
+        return redirect(url_for("oquv_cohort", chid=ch.id))
+
+    @app.route("/oquv/assignment/<int:aid>")
+    def oquv_assignment(aid):
+        a = Assignment.query.get_or_404(aid)
+        subs = sorted(a.submissions,
+                      key=lambda s: (s.status != "pending",
+                                     -(s.submitted_at.timestamp()
+                                       if s.submitted_at else 0)))
+        submitted = {s.contract_id for s in subs}
+        not_submitted = [c for c in Contract.query.filter_by(
+            cohort_id=a.cohort_id, status="active").all()
+            if c.id not in submitted]
+        return render_template("oquv_assignment.html", a=a,
+                               subs=subs, not_submitted=not_submitted)
+
+    @app.route("/oquv/assignment/<int:aid>/submit", methods=["POST"])
+    def oquv_submit(aid):
+        """Topshiriqni qayd etish (v1: kurator kiritadi; v2: o'quvchi boti)."""
+        a = Assignment.query.get_or_404(aid)
+        try:
+            cid = int(request.form.get("contract_id") or 0)
+        except ValueError:
+            cid = 0
+        c = db.session.get(Contract, cid)
+        if c is None or c.cohort_id != a.cohort_id:
+            flash("O'quvchi tanlanmadi", "error")
+            return redirect(url_for("oquv_assignment", aid=a.id))
+        sub = Submission.query.filter_by(assignment_id=a.id,
+                                         contract_id=c.id).first()
+        if sub is None:
+            sub = Submission(assignment_id=a.id, contract_id=c.id)
+            db.session.add(sub)
+        sub.content = (request.form.get("content") or "")[:20000]
+        sub.status = "pending"
+        db.session.commit()
+        score, feedback = education.ai_grade(a, sub.content, a.max_score)
+        if score is not None:
+            sub.ai_score = score
+            sub.ai_feedback = feedback
+            db.session.commit()
+        education.refresh_cohort_risk(a.cohort_id)
+        flash("Topshiriq qabul qilindi" +
+              (" · AI bahosi tayyor" if score is not None else ""), "ok")
+        return redirect(url_for("oquv_assignment", aid=a.id))
+
+    @app.route("/oquv/submission/<int:sid>/grade", methods=["POST"])
+    def oquv_grade(sid):
+        sub = Submission.query.get_or_404(sid)
+        a = sub.assignment
+        if request.form.get("use_ai") == "1" and sub.ai_score is not None:
+            sub.score = sub.ai_score
+            if not (request.form.get("feedback") or "").strip():
+                sub.feedback = sub.ai_feedback
+        else:
+            try:
+                score = int(request.form.get("score") or 0)
+            except ValueError:
+                score = 0
+            sub.score = max(0, min(a.max_score or 100, score))
+        fb = (request.form.get("feedback") or "").strip()
+        if fb:
+            sub.feedback = fb[:4000]
+        sub.status = "graded"
+        sub.graded_at = datetime.utcnow()
+        db.session.commit()
+        flash(f"Baholandi: {sub.score} ball", "ok")
+        return redirect(url_for("oquv_assignment", aid=sub.assignment_id))
+
+    @app.route("/oquv/contract/<int:cid>/certificate", methods=["POST"])
+    def oquv_certificate(cid):
+        c = Contract.query.get_or_404(cid)
+        c.status = "completed"
+        cert = EduCertificate.issue(c)
+        automation.log_event(
+            "cert", f"🎓 Sertifikat: {c.student.name} — {cert.serial}",
+            f"{c.cohort.course.name} · {c.cohort.name}", contract_id=c.id)
+        db.session.commit()
+        flash(f"Sertifikat berildi: {cert.serial}", "ok")
+        return redirect(url_for("oquv_cohort", chid=c.cohort_id))
+
+    # PUBLIC: sertifikat tekshiruvi (login'siz — QR uchun)
+    @app.route("/cert/<token>")
+    def cert_verify(token):
+        cert = EduCertificate.query.filter_by(token=token).first()
+        if not cert:
+            return render_template("cert_verify.html", cert=None), 404
+        return render_template("cert_verify.html", cert=cert,
+                               c=cert.contract)
 
 
 app = create_app()

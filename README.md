@@ -29,7 +29,7 @@ Mfaktor o'quv-ta'lim loyihasining barcha jarayonlariga — marketing, sotuv, o'q
 
 | Papka | Tavsif |
 |---|---|
-| [moliya/](moliya/) | **Mfaktor Moliya** — ishlaydigan dastur: kassa (DDS), shartnomalar + to'lov grafigi, revenue recognition, unit-ekonomika (CAC/LTV/BEP), qarzdorlik nazorati |
+| [moliya/](moliya/) | **Mfaktor ERP** — ishlaydigan dastur: Moliya (kassa/DDS, shartnomalar + to'lov grafigi, unit-ekonomika, qarzdorlik) + **O'quv bo'limi** (davomat, uy vazifalari, AI baholash, dropout risk-nazorat, QR-sertifikatlar) |
 
 
 ## Ish tartibi

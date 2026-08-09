@@ -1,18 +1,20 @@
 """
 O'quv bo'limi yadrosi — statistika, dropout risk-skoring, AI baholash.
 
-Risk-skoring (v1, qoidaviy — AI'siz ham ishlaydi):
-  davomat + vazifa topshirish + to'lov qarzdorligi signallaridan 0–100 ball.
-  60+ → yuqori xavf (qizil), 30–59 → o'rta (sariq), <30 → past.
+Risk-skoring (qoidaviy v1, AI'siz ham ishlaydi) — signallar:
+  • davomat: o'tkazilgan darslarga kelmaslik, ayniqsa oxirgi 2 dars
+  • vazifalar: berilganlarni topshirmaslik
+  • to'lov: muddati o'tgan bo'lib-to'lash qatorlari (InstallmentLine)
+0–100 ball: 60+ yuqori xavf, 30–59 o'rta.
 
-AI baholash: ANTHROPIC_API_KEY sozlangan bo'lsa, topshiriqni rubrika bo'yicha
-baholab ball + izoh taklif qiladi. Sozlanmagan bo'lsa modul to'liq qo'lda
-ishlayveradi (AI — qo'shimcha qatlam, majburiyat emas).
+AI baholash: ANTHROPIC_API_KEY bo'lsa topshiriqni sotuv rubrikasi bo'yicha
+tekshirib ball + izoh taklif qiladi; bo'lmasa modul to'liq qo'lda ishlaydi.
 """
 import json
 import logging
 import os
 import urllib.request
+from datetime import date
 
 from database import db
 
@@ -21,69 +23,58 @@ logger = logging.getLogger(__name__)
 RISK_HIGH = 60
 RISK_MID = 30
 
-# Anthropic API (SDK'siz, urllib bilan)
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL",
-                                 "claude-sonnet-5").strip() or "claude-sonnet-5"
+ANTHROPIC_MODEL = os.environ.get(
+    "ANTHROPIC_MODEL", "claude-sonnet-5").strip() or "claude-sonnet-5"
 API_TIMEOUT_SEC = 90
 
 
 # ──────────────────────────────────────────────────────────────────
-# STATISTIKA (dashboard uchun)
+# STATISTIKA (bo'lim markazi uchun)
 # ──────────────────────────────────────────────────────────────────
 def edu_stats():
-    """O'quv bo'limi asosiy raqamlari — bitta so'rov to'plami."""
-    from models.education import (Cohort, Enrollment, Submission)
-    active_cohorts = Cohort.query.filter_by(status="active").count()
-    active_students = Enrollment.query.filter_by(status="active").count()
-    finished = Enrollment.query.filter_by(status="finished").count()
-    dropped = Enrollment.query.filter_by(status="dropped").count()
+    from models import Cohort, Contract, Submission
+    today = date.today()
+    running = Cohort.query.filter(Cohort.start_date <= today,
+                                  Cohort.end_date >= today).count()
+    active_students = Contract.query.filter_by(status="active").count()
+    completed = Contract.query.filter_by(status="completed").count()
     pending_subs = Submission.query.filter_by(status="pending").count()
-    debt_total = 0.0
-    debtors = 0
-    for e in Enrollment.query.filter_by(status="active").all():
-        d = e.debt
-        if d > 0:
-            debt_total += d
-            debtors += 1
-    total_closed = finished + dropped
-    completion_rate = round(100.0 * finished / total_closed) if total_closed else None
+    at_risk = Contract.query.filter(
+        Contract.status == "active",
+        Contract.risk_score >= RISK_MID).count()
     return {
-        "active_cohorts": active_cohorts,
+        "running_cohorts": running,
         "active_students": active_students,
-        "finished": finished,
-        "dropped": dropped,
-        "completion_rate": completion_rate,
+        "completed": completed,
         "pending_subs": pending_subs,
-        "debt_total": debt_total,
-        "debtors": debtors,
+        "at_risk": at_risk,
     }
 
 
 # ──────────────────────────────────────────────────────────────────
-# DROPOUT RISK-SKORING (qoidaviy v1)
+# DROPOUT RISK-SKORING
 # ──────────────────────────────────────────────────────────────────
-def compute_risk(enrollment):
-    """Bitta o'quvchi uchun risk ballini hisoblaydi (saqlamaydi).
-
-    Qaytaradi: (score 0-100, reasons [str])
-    """
-    from models.education import LessonSession, StudentAttendance, Assignment
+def compute_risk(contract):
+    """(score 0-100, reasons [str]) — saqlamaydi."""
+    from models import LessonSession, LessonAttendance, Assignment, Submission
     score = 0
     reasons = []
 
-    # 1) Davomat — o'tkazilgan darslarga nisbatan (eng og'ir signal)
-    held_ids = [s.id for s in LessonSession.query.filter_by(
-        cohort_id=enrollment.cohort_id, held=True).all()]
-    if held_ids:
-        rows = StudentAttendance.query.filter(
-            StudentAttendance.enrollment_id == enrollment.id,
-            StudentAttendance.session_id.in_(held_ids)).all()
-        marked = {r.session_id: r.status for r in rows}
-        absents = sum(1 for sid in held_ids
-                      if marked.get(sid) in (None, "absent"))
-        miss_pct = 100.0 * absents / len(held_ids)
+    # 1) Davomat — o'tkazilgan darslar bo'yicha
+    held = (LessonSession.query.filter_by(cohort_id=contract.cohort_id,
+                                          held=True)
+            .order_by(LessonSession.date).all())
+    if held:
+        marked = {a.session_id: a.status for a in
+                  LessonAttendance.query.filter(
+                      LessonAttendance.contract_id == contract.id,
+                      LessonAttendance.session_id.in_(
+                          [s.id for s in held])).all()}
+        absents = sum(1 for s in held
+                      if marked.get(s.id) in (None, "absent"))
+        miss_pct = 100.0 * absents / len(held)
         if miss_pct >= 50:
             score += 45
             reasons.append(f"darslarning {miss_pct:.0f}% iga kelmagan")
@@ -92,18 +83,19 @@ def compute_risk(enrollment):
             reasons.append(f"{absents} ta dars qoldirgan")
         elif absents >= 1:
             score += 10
-        # Ketma-ket oxirgi 2 dars kelmagan — kuchli ogohlantirish
-        last2 = held_ids[-2:]
+        last2 = held[-2:]
         if len(last2) == 2 and all(
-                marked.get(sid) in (None, "absent") for sid in last2):
+                marked.get(s.id) in (None, "absent") for s in last2):
             score += 20
             reasons.append("oxirgi 2 darsga kelmagan")
 
-    # 2) Vazifalar — berilganlarga nisbatan topshirmaganlik
+    # 2) Vazifalar — topshirmaganlik
     assign_ids = [a.id for a in Assignment.query.filter_by(
-        cohort_id=enrollment.cohort_id).all()]
+        cohort_id=contract.cohort_id).all()]
     if assign_ids:
-        done = enrollment.submissions.count()
+        done = Submission.query.filter(
+            Submission.contract_id == contract.id,
+            Submission.assignment_id.in_(assign_ids)).count()
         missing = len(assign_ids) - done
         if missing >= 2:
             score += 20
@@ -111,38 +103,42 @@ def compute_risk(enrollment):
         elif missing == 1:
             score += 8
 
-    # 3) To'lov qarzdorligi
-    if enrollment.debt > 0:
-        score += 15
-        reasons.append("to'lov qarzdorligi bor")
+    # 3) To'lov — muddati o'tgan bo'lib-to'lash qatorlari
+    overdue_days = max((ln.overdue_days() for ln in contract.lines),
+                       default=0)
+    if overdue_days > 14:
+        score += 20
+        reasons.append(f"to'lov {overdue_days} kun kechikkan")
+    elif overdue_days > 0:
+        score += 10
+        reasons.append("to'lov kechikkan")
 
     return min(100, score), reasons
 
 
 def refresh_cohort_risk(cohort_id):
-    """Guruhning barcha faol o'quvchilari risk ballini qayta hisoblab saqlaydi."""
-    from models.education import Enrollment
-    rows = Enrollment.query.filter_by(cohort_id=cohort_id,
-                                      status="active").all()
-    for e in rows:
-        score, reasons = compute_risk(e)
-        e.risk_score = score
-        e.risk_reasons = "; ".join(reasons)[:300]
+    """Oqimning faol shartnomalari riskini qayta hisoblab saqlaydi."""
+    from models import Contract
+    rows = Contract.query.filter_by(cohort_id=cohort_id,
+                                    status="active").all()
+    for c in rows:
+        s, r = compute_risk(c)
+        c.risk_score = s
+        c.risk_reasons = "; ".join(r)[:300]
     db.session.commit()
     return len(rows)
 
 
 def risk_students(limit=15):
-    """Eng xavfli faol o'quvchilar — dashboard «diqqat» ro'yxati."""
-    from models.education import Enrollment
-    return (Enrollment.query.filter_by(status="active")
-            .filter(Enrollment.risk_score >= RISK_MID)
-            .order_by(Enrollment.risk_score.desc())
-            .limit(limit).all())
+    from models import Contract
+    return (Contract.query.filter(
+        Contract.status == "active",
+        Contract.risk_score >= RISK_MID)
+        .order_by(Contract.risk_score.desc()).limit(limit).all())
 
 
 # ──────────────────────────────────────────────────────────────────
-# AI BAHOLASH — topshiriqni rubrika bo'yicha tekshirish
+# AI BAHOLASH
 # ──────────────────────────────────────────────────────────────────
 _GRADING_SYSTEM = (
     "Sen Mfaktor biznes maktabining sotuv kursi tekshiruvchisisan. Senga uy "
@@ -157,10 +153,7 @@ _GRADING_SYSTEM = (
 
 
 def ai_grade(assignment, submission_text, max_score=100):
-    """AI birinchi qatlam bahosi. Qaytaradi (score, feedback) yoki (None, "").
-
-    Kalit sozlanmagan / xato bo'lsa jimgina (None, "") — oqim qo'lda davom etadi.
-    """
+    """AI birinchi qatlam bahosi: (score, feedback) yoki (None, "")."""
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     text = (submission_text or "").strip()
     if not api_key or not text:
@@ -189,13 +182,11 @@ def ai_grade(assignment, submission_text, max_score=100):
             data = json.loads(resp.read().decode("utf-8", "replace"))
         raw = "\n".join(b.get("text", "") for b in data.get("content", [])
                         if b.get("type") == "text").strip()
-        # JSON'ni matn ichidan ajratib olish (model qo'shimcha matn yozsa ham)
         start, end = raw.find("{"), raw.rfind("}")
         if start < 0 or end <= start:
             return None, ""
         parsed = json.loads(raw[start:end + 1])
-        score = int(parsed.get("score"))
-        score = max(0, min(int(max_score or 100), score))
+        score = max(0, min(int(max_score or 100), int(parsed.get("score"))))
         feedback = str(parsed.get("feedback") or "").strip()[:2000]
         return score, feedback
     except Exception as exc:
