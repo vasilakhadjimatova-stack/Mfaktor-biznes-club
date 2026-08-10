@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block body %}
+{% macro num(v) %}{% if v %}{{ v|grp }}{% endif %}{% endmacro %}
+
+<div class="xl-top">
+  <h1 style="margin:0">To'lov taqvimi</h1>
+  <span class="xl-badge">Ежедневный календарь расходов — Sheets ko'rinishi</span>
+  <button type="button" class="xl-fs" style="margin-left:auto" onclick="xlFull()"
+          title="Jadval butun ekranni oladi (Esc — chiqish)">⛶ Katta ekran</button>
+</div>
+<p class="sub">Xarajatlar rejasi kun kesimida. <b>Reja</b> katagini bosib joyida
+  kiriting — jami va og'ishlar o'zi qayta hisoblanadi. <b>Fakt</b> kassadan
+  avtomatik tushadi, qo'lda ko'chirilmaydi.</p>
+
+<div class="monthnav" style="flex-wrap:wrap">
+  {% if view == 'month' %}
+    {% set py, pm = (y-1, 12) if m == 1 else (y, m-1) %}
+    {% set ny, nm = (y+1, 1) if m == 12 else (y, m+1) %}
+    <a class="chip" href="/taqvim?y={{py}}&m={{pm}}">← {{ oy[pm] }}</a>
+    <span class="chip on">{{ oy[m] }} {{ y }}</span>
+    <a class="chip" href="/taqvim?y={{ny}}&m={{nm}}">{{ oy[nm] }} →</a>
+    <a class="chip" href="/taqvim?view=year&y={{y}}">Yillik jadval</a>
+    <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+      <form method="post" action="/taqvim/fill?y={{y}}&m={{m}}">
+        <button class="btn ghost" title="Sozlamalardagi takrorlanuvchi to'lovlar (ijara, oyliklar...) reja bo'lib tushadi">
+          ⚡ Takrorlanuvchilardan</button></form>
+      <form method="post" action="/taqvim/copy?y={{y}}&m={{m}}">
+        <button class="btn ghost" title="O'tgan oy rejasini shu oyga ko'chirish">
+          ⧉ O'tgan oydan</button></form>
+      <form method="post" action="/taqvim/clear?y={{y}}&m={{m}}"
+            onsubmit="return confirm('{{ oy[m] }} {{ y }} rejasi butunlay o‘chirilsinmi? (Faktga tegilmaydi)')">
+        <button class="btn ghost">✕ Rejani tozalash</button></form>
+    </span>
+  {% else %}
+    <a class="chip" href="/taqvim?view=year&y={{y-1}}">← {{ y-1 }}</a>
+    <span class="chip on">{{ y }} yil</span>
+    <a class="chip" href="/taqvim?view=year&y={{y+1}}">{{ y+1 }} →</a>
+    <a class="chip" href="/taqvim?y={{y}}&m={{m}}">Oylik taqvim</a>
+  {% endif %}
+</div>
+
+{% if view == 'month' %}
+{# ═══════════ OYLIK: statya × kun ═══════════ #}
+<div class="xl-wrap">
+<table class="xl x3">
+  <thead>
+    <tr>
+      <th class="rn cat" rowspan="2">Xarajat statyasi</th>
+      <th colspan="4" class="tot">Oy jami</th>
+      {% for day in d.days %}
+      <th colspan="2" class="{{ 'we' if day.we }}">{{ day.d }} {{ day.wd }}</th>
+      {% endfor %}
+    </tr>
+    <tr>
+      <th class="tot">Reja</th><th class="tot">Fakt</th>
+      <th class="tot">Farq</th><th class="tot">Baj%</th>
+      {% for day in d.days %}
+      <th class="{{ 'we' if day.we }}">R</th><th class="{{ 'we' if day.we }}">F</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for g in d.groups %}
+    <tr class="grp">
+      <td class="rn cat">{{ g.name }}</td>
+      <td class="r">{{ num(g.tp) }}</td><td class="r">{{ num(g.tf) }}</td>
+      <td class="r" colspan="2"></td>
+      <td colspan="{{ d.days|length * 2 }}"></td>
+    </tr>
+    {% for r in g.rows %}
+    <tr data-cat="{{ r.cat }}">
+      <td class="rn cat">{{ r.cat }}</td>
+      <td class="r tp">{{ num(r.tp) }}</td>
+      <td class="r tf">{{ num(r.tf) }}</td>
+      <td class="r td {{ ('bad' if r.diff > 0 else 'good') if r.tp else 'nop' }}">{{ num(r.diff|abs) if r.diff }}</td>
+      <td class="r tpc">{% if r.pct is not none %}{{ r.pct|round|int }}%{% endif %}</td>
+      {% for day in d.days %}
+      {% set i = loop.index0 %}
+      <td class="r plc {{ 'we' if day.we }}" tabindex="0"
+          data-d="{{ day.d }}" data-v="{{ r.p[i] or '' }}">{{ num(r.p[i]) }}</td>
+      <td class="r fc {{ 'we' if day.we }} {{ 'has' if r.f[i] }}">{{ num(r.f[i]) }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="sum">
+      <td class="rn cat">JAMI</td>
+      <td class="r" id="sum-p">{{ num(d.total_p) }}</td>
+      <td class="r">{{ num(d.total_f) }}</td>
+      <td class="r" id="sum-d">{{ num(d.total_diff|abs) if d.total_diff }}</td>
+      <td class="r">{% if d.total_pct is not none %}{{ d.total_pct|round|int }}%{% endif %}</td>
+      {% for day in d.days %}
+      {% set i = loop.index0 %}
+      <td class="r dp {{ 'we' if day.we }}" data-d="{{ day.d }}">{{ num(d.day_p[i]) }}</td>
+      <td class="r {{ 'we' if day.we }}">{{ num(d.day_f[i]) }}</td>
+      {% endfor %}
+    </tr>
+  </tfoot>
+</table>
+</div>
+<p class="hint" style="margin-top:10px">«R» — reja (bosib tahrirlanadi),
+  «F» — fakt (kassadan avtomatik). Qizil farq — rejadan oshib ketgan,
+  yashil — tejalgan. Shanba-yakshanba ustunlari xira.
+  Reja tez to'lsin uchun: «⚡ Takrorlanuvchilardan» — Sozlamalardagi ijara,
+  oylik kabi doimiy to'lovlarni o'z kuniga qo'yib chiqadi.</p>
+
+<script>
+(function(){
+  var Y = {{ y }}, M = {{ m }};
+  function fmt(v){
+    v = Math.round(v);
+    return v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "";
+  }
+  function save(cell, val){
+    var row = cell.closest("tr");
+    var body = new URLSearchParams({
+      y: Y, m: M, d: cell.dataset.d, cat: row.dataset.cat, amount: val
+    });
+    fetch("/taqvim/set", {method: "POST", body: body})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (!j.ok) return;
+        cell.dataset.v = val > 0 ? val : "";
+        cell.textContent = fmt(val);
+        row.querySelector(".tp").textContent = fmt(j.row_p);
+        var td = row.querySelector(".td");
+        td.textContent = fmt(Math.abs(j.row_diff));
+        td.classList.toggle("bad", j.row_p > 0 && j.row_diff > 0);
+        td.classList.toggle("good", j.row_p > 0 && j.row_diff <= 0);
+        td.classList.toggle("nop", !j.row_p);
+        row.querySelector(".tpc").textContent =
+          j.row_pct == null ? "" : Math.round(j.row_pct) + "%";
+        var dayCell = document.querySelector('tfoot .dp[data-d="' + cell.dataset.d + '"]');
+        if (dayCell) dayCell.textContent = fmt(j.day_p);
+        document.getElementById("sum-p").textContent = fmt(j.total_p);
+        document.getElementById("sum-d").textContent = fmt(Math.abs(j.total_diff));
+      });
+  }
+  function edit(cell){
+    if (cell.querySelector("input")) return;
+    var cur = cell.dataset.v || "";
+    var inp = document.createElement("input");
+    inp.type = "text"; inp.inputMode = "numeric"; inp.value = cur;
+    inp.className = "plc-in";
+    cell.textContent = ""; cell.appendChild(inp);
+    inp.focus(); inp.select();
+    var done = false;
+    function finish(saveIt){
+      if (done) return; done = true;
+      var raw = inp.value.replace(/[\s ]/g, "").replace(",", ".");
+      var val = parseFloat(raw) || 0;
+      cell.removeChild(inp);
+      if (saveIt && String(val) !== String(cur || 0)) save(cell, val);
+      else cell.textContent = fmt(parseFloat(cell.dataset.v) || 0);
+    }
+    inp.addEventListener("keydown", function(e){
+      if (e.key === "Enter") finish(true);
+      else if (e.key === "Escape") finish(false);
+    });
+    inp.addEventListener("blur", function(){ finish(true); });
+  }
+  document.querySelectorAll(".plc").forEach(function(c){
+    c.addEventListener("click", function(){ edit(c); });
+    c.addEventListener("keydown", function(e){
+      if (e.key === "Enter") { e.preventDefault(); edit(c); }
+    });
+  });
+})();
+</script>
+
+{% else %}
+{# ═══════════ YILLIK: statya × oy ═══════════ #}
+<div class="xl-wrap">
+<table class="xl x3">
+  <thead>
+    <tr>
+      <th class="rn cat" rowspan="2">Xarajat statyasi</th>
+      <th colspan="2" class="tot">Yil jami</th>
+      {% for mi in range(1, 13) %}<th colspan="3">{{ oy[mi][:3] }}</th>{% endfor %}
+    </tr>
+    <tr>
+      <th class="tot">Reja</th><th class="tot">Fakt</th>
+      {% for mi in range(1, 13) %}<th>R</th><th>F</th><th>%</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for g in d.groups %}
+    <tr class="grp">
+      <td class="rn cat">{{ g.name }}</td>
+      <td class="r">{{ num(g.tp) }}</td><td class="r">{{ num(g.tf) }}</td>
+      <td colspan="36"></td>
+    </tr>
+    {% for r in g.rows %}
+    <tr>
+      <td class="rn cat">{{ r.cat }}</td>
+      <td class="r tp">{{ num(r.tp) }}</td>
+      <td class="r tf">{{ num(r.tf) }}</td>
+      {% for mi in range(12) %}
+      {% set p, f = r.p[mi], r.f[mi] %}
+      <td class="r">{{ num(p) }}</td>
+      <td class="r fc {{ 'has' if f }}">{{ num(f) }}</td>
+      <td class="r {{ 'bad' if p and f > p else ('good' if p and f < p) }}">
+        {% if p %}{{ (f / p * 100)|round|int }}%{% endif %}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="sum">
+      <td class="rn cat">JAMI</td>
+      <td class="r">{{ num(d.total_p) }}</td>
+      <td class="r">{{ num(d.total_f) }}</td>
+      {% for mi in range(12) %}
+      <td class="r">{{ num(d.month_p[mi]) }}</td>
+      <td class="r">{{ num(d.month_f[mi]) }}</td>
+      <td class="r">{% if d.month_p[mi] %}{{ (d.month_f[mi] / d.month_p[mi] * 100)|round|int }}%{% endif %}</td>
+      {% endfor %}
+    </tr>
+  </tfoot>
+</table>
+</div>
+<p class="hint" style="margin-top:10px">Oylik reja — o'sha oy taqvimidagi kunlik
+  rejalarning yig'indisi (oylik taqvimda kiritiladi). «%» — rejaning bajarilishi.
+  Sheets'dagi yillik jadvaldan farqi: formulalar buzilmaydi, fakt kassadan o'zi keladi.</p>
+{% endif %}
+{% endblock %}

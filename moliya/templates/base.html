@@ -1400,6 +1400,36 @@ button.chip{background:var(--card-faint);color:var(--mut);
   border:1px solid var(--line);font:600 12px var(--sans);padding:6px 11px;
   box-shadow:none}
 button.chip:hover{border-color:var(--line2);color:var(--txt)}
+
+/* ══ To'lov taqvimi: yashil Excel-uslub (.x3) ══ */
+.xl.x3 thead th{background:#6aa84f;color:#fff}
+.xl.x3 thead th.rn{background:#6aa84f}
+.xl.x3 thead th.tot{background:#38761d}
+.xl.x3 thead th.we{background:#93c47d}
+.xl.x3 td.cat{min-width:220px;max-width:260px;background:#f8f9fa;color:#333;
+  text-align:left;position:sticky;left:0;z-index:2;font-weight:500;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xl.x3 thead th.cat{position:sticky;left:0;z-index:5}
+.xl.x3 tr.grp td{background:#d9ead3;color:#274e13;font-weight:700}
+.xl.x3 tr.grp td.cat{background:#d9ead3;color:#274e13}
+.xl.x3 td.r{text-align:right;font-variant-numeric:tabular-nums;min-width:52px}
+.xl.x3 td.plc{background:#fff;cursor:pointer;min-width:64px}
+.xl.x3 td.plc:hover{background:#e8f0fe;box-shadow:inset 0 0 0 2px #4285f4}
+.xl.x3 td.plc:focus{outline:0;background:#e8f0fe;box-shadow:inset 0 0 0 2px #4285f4}
+.xl.x3 td.fc{background:#f3f3f3;color:#999;min-width:64px}
+.xl.x3 td.fc.has{color:#1a1a1a;font-weight:600}
+.xl.x3 td.we{background:#fef7e0}
+.xl.x3 td.fc.we{background:#f5efdb}
+.xl.x3 td.tp,.xl.x3 td.tf{background:#fff2cc;font-weight:600;min-width:86px}
+.xl.x3 td.td,.xl.x3 td.tpc{background:#fff;min-width:64px}
+.xl.x3 td.bad{color:#cc0000;font-weight:700}
+.xl.x3 td.nop{color:#b7b7b7}
+.xl.x3 td.good{color:#38761d;font-weight:700}
+.xl.x3 tfoot td{position:sticky;bottom:0;background:#efefef;font-weight:700;
+  border-top:2px solid #999;z-index:2}
+.xl.x3 tfoot td.cat{z-index:3;background:#efefef}
+.plc-in{width:100%;min-width:56px;border:0;background:transparent;
+  font:inherit;text-align:right;outline:0;padding:0}
 </style>
 </head>
 <body>
@@ -1423,6 +1453,7 @@ button.chip:hover{border-color:var(--line2);color:var(--txt)}
   <span class="sep">Hisobot</span>
   <a class="{{ 'on' if p.startswith('/ddsdata') }}" href="/ddsdata"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>ДДС данные</a>
   <a class="{{ 'on' if p == '/dds' }}" href="/dds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>ДДС (yillik)</a>
+  <a class="{{ 'on' if p.startswith('/taqvim') }}" href="/taqvim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>To'lov taqvimi</a>
   <a class="{{ 'on' if p.startswith('/reports') }}" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Tahlillar</a>
   <a class="{{ 'on' if p.startswith('/kpi') }}" href="/kpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>KPI</a>
   </nav>

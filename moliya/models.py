@@ -542,3 +542,37 @@ class EduCertificate(db.Model):
             serial=f"MF-{datetime.utcnow().year}-{n:05d}")
         db.session.add(cert)
         return cert
+
+# ══════════════════════════════════════════════════════════════════
+#  TO'LOV TAQVIMI (платежный календарь) — kunlik xarajat rejasi
+# ══════════════════════════════════════════════════════════════════
+# Guruhlar Sheets'dagi «Ежедневный календарь расходов» tartibida, lekin
+# qatorlar kassa ishlatadigan statyalarning o'zi — shunda FAKT ustuni
+# hech qanday qo'lda ko'chirishsiz, to'g'ridan-to'g'ri kassadan olinadi.
+CAL_GROUPS = [
+    ("Xodimlar mehnati", ["Зарплата МБМ", "Зарплата СМК", "Зарплата РОП",
+                          "Зарплата ТББ", "Премия", "Налог/дивиденд Зп"]),
+    ("Korporativ xarajatlar", ["Обед сотрудников", "Корпоративный расход",
+                               "Хайрия"]),
+    ("O'quv jarayoni", ["Кофе-брейк", "Закуп хоз. товаров",
+                        "Выпускные расходы"]),
+    ("Mijoz jalb qilish", ["Таргет (реклама)", "CRM OnlinePBX"]),
+    ("Ma'muriy xarajatlar", ["Аренда", "Коммунальные услуги", "Ремонт",
+                             "Интернет/IP-телефония", "Абонентские подписки",
+                             "Такси", "Комиссия банка"]),
+    ("Moliyaviy", ["Дивиденды", "Расход — долг"]),
+    ("Qaytarish va boshqalar", ["Возврат клиенту", "Прочие расходы"]),
+]
+
+
+class PlanCell(db.Model):
+    """Taqvimning bitta katagi: shu kunga shu statya bo'yicha reja summasi."""
+    __tablename__ = "plan_cells"
+    id       = db.Column(db.Integer, primary_key=True)
+    year     = db.Column(db.Integer, nullable=False, index=True)
+    month    = db.Column(db.Integer, nullable=False, index=True)
+    day      = db.Column(db.Integer, nullable=False)
+    category = db.Column(db.String(100), nullable=False)
+    amount   = db.Column(db.Float, default=0.0)
+    __table_args__ = (db.UniqueConstraint("year", "month", "day", "category",
+                                          name="uq_plan_cell"),)

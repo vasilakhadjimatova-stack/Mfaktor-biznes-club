@@ -635,6 +635,66 @@ def register_routes(app):
                                upcoming=core.upcoming_lines(14))
 
     # ── Yillik ДДС (Sheets formati) ─────────────────────────────
+    # ── To'lov taqvimi (платежный календарь) ─────────────────────
+    @app.route("/taqvim")
+    def taqvim():
+        import paycal
+        y, m = _ym()
+        view = request.args.get("view", "month")
+        oy = ["", "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul",
+              "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"]
+        if view == "year":
+            data = paycal.year_data(y)
+            return render_template("taqvim.html", view="year", y=y, m=m,
+                                   d=data, oy=oy)
+        data = paycal.month_data(y, m)
+        return render_template("taqvim.html", view="month", y=y, m=m,
+                               d=data, oy=oy)
+
+    @app.route("/taqvim/set", methods=["POST"])
+    def taqvim_set():
+        import paycal
+        f = request.form
+        try:
+            y, m, day = int(f["y"]), int(f["m"]), int(f["d"])
+            raw = (f.get("amount") or "0").replace(" ", "") \
+                .replace(" ", "").replace(",", ".")
+            amount = float(raw or 0)
+            cat = f["cat"]
+        except (KeyError, ValueError):
+            return {"ok": False}, 400
+        res = paycal.set_cell(y, m, day, cat, amount)
+        res["ok"] = True
+        return res
+
+    @app.route("/taqvim/fill", methods=["POST"])
+    def taqvim_fill():
+        import paycal
+        y, m = _ym()
+        r = paycal.fill_from_recurring(y, m)
+        flash(f"Takrorlanuvchi to'lovlardan {r['made']} katak to'ldirildi"
+              + (f", {r['skipped']} tasi allaqachon band edi" if r['skipped']
+                 else "") + ".", "ok")
+        return redirect(url_for("taqvim", y=y, m=m))
+
+    @app.route("/taqvim/copy", methods=["POST"])
+    def taqvim_copy():
+        import paycal
+        y, m = _ym()
+        r = paycal.copy_from_prev(y, m)
+        flash(f"{r['pm']:02d}.{r['py']} rejasidan {r['made']} katak "
+              f"ko'chirildi" + (f", {r['skipped']} tasi band edi"
+                                if r['skipped'] else "") + ".", "ok")
+        return redirect(url_for("taqvim", y=y, m=m))
+
+    @app.route("/taqvim/clear", methods=["POST"])
+    def taqvim_clear():
+        import paycal
+        y, m = _ym()
+        n = paycal.clear_month(y, m)
+        flash(f"{n} ta reja katagi o'chirildi.", "ok")
+        return redirect(url_for("taqvim", y=y, m=m))
+
     @app.route("/dds")
     def dds():
         try:
