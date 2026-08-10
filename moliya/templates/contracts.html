@@ -86,8 +86,10 @@
       {{ ring(r.fill, 'g' if r.fill >= 80 else ('' if r.fill >= 40 else 'r')) }}
       <div class="co-ttl">
         <b>{{ ch.course.name }}</b>
-        <span>{{ ch.name }} · {{ ch.start_date|dmy }} – {{ ch.end_date|dmy }}</span>
+        <span>{{ ch.name|replace('[namuna]','')|trim }} ·
+          {{ ch.start_date|dmy }} – {{ ch.end_date|dmy }}</span>
         <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+          {% if '[namuna]' in ch.name %}<span class="badge b-gold">NAMUNA</span>{% endif %}
           <span class="badge {{ 'b-green' if r.phase=='live' else ('b-gold' if r.phase=='soon' else 'b-gray') }}">{{ r.phase_label }}</span>
           <span class="badge b-gray">{{ r.count }}{{ '/' ~ r.capacity if r.capacity }} o'quvchi</span>
           {% if r.overdue %}<span class="badge b-red">{{ r.overdue_n }} qarzdor</span>{% endif %}

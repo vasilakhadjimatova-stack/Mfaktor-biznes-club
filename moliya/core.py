@@ -659,6 +659,7 @@ def contracts_board(status="active", today=None):
             progress = (today - ch.start_date).days / ch.duration_days() * 100
         out.append({
             "cohort": ch, "students": students, "count": n,
+            "demo": "[namuna]" in (ch.name or ""),
             "capacity": ch.capacity or 0,
             "fill": (n / ch.capacity * 100) if ch.capacity else 0,
             "price": c_price, "paid": c_paid, "due": c_due,

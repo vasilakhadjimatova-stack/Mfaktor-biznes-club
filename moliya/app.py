@@ -1115,11 +1115,28 @@ def register_routes(app):
 
     @app.route("/settings")
     def settings():
+        import demo_data
         return render_template(
             "settings.html",
             wallets=Wallet.query.order_by(Wallet.sort).all(),
+            demo=demo_data.count_demo(),
             recurring=RecurringPayment.query.order_by(
                 RecurringPayment.pay_day).all())
+
+    @app.route("/settings/demo", methods=["POST"])
+    def settings_demo():
+        """Namunaviy shartnomalarni qo'shish yoki butunlay o'chirish."""
+        import demo_data
+        if request.form.get("act") == "clear":
+            r = demo_data.clear_demo()
+            flash(f"Namunaviy ma'lumot o'chirildi: {r['contracts']} shartnoma, "
+                  f"{r['cohorts']} oqim. Haqiqiy ma'lumotga tegilmadi.", "ok")
+        else:
+            r = demo_data.seed_demo()
+            flash(f"Namunaviy ma'lumot qo'shildi: {r['cohorts']} oqim, "
+                  f"{r['contracts']} shartnoma. Kassa va ДДС o'zgarmadi — "
+                  f"tugatgach shu yerdan o'chirib tashlang.", "ok")
+        return redirect(url_for("settings"))
 
     @app.route("/settings/import", methods=["POST"])
     def settings_import():

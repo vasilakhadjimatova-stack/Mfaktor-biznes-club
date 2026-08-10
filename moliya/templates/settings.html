@@ -3,6 +3,44 @@
 <h1>Sozlamalar</h1>
 <p class="sub">Hamyonlar va takrorlanuvchi to'lovlar</p>
 
+{# ── Namunaviy shartnomalar (vaqtinchalik) ── #}
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Namunaviy shartnomalar
+    {% if demo.contracts %}<span class="badge b-gold">{{ demo.contracts }} ta faol</span>{% endif %}
+  </h2>
+  <p class="sub" style="margin-top:-4px">Haqiqiy shartnomalar hali kiritilmagan.
+    Shartnomalar, oqimlar va qarzdorlik sahifalari qanday ishlashini ko'rish
+    uchun vaqtincha namunaviy ma'lumot qo'yish mumkin.</p>
+
+  <div class="hint" style="margin:12px 0">
+    <b>Haqiqiy pulga tegmaydi:</b> kassa yozuvi yaratilmaydi, hamyon qoldiqlari
+    va ДДС o'zgarmaydi. Avtomatik moslash bu shartnomalarni ko'rmaydi —
+    haqiqiy to'lov namunaviy o'quvchiga bog'lanib qolmaydi. Nomlarida
+    «namuna» so'zi turadi.
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <form method="post" action="/settings/demo">
+      <input type="hidden" name="act" value="add">
+      <button>{{ 'Qaytadan yaratish' if demo.contracts else 'Namunaviy shartnomalar qo‘shish' }}</button>
+    </form>
+    {% if demo.contracts %}
+    <form method="post" action="/settings/demo"
+          onsubmit="return confirm('Namunaviy shartnomalar butunlay o‘chiriladi. Davom etamizmi?')">
+      <input type="hidden" name="act" value="clear">
+      <button class="ghost">Namunaviy ma'lumotni o'chirish</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if demo.contracts %}
+  <p class="hint warn" style="margin-top:12px">Hozir {{ demo.cohorts }} ta namunaviy
+    oqim va {{ demo.contracts }} ta shartnoma turibdi. Ular «Tahlillar» va «KPI»
+    sahifalaridagi shartnoma raqamlariga qo'shilib ko'rinadi — haqiqiy
+    shartnomalarni kiritishdan oldin o'chirib tashlang.</p>
+  {% endif %}
+</div>
+
 <div class="card" style="margin-bottom:14px">
   <h2 style="margin-top:0">Excel'dan import (Mbm_2026.xlsx)</h2>
   <p class="sub" style="margin-top:-4px">Google Sheets'dagi faylni

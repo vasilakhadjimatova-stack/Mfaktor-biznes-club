@@ -121,7 +121,11 @@ def candidates(row, limit=5):
         return []
     direction = ddsflow.direction_for(row.article)
     out = []
-    for c in Contract.query.filter(Contract.status != "refunded").all():
+    # Namunaviy (vaqtinchalik) shartnomalar chetlab o'tiladi — haqiqiy to'lov
+    # hech qachon uydirma o'quvchiga bog'lanib qolmasligi kerak.
+    for c in (Contract.query
+              .filter(Contract.status != "refunded")
+              .filter(~Contract.note.like("%[namuna]%")).all()):
         sc = similarity(row.purpose, c.student.name)
         reasons = [f"ism {int(sc * 100)}%"]
         if _course_matches(c, direction):
