@@ -42,10 +42,46 @@ def count_demo():
 
 
 def clear_demo():
-    """Namunaviy ma'lumotni butunlay o'chiradi (haqiqiysiga tegmaydi)."""
+    """Namunaviy ma'lumotni butunlay o'chiradi (haqiqiysiga tegmaydi).
+
+    Tartib muhim: o'quv bo'limi yozuvlari (davomat, topshiriq, sertifikat,
+    dars, vazifa) shartnoma va oqimga bog'langan — avval ular olib
+    tashlanmasa, baza «NOT NULL» xatosini beradi.
+    """
+    from models import (Assignment, EduCertificate, LessonAttendance,
+                        LessonSession, Submission)
+
     contracts = Contract.query.filter(Contract.note.like(f"%{MARK}%")).all()
+    cids = [c.id for c in contracts]
     sids = {c.student_id for c in contracts}
+    cohorts = Cohort.query.filter(Cohort.name.like(f"%{MARK}%")).all()
+    chids = [ch.id for ch in cohorts]
     n = len(contracts)
+
+    if cids:
+        for model in (LessonAttendance, Submission, EduCertificate):
+            model.query.filter(model.contract_id.in_(cids)).delete(
+                synchronize_session=False)
+    if chids:
+        # vazifa topshiriqlari boshqa (haqiqiy) o'quvchidan ham bo'lishi mumkin
+        a_ids = [a.id for a in Assignment.query.filter(
+            Assignment.cohort_id.in_(chids)).all()]
+        if a_ids:
+            Submission.query.filter(
+                Submission.assignment_id.in_(a_ids)).delete(
+                    synchronize_session=False)
+        s_ids = [s.id for s in LessonSession.query.filter(
+            LessonSession.cohort_id.in_(chids)).all()]
+        if s_ids:
+            LessonAttendance.query.filter(
+                LessonAttendance.session_id.in_(s_ids)).delete(
+                    synchronize_session=False)
+        Assignment.query.filter(Assignment.cohort_id.in_(chids)).delete(
+            synchronize_session=False)
+        LessonSession.query.filter(LessonSession.cohort_id.in_(chids)).delete(
+            synchronize_session=False)
+    db.session.flush()
+
     for c in contracts:
         db.session.delete(c)            # grafik qatorlari cascade bilan ketadi
     db.session.flush()
@@ -53,12 +89,13 @@ def clear_demo():
         s = db.session.get(Student, sid)
         if s and MARK in (s.note or ""):
             db.session.delete(s)
-    cohorts = Cohort.query.filter(Cohort.name.like(f"%{MARK}%")).all()
+    removed_cohorts = 0
     for ch in cohorts:
         if not Contract.query.filter_by(cohort_id=ch.id).count():
             db.session.delete(ch)
+            removed_cohorts += 1
     db.session.commit()
-    return {"contracts": n, "cohorts": len(cohorts)}
+    return {"contracts": n, "cohorts": removed_cohorts}
 
 
 def seed_demo(seed=7):

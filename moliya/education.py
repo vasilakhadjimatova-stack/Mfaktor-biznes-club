@@ -192,3 +192,101 @@ def ai_grade(assignment, submission_text, max_score=100):
     except Exception as exc:
         logger.error(f"AI baholash xato: {exc}")
         return None, ""
+
+
+# ──────────────────────────────────────────────────────────────────
+# O'QUVCHI TARAQQIYOTI — davomat va vazifalar bir qarashda
+# ──────────────────────────────────────────────────────────────────
+def student_progress(contract, sessions=None, att_map=None, assignments=None):
+    """Bitta o'quvchi: davomat foizi, vazifalar va o'rtacha ball.
+
+    Ro'yxat sahifalarida har qator uchun alohida so'rov yubormaslik kerak —
+    shuning uchun oqim bo'yicha tayyorlangan ma'lumot (sessions/att_map/
+    assignments) tashqaridan berilishi mumkin.
+    """
+    from models import (LessonSession, LessonAttendance, Assignment,
+                        Submission)
+    if sessions is None:
+        sessions = (LessonSession.query
+                    .filter_by(cohort_id=contract.cohort_id, held=True).all())
+    if att_map is None:
+        att_map = {}
+        if sessions:
+            for a in LessonAttendance.query.filter(
+                    LessonAttendance.contract_id == contract.id,
+                    LessonAttendance.session_id.in_(
+                        [s.id for s in sessions])).all():
+                att_map[(a.session_id, a.contract_id)] = a.status
+    if assignments is None:
+        assignments = Assignment.query.filter_by(
+            cohort_id=contract.cohort_id).all()
+
+    held = [s for s in sessions if s.held]
+    # «Keldi» va «Kechikdi» — bo'lgan hisoblanadi; «Sababli» foizni pasaytirmaydi
+    counted = came = 0
+    for s in held:
+        st = att_map.get((s.id, contract.id))
+        if st == "excused":
+            continue
+        counted += 1
+        if st in ("present", "late"):
+            came += 1
+    att_pct = (came / counted * 100) if counted else None
+
+    a_ids = [a.id for a in assignments]
+    subs = []
+    if a_ids:
+        subs = Submission.query.filter(
+            Submission.contract_id == contract.id,
+            Submission.assignment_id.in_(a_ids)).all()
+    graded = [s for s in subs if s.score is not None]
+    return {
+        "held": len(held), "came": came, "counted": counted,
+        "att_pct": att_pct,
+        "missed": counted - came,
+        "assign_total": len(a_ids), "assign_done": len(subs),
+        "avg_score": (sum(s.score for s in graded) / len(graded))
+                     if graded else None,
+    }
+
+
+def refresh_all_risk(only_running=True):
+    """Barcha (yoki faqat davom etayotgan) oqimlar riskini qayta hisoblaydi.
+
+    Risk kundan kunga o'zgaradi — to'lov kechikishi o'sadi. Ilgari u faqat
+    davomat saqlanganda yangilanardi, ya'ni hech kim davomat olmasa raqam
+    eskirib qolardi. Endi bo'lim sahifasi ochilganda o'zi yangilanadi.
+    """
+    from models import Cohort
+    q = Cohort.query
+    if only_running:
+        today = date.today()
+        q = q.filter(Cohort.start_date <= today, Cohort.end_date >= today)
+    n = 0
+    for ch in q.all():
+        n += refresh_cohort_risk(ch.id)
+    return n
+
+
+def contact_message(contract):
+    """Xavf ostidagi o'quvchiga yuborish uchun tayyor, xushmuomala xabar."""
+    name = (contract.student.name or "").split()[0] if contract.student.name \
+        else "Assalomu alaykum"
+    course = contract.cohort.course.name if contract.cohort else "kurs"
+    reasons = (contract.risk_reasons or "").strip()
+    body = [f"Assalomu alaykum, {name}!",
+            f"«{course}» kursi bo'yicha aloqaga chiqyapmiz."]
+    low = reasons.lower()
+    if "kelmagan" in low or "qoldirgan" in low:
+        body.append("Oxirgi darslarda ko'rinmadingiz — hammasi joyidami? "
+                    "O'tkazib yuborilgan mavzularni yopishga yordam beramiz.")
+    if "vazifa" in low:
+        body.append("Bir nechta uy vazifasi topshirilmagan. Qiynalayotgan "
+                    "joyingiz bo'lsa, ayting — birga ko'rib chiqamiz.")
+    if "to'lov" in low or "tolov" in low:
+        rest = contract.due_total()
+        body.append(f"Shuningdek to'lov bo'yicha {rest:,.0f} so'm qoldiq bor. "
+                    f"Qulay muddatni kelishib olsak bo'ladi."
+                    .replace(",", " "))
+    body.append("Javobingizni kutamiz. Mfaktor biznes maktabi")
+    return "\n\n".join(body)

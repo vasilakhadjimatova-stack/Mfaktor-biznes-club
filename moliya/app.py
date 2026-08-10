@@ -1210,8 +1210,15 @@ def register_routes(app):
             rows.append({"cohort": ch, "students": len(contracts),
                          "sessions": sessions, "pending": pending,
                          "running": ch.start_date <= today <= ch.end_date})
+        # Risk to'lov kechikishiga ham bog'liq — u har kuni o'zgaradi.
+        # Sahifa ochilganda davom etayotgan oqimlarniki yangilanadi.
+        try:
+            education.refresh_all_risk(only_running=True)
+        except Exception:                              # noqa: BLE001
+            db.session.rollback()
         return render_template("oquv.html", stats=education.edu_stats(),
-                               rows=rows, risk=education.risk_students())
+                               rows=rows, risk=education.risk_students(),
+                               msg=education.contact_message)
 
     @app.route("/oquv/cohort/<int:chid>")
     def oquv_cohort(chid):
@@ -1234,10 +1241,13 @@ def register_routes(app):
             subs = a.submissions
             sub_stats[a.id] = (len(subs),
                                sum(1 for s in subs if s.status == "pending"))
+        # har o'quvchi bo'yicha davomat va vazifa holati (bitta o'tishda)
+        prog = {c.id: education.student_progress(c, sessions, att, assignments)
+                for c in contracts}
         return render_template("oquv_cohort.html", ch=ch,
                                contracts=contracts, sessions=sessions,
-                               assignments=assignments, att=att,
-                               sub_stats=sub_stats,
+                               assignments=assignments, att=att, prog=prog,
+                               sub_stats=sub_stats, msg=education.contact_message,
                                att_statuses=ATT_STATUSES, today=date.today())
 
     @app.route("/oquv/cohort/<int:chid>/session/add", methods=["POST"])
@@ -1253,6 +1263,47 @@ def register_routes(app):
         db.session.commit()
         flash("Dars qo'shildi", "ok")
         return redirect(url_for("oquv_cohort", chid=ch.id))
+
+    @app.route("/oquv/cohort/<int:chid>/schedule", methods=["POST"])
+    def oquv_schedule(chid):
+        """Butun kurs jadvalini bir marta yaratish.
+
+        Darslar odatda haftaning ma'lum kunlarida bo'ladi. Bittalab qo'shish
+        20 ta dars uchun 20 marta forma to'ldirish demakdir — shuning uchun
+        kunlar + darslar soni berilsa, tizim sanalarni o'zi chiqaradi.
+        """
+        ch = Cohort.query.get_or_404(chid)
+        days = {int(d) for d in request.form.getlist("wd") if d.isdigit()}
+        if not days:
+            flash("Kamida bitta hafta kunini tanlang", "error")
+            return redirect(url_for("oquv_cohort", chid=ch.id))
+        try:
+            count = max(1, min(int(request.form.get("count") or 12), 60))
+        except ValueError:
+            count = 12
+        start = _parse_date(request.form.get("start"), ch.start_date)
+        topic = (request.form.get("topic") or "").strip()[:180]
+        exists = {s.date for s in LessonSession.query.filter_by(
+            cohort_id=ch.id).all()}
+        made, d, guard = 0, start, 0
+        while made < count and guard < 400:
+            guard += 1
+            if d.weekday() in days and d not in exists:
+                db.session.add(LessonSession(
+                    cohort_id=ch.id, date=d,
+                    topic=f"{topic} {made + 1}".strip() if topic else ""))
+                exists.add(d)
+                made += 1
+            d += timedelta(days=1)
+        db.session.commit()
+        flash(f"{made} ta dars jadvalga qo'shildi", "ok")
+        return redirect(url_for("oquv_cohort", chid=ch.id))
+
+    @app.route("/oquv/refresh-risk", methods=["POST"])
+    def oquv_refresh_risk():
+        n = education.refresh_all_risk(only_running=False)
+        flash(f"Risk qayta hisoblandi: {n} ta o'quvchi", "ok")
+        return redirect(request.referrer or url_for("oquv"))
 
     @app.route("/oquv/session/<int:sid>/attendance", methods=["POST"])
     def oquv_attendance(sid):

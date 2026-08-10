@@ -1339,6 +1339,67 @@ body.xlfull .xl-fs-exit{display:block}
   .co-st .v{font-size:12.5px}
   .stg{padding:11px;gap:10px}
 }
+
+/* ══ O'quv bo'limi: bir teginishli davomat ══ */
+.ses>summary{cursor:pointer;padding:7px 0;list-style:none}
+.ses>summary::-webkit-details-marker{display:none}
+.att-bulk{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.att-row{display:flex;align-items:center;gap:10px;padding:7px 0;
+  border-bottom:1px solid var(--line)}
+.att-row:last-of-type{border-bottom:0}
+.att-nm{flex:1;min-width:0;font-size:13.5px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.att-opts{display:flex;gap:5px;flex:none}
+.att-b{padding:6px 10px;border-radius:9px;border:1px solid var(--line);
+  background:var(--card-faint);color:var(--mut);font:600 11.5px var(--sans);
+  cursor:pointer;transition:background .15s,color .15s,border-color .15s;
+  -webkit-tap-highlight-color:transparent}
+.att-b:hover{border-color:var(--line2)}
+.att-b.on{color:var(--txt);border-color:transparent}
+.att-b.a-present.on{background:var(--green-dim);color:var(--green);
+  border-color:rgba(62,229,154,.4)}
+.att-b.a-late.on{background:var(--gold-dim);color:var(--gold);
+  border-color:rgba(245,193,92,.4)}
+.att-b.a-absent.on{background:var(--red-dim);color:var(--red);
+  border-color:rgba(255,122,136,.4)}
+.att-b.a-excused.on{background:var(--track);color:var(--txt);
+  border-color:var(--line2)}
+/* hafta kunlari tanlagichi */
+.wdays{display:flex;gap:7px;flex-wrap:wrap}
+.wd{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;
+  border:1px solid var(--line);border-radius:10px;cursor:pointer;
+  font-size:12.5px;color:var(--mut);background:var(--card-faint);
+  user-select:none}
+.wd:has(input:checked){background:var(--gold-dim);color:var(--gold);
+  border-color:rgba(245,193,92,.45)}
+.wd input{accent-color:var(--gold);margin:0}
+@media (max-width:640px){
+  .att-row{flex-wrap:wrap;gap:6px}
+  .att-nm{flex-basis:100%}
+  .att-opts{width:100%;justify-content:space-between}
+  .att-b{flex:1;text-align:center;padding:9px 4px}
+}
+
+/* O'quvchilar jadvali telefonda kartochkaga aylanadi */
+@media (max-width:700px){
+  .edu-st table,.edu-st tbody,.edu-st tr,.edu-st td{display:block;width:auto}
+  .edu-st tr:first-child{display:none}          /* sarlavha qatori */
+  .edu-st tr{border:1px solid var(--line);border-radius:14px;
+    padding:11px 13px;margin-bottom:10px;background:var(--card-faint)}
+  .edu-st td{display:flex;justify-content:space-between;align-items:baseline;
+    gap:12px;padding:5px 0;text-align:right;border:0}
+  .edu-st td::before{content:attr(data-l);color:var(--mut);font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.06em;flex:none}
+  .edu-st td:not([data-l]){display:block;text-align:left}
+  .edu-st td:first-child{padding-bottom:9px;margin-bottom:4px;
+    border-bottom:1px solid var(--line)}
+  .edu-st td:last-child{padding-top:9px;text-align:left}
+}
+/* chip ko'rinishidagi tugma oltin tugmaga aylanib ketmasin */
+button.chip{background:var(--card-faint);color:var(--mut);
+  border:1px solid var(--line);font:600 12px var(--sans);padding:6px 11px;
+  box-shadow:none}
+button.chip:hover{border-color:var(--line2);color:var(--txt)}
 </style>
 </head>
 <body>
