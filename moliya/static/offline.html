@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oflayn — Mfaktor Moliya</title>
+<style>
+body{background:#0b0e13;color:#eceef2;font:15px/1.6 -apple-system,Segoe UI,sans-serif;
+  display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center}
+.box{max-width:340px;padding:24px}
+.dot{width:52px;height:52px;border-radius:16px;background:rgba(232,182,76,.14);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 18px;
+  font:700 26px Georgia,serif;color:#e8b64c}
+h1{font:600 21px Georgia,serif;margin:0 0 8px}
+p{color:#9aa3b2;margin:0 0 20px}
+button{background:#e8b64c;color:#241a05;border:0;border-radius:10px;padding:11px 22px;
+  font:600 14px inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="dot">M</div>
+  <h1>Internet aloqasi yo'q</h1>
+  <p>Mfaktor Moliya serveriga ulanib bo'lmadi. Aloqa tiklangach, sahifa yangilanadi.</p>
+  <button onclick="location.reload()">Qayta urinish</button>
+</div>
+<script>addEventListener("online", () => location.reload());</script>
+</body>
+</html>

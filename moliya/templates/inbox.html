@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>To'lovlar navbati</h1>
+<p class="sub">ДДС'dagi mijoz to'lovlari shartnomalarga bog'lanadi. Tizim
+  o'zi taxmin qiladi — ishonchi yetmasa shu yerda so'raydi. Buxgalter bu
+  sahifani ochmaydi; bu ROP va kuratorlar uchun.</p>
+
+{# ── Bajarilish darajasi ── #}
+<div class="card" style="padding:16px 18px;margin-bottom:14px">
+  <div class="mtr-top">
+    <span>Bog'langan to'lovlar</span>
+    <b>{{ st.matched|grp }} / {{ st.total|grp }} · {{ st.pct }}%</b>
+  </div>
+  <div class="mtr"><i style="width:{{ st.pct }}%"></i></div>
+  <div class="mtr-legend">
+    <span><i class="dot g"></i>Avtomat: <b>{{ st.auto|grp }}</b></span>
+    <span><i class="dot b"></i>Qo'lda: <b>{{ st.manual|grp }}</b></span>
+    <span><i class="dot y"></i>Navbatda: <b>{{ st.open|grp }}</b>
+      ({{ st.open_amt|grp }} so'm)</span>
+    <span><i class="dot m"></i>Chetlatilgan: <b>{{ st.skipped|grp }}</b></span>
+  </div>
+</div>
+
+<div class="monthnav" style="flex-wrap:wrap">
+  {% set tabs = [('open','Navbatda', st.open), ('matched','Bog\'langan', st.matched),
+                 ('skipped','Chetlatilgan', st.skipped)] %}
+  {% for key, label, n in tabs %}
+  <a class="chip {{ 'on' if show == key }}" href="/inbox?show={{ key }}">{{ label }} · {{ n|grp }}</a>
+  {% endfor %}
+  <form method="post" action="/inbox/rerun" style="margin-left:auto">
+    <button class="btn ghost" title="Barcha to'lovlarni qaytadan taqqoslash">
+      ⟳ Qayta taqqoslash</button>
+  </form>
+</div>
+
+{% if not items %}
+  <div class="card"><div class="empty">
+    {% if show == 'open' %}Navbat bo'sh — hamma to'lov bog'langan 🎉
+    {% elif show == 'skipped' %}Chetlatilgan to'lov yo'q
+    {% else %}Hali bog'langan to'lov yo'q{% endif %}
+  </div></div>
+{% endif %}
+
+{% for it in items %}
+{% set r = it.row %}
+<div class="pay">
+  {# ── Chap: ДДС qatori ── #}
+  <div class="pay-src">
+    <div class="pay-amt">{{ r.amount|grp }} <small>so'm</small></div>
+    <div class="pay-meta">
+      <span class="tag dir">{{ it.direction }}</span>
+      {% if r.wallet2 %}<span class="tag w2">{{ r.wallet2 }}</span>{% endif %}
+      <span>{{ r.ddate.strftime('%d.%m.%Y') if r.ddate }}</span>
+      <span class="dim">{{ r.wallet }}</span>
+    </div>
+    <div class="pay-name {{ 'noname' if not it.named }}">
+      {{ r.purpose if r.purpose else '— izoh yo\'q —' }}
+    </div>
+    {% if not it.named and show == 'open' %}
+    <div class="pay-warn">Izohda ism yo'q — tizim o'zi topa olmaydi.
+      Quyidan tanlang yoki shartnoma oching.</div>
+    {% endif %}
+  </div>
+
+  {# ── O'ng: qaror ── #}
+  <div class="pay-act">
+    {% if show == 'matched' %}
+      <div class="pay-done">
+        <span class="tag {{ 'auto' if r.match_status == 'auto' else 'man' }}">
+          {{ 'Avtomat' if r.match_status == 'auto' else 'Qo\'lda' }}</span>
+        <a href="/contracts/{{ r.contract_id }}">
+          {{ r.contract.student.name }} — {{ r.contract.cohort.course.name }}</a>
+        <div class="dim">To'landi {{ r.contract.paid_total()|grp }} /
+          {{ r.contract.net_price|grp }} so'm</div>
+      </div>
+      <form method="post" action="/inbox/{{ r.id }}/unlink">
+        <button class="btn ghost sm">Bog'lanishni bekor qilish</button></form>
+
+    {% elif show == 'skipped' %}
+      <form method="post" action="/inbox/{{ r.id }}/restore">
+        <button class="btn ghost sm">Navbatga qaytarish</button></form>
+
+    {% else %}
+      {% if it.cands %}
+      <div class="cands">
+        {% for c in it.cands %}
+        <form method="post" action="/inbox/{{ r.id }}/link" class="cand">
+          <input type="hidden" name="contract_id" value="{{ c.contract.id }}">
+          <div class="cand-info">
+            <b>{{ c.contract.student.name }}</b>
+            <span class="dim">{{ c.contract.cohort.course.name }}
+              ({{ c.contract.cohort.name }})</span>
+            <span class="cand-why">{{ c.reason }}</span>
+          </div>
+          <div class="cand-right">
+            <span class="score {{ 'hi' if c.score >= 0.92 else ('mid' if c.score >= 0.75 else 'lo') }}">
+              {{ (c.score * 100)|round|int }}%</span>
+            <button class="btn sm">Bog'lash</button>
+          </div>
+        </form>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="cands-none">Mos shartnoma topilmadi</div>
+      {% endif %}
+
+      <details class="newc">
+        <summary>+ Yangi shartnoma ochish</summary>
+        <form method="post" action="/inbox/{{ r.id }}/contract" class="newc-form">
+          <div><label>O'quvchi</label>
+            <input name="student_name" value="{{ r.purpose if it.named }}" required></div>
+          <div><label>Telefon</label><input name="phone" placeholder="+998"></div>
+          <div><label>Oqim</label>
+            {% if cohorts %}
+            <select name="cohort_id" required>
+              <option value="">— tanlang —</option>
+              {% for co in cohorts %}
+              <option value="{{ co.id }}">{{ co.course.name }} — {{ co.name }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <a class="btn ghost" href="/cohorts" style="white-space:nowrap">➕ Avval oqim oching →</a>
+            {% endif %}</div>
+          <div><label>Shartnoma narxi</label>
+            <input name="price" type="number" step="any" placeholder="0"></div>
+          <div><label>Chegirma</label>
+            <input name="discount" type="number" step="any" value="0"></div>
+          <div><label>Necha qismga</label>
+            <input name="installments" type="number" min="1" value="1"></div>
+          <div><label>Qayerdan keldi</label>
+            <select name="source">
+              <option value="">—</option>
+              {% for ch in CHANNELS %}<option>{{ ch }}</option>{% endfor %}
+            </select></div>
+          <div class="acts"><button>Ochish va bog'lash</button></div>
+        </form>
+      </details>
+
+      <form method="post" action="/inbox/{{ r.id }}/skip" class="skipf">
+        <button class="btn ghost sm">Bu shartnomaga tegishli emas</button></form>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

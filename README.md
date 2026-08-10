@@ -18,6 +18,19 @@ Mfaktor o'quv-ta'lim loyihasining barcha jarayonlariga — marketing, sotuv, o'q
 | [docs/01-audit.md](docs/01-audit.md) | Mfaktor biznes maktabining hozirgi holati bo'yicha to'liq audit |
 | [docs/02-dunyo-tajribasi.md](docs/02-dunyo-tajribasi.md) | Dunyodagi yetakchi ta'lim loyihalarining AI tajribalari (benchmark) |
 | [docs/03-ai-strategiya-roadmap.md](docs/03-ai-strategiya-roadmap.md) | AI integratsiya strategiyasi va bosqichma-bosqich yo'l xaritasi |
+| [docs/04-impulse-andozalar.md](docs/04-impulse-andozalar.md) | Impulse ERP va Impulse Moliya loyihalari texnik auditi — Mfaktor uchun tayyor andozalar |
+| [docs/05-moliya-dastur.md](docs/05-moliya-dastur.md) | Mfaktor Moliya dasturi loyihalash hujjati (kod: `moliya/`) |
+| [docs/06-moliya-tahlil.md](docs/06-moliya-tahlil.md) | Real 2026 ma'lumotlari tahlili: CAC dinamikasi, qaytarishlar, plan-fakt, topilmalar |
+| [docs/07-avtomatlashtirish-imkoniyatlari.md](docs/07-avtomatlashtirish-imkoniyatlari.md) | Avtomatlashtirish imkoniyatlari xaritasi: jahon izlanishi + real og'riqlarga bog'langan ustuvorliklar |
+| [docs/04-oquv-bolimi-ai-modul.md](docs/04-oquv-bolimi-ai-modul.md) | O'quv bo'limi moduli: arxitektura, AI yechimlari va sprint rejasi |
+| [docs/05-bozor-oyinlari.md](docs/05-bozor-oyinlari.md) | O'zbekiston bozori tahlili va konkret "o'yinlar" (90 kunlik reja) |
+
+## Dastur
+
+| Papka | Tavsif |
+|---|---|
+| [moliya/](moliya/) | **Mfaktor ERP** — ishlaydigan dastur: Moliya (kassa/DDS, shartnomalar + to'lov grafigi, unit-ekonomika, qarzdorlik) + **O'quv bo'limi** (davomat, uy vazifalari, AI baholash, dropout risk-nazorat, QR-sertifikatlar) |
+
 
 ## Ish tartibi
 

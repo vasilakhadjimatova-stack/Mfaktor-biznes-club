@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>KPI — xodimlar samaradorligi</h1>
+<p class="sub">Reja-fakt, umumiy ball, bonus va oylik hisobi — sotuv fakti moliyadan avtomatik olinadi</p>
+
+<div class="monthnav" style="display:flex;align-items:center;gap:10px;margin:6px 0 16px">
+  <a class="chip" href="/kpi?y={{ py }}&m={{ pm }}">←</a>
+  <b style="font:700 16px var(--sans)">{{ oy_nomi }} {{ y }}</b>
+  <a class="chip" href="/kpi?y={{ ny }}&m={{ nm }}">→</a>
+</div>
+
+<div class="grid gkpi" style="align-items:start">
+  {% for card, r in data %}
+  <div class="card">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:1;min-width:0">
+        <h2 style="margin:0 0 2px">{{ card.role_name }}</h2>
+        <input name="person" form="kf{{ card.id }}" value="{{ card.person }}" placeholder="Xodim F.I.O."
+                 style="border:0;background:transparent;color:var(--mut);font:500 12.5px var(--sans);
+                        padding:2px 0;width:100%;outline:none;border-bottom:1px dashed var(--line2)">
+      </div>
+      <div class="ech-gauge" data-val="{{ '%.1f'|format(r.total * 100) }}"
+           style="width:118px;height:96px;flex:none;margin:-6px -8px 0 0"></div>
+    </div>
+
+    <div class="tablewrap" style="margin-top:4px">
+    <table style="font-size:12.5px">
+      <tr><th>Ko'rsatkich</th><th class="r">Reja</th><th class="r" style="width:80px">Fakt</th>
+          <th class="r">Index</th><th class="r">Vazn</th></tr>
+      {% for row in r.rows %}
+      {% set it = row.item %}
+      <tr>
+        <td>{{ it.name }}{% if it.plan_label %}
+            <div style="font-size:10.5px;color:var(--dim)">{{ it.plan_label }}</div>{% endif %}</td>
+        <td class="r" style="white-space:nowrap">
+          {{ it.plan_value|grp if it.plan_value and it.plan_value == it.plan_value|round(0) else it.plan_value }}
+          <span style="color:var(--dim);font-size:10.5px">{{ it.unit }}</span></td>
+        <td class="r">
+          <input name="fact_{{ it.id }}" form="kf{{ card.id }}" value="{{ it.fact|grp if it.fact is not none and it.fact >= 1000 else (it.fact if it.fact is not none else '') }}"
+                 inputmode="decimal"
+                 style="width:72px;text-align:right;padding:5px 6px;border-radius:8px;
+                        border:1px solid var(--line2);background:var(--card-faint);
+                        color:var(--txt);font:600 12px var(--sans);font-variant-numeric:tabular-nums">
+        </td>
+        <td class="r">
+          {% if row.idx is not none %}
+            <span class="badge {{ 'b-green' if row.idx >= 0.9 else ('b-gold' if row.idx >= 0.7 else 'b-red') }}"
+              >{{ '%.0f'|format(row.idx * 100) }}%</span>
+          {% else %}<span style="color:var(--dim)">—</span>{% endif %}
+        </td>
+        <td class="r" style="color:var(--mut)">{{ '%.0f'|format(it.weight * 100) }}%</td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+
+    <div class="mstat" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <div><span class="l">Garant</span><div class="v">{{ card.garant|grp }}</div></div>
+      <div><span class="l">Bonus</span>
+        <div class="v {{ 'pos' if r.bonus else '' }}">{{ r.bonus|grp }}</div>
+        <div style="font-size:10px;color:var(--dim)">{{ r.bonus_note }}</div></div>
+      <div><span class="l">Umumiy oylik</span>
+        <div class="v gold" style="background:linear-gradient(120deg,var(--gold2),var(--gold));
+             -webkit-background-clip:text;background-clip:text;color:transparent">
+          {{ r.salary|grp }}</div></div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button type="submit" form="kf{{ card.id }}">Saqlash</button>
+      {% if card.items|selectattr('auto_key')|list %}
+      <button type="submit" form="af{{ card.id }}" class="ghost">⇩ Moliyadan olish</button>
+      {% endif %}
+    </div>
+    <form method="post" action="/kpi/{{ card.id }}/save" id="kf{{ card.id }}" hidden></form>
+    <form method="post" action="/kpi/{{ card.id }}/autofill" id="af{{ card.id }}" hidden></form>
+  </div>
+  {% endfor %}
+</div>
+
+<p class="sub" style="margin-top:16px;font-size:12px">
+  Bonus shkalasi: ≤70% — 0 · 71–80% · 81–90% · 91–100% · 100%+ —
+  РОП/Marketolog uchun oylik tushumdan foiz (1% / 2% / 3% / 3.5%),
+  kurator/HR uchun qat'iy summa (500 ming / 1 mln / 2 mln).
+  Faktlar kiritilmagan ko'rsatkich hisobga qo'shilmaydi.
+</p>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% import "_charts.html" as viz %}
+{% block body %}
+<h1>ДДС — yillik hisobot</h1>
+<p class="sub">{{ d.year }}-yil · jadval Sheets'dagi bilan bir xil formatda</p>
+
+<div class="monthnav">
+  <a class="chip" href="?year={{ d.year - 1 }}">← {{ d.year - 1 }}</a>
+  <a class="chip on">{{ d.year }}</a>
+  <a class="chip" href="?year={{ d.year + 1 }}">{{ d.year + 1 }} →</a>
+</div>
+
+<div class="card">
+  <div class="tablewrap">
+  <table style="min-width:1150px;font-size:13px">
+    <tr>
+      <th style="min-width:220px">Наименование</th>
+      {% for mn in ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'] %}
+      <th class="r">{{ mn }}</th>{% endfor %}
+      <th class="r">Jami</th><th class="r">%</th><th style="width:88px">Trend</th>
+    </tr>
+
+    <tr class="row-strong">
+      <td><b>Остаток ДС на начало</b></td>
+      {% for v in d.opens %}<td class="r"><b>{{ v|grp }}</b></td>{% endfor %}
+      <td class="r"></td><td class="r"></td>
+    </tr>
+
+    <tr class="row-inc">
+      <td><b>Поступления (kirim)</b></td>
+      {% for v in d.inc_tot %}<td class="r pos"><b>{{ v|grp }}</b></td>{% endfor %}
+      <td class="r pos"><b>{{ d.inc_year|grp }}</b></td><td class="r">100%</td>
+    </tr>
+    {% for r in d.rows_inc %}
+    <tr>
+      <td style="padding-left:22px">{{ r.cat }}</td>
+      {% for v in r.vals %}<td class="r">{{ v|grp if v else '' }}</td>{% endfor %}
+      <td class="r">{{ r.total|grp }}</td>
+      <td class="r" style="color:var(--dim)">{{ '%.0f'|format(r.pct) }}%</td>
+      <td>{{ viz.spark(r.spark, 's1') }}</td>
+    </tr>
+    {% endfor %}
+    {% if d.other_inc|sum %}
+    <tr><td style="padding-left:22px;color:var(--mut)">Boshqa kirim</td>
+      {% for v in d.other_inc %}<td class="r">{{ v|grp if v else '' }}</td>{% endfor %}
+      <td class="r">{{ d.other_inc|sum|grp }}</td><td></td></tr>
+    {% endif %}
+
+    <tr class="row-exp">
+      <td><b>Выбытия (chiqim)</b></td>
+      {% for v in d.exp_tot %}<td class="r neg"><b>{{ v|grp }}</b></td>{% endfor %}
+      <td class="r neg"><b>{{ d.exp_year|grp }}</b></td>
+      <td class="r">{{ '%.0f'|format(d.exp_year / d.inc_year * 100) if d.inc_year else '' }}%</td>
+    </tr>
+    {% for r in d.rows_exp %}
+    <tr>
+      <td style="padding-left:22px">{{ r.cat }}</td>
+      {% for v in r.vals %}<td class="r">{{ v|grp if v else '' }}</td>{% endfor %}
+      <td class="r">{{ r.total|grp }}</td>
+      <td class="r" style="color:var(--dim)">{{ '%.0f'|format(r.pct) }}%</td>
+      <td>{{ viz.spark(r.spark, 's2') }}</td>
+    </tr>
+    {% endfor %}
+    {% if d.other_exp|sum %}
+    <tr><td style="padding-left:22px;color:var(--mut)">Boshqa chiqim</td>
+      {% for v in d.other_exp %}<td class="r">{{ v|grp if v else '' }}</td>{% endfor %}
+      <td class="r">{{ d.other_exp|sum|grp }}</td><td></td></tr>
+    {% endif %}
+
+    {% if d.rows_fin %}
+    <tr class="row-fin">
+      <td><b>Финансовая деятельность</b></td>
+      {% for v in d.fin_net %}<td class="r {{ 'neg' if v < 0 }}"><b>{{ v|grp }}</b></td>{% endfor %}
+      <td class="r {{ 'neg' if d.fin_year < 0 }}"><b>{{ d.fin_year|grp }}</b></td><td></td>
+    </tr>
+    {% for r in d.rows_fin %}
+    <tr>
+      <td style="padding-left:22px">{{ r.cat }}</td>
+      {% for v in r.vals %}<td class="r {{ 'neg' if v < 0 }}">{{ v|grp if v else '' }}</td>{% endfor %}
+      <td class="r {{ 'neg' if r.total < 0 }}">{{ r.total|grp }}</td><td></td>
+    </tr>
+    {% endfor %}
+    {% endif %}
+
+    <tr class="row-strong">
+      <td><b>Sof oqim (oy)</b></td>
+      {% for v in d.net %}<td class="r {{ 'pos' if v >= 0 else 'neg' }}"><b>{{ v|grp }}</b></td>{% endfor %}
+      <td class="r {{ 'pos' if d.net_year >= 0 else 'neg' }}"><b>{{ d.net_year|grp }}</b></td><td></td>
+    </tr>
+    <tr class="row-strong">
+      <td><b>Остаток ДС на конец</b></td>
+      {% for v in d.closes %}<td class="r"><b>{{ v|grp }}</b></td>{% endfor %}
+      <td></td><td></td>
+    </tr>
+  </table>
+  </div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <p class="hint" style="margin:0">% ustuni — statyaning yillik kirimga nisbati. Real Sheets ma'lumotini yuklash: <code>python import_dds.py fayl.xlsx</code> (Google Sheets → Fayl → Yuklab olish → Excel).</p>
+</div>
+{% endblock %}

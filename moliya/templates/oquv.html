@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>O'quv bo'limi</h1>
+<p class="sub">Davomat · uy vazifalari · AI baholash · dropout risk-nazorat · sertifikatlar</p>
+
+<div class="grid g4">
+  <div class="card kpi"><div class="l">Davom etayotgan oqimlar</div>
+    <div class="v">{{ stats.running_cohorts }}</div></div>
+  <div class="card kpi"><div class="l">Faol o'quvchilar</div>
+    <div class="v pos">{{ stats.active_students }}</div></div>
+  <div class="card kpi"><div class="l">Tekshirilmagan topshiriq</div>
+    <div class="v {{ 'neg' if stats.pending_subs else '' }}">{{ stats.pending_subs }}</div></div>
+  <div class="card kpi"><div class="l">Xavf ostida</div>
+    <div class="v {{ 'neg' if stats.at_risk else 'pos' }}">{{ stats.at_risk }}</div></div>
+</div>
+
+{% if risk %}
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">⚠️ Diqqat: tashlab ketish xavfi</h2>
+  <table>
+    <tr><th>O'quvchi</th><th>Oqim</th><th>Risk</th><th>Sabab</th><th>Telefon</th></tr>
+    {% for c in risk %}
+    <tr>
+      <td><a href="/contracts/{{ c.id }}">{{ c.student.name }}</a></td>
+      <td><a href="/oquv/cohort/{{ c.cohort_id }}">{{ c.cohort.name }}</a></td>
+      <td><span class="badge {{ 'b-red' if c.risk_score >= 60 else 'b-gold' }}">{{ c.risk_score }}</span></td>
+      <td style="font-size:12px;color:var(--mut)">{{ c.risk_reasons or '—' }}</td>
+      <td>{{ c.student.phone or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">Oqimlar bo'yicha o'quv jarayoni</h2>
+  <table>
+    <tr><th>Oqim</th><th>Holat</th><th class="r">O'quvchi</th>
+        <th class="r">Darslar</th><th class="r">Tekshirilmagan</th><th></th></tr>
+    {% for r in rows %}
+    <tr>
+      <td><b>{{ r.cohort.course.name }}</b>
+        <div style="font-size:12px;color:var(--mut)">{{ r.cohort.name }} · {{ r.cohort.start_date|dmy }} – {{ r.cohort.end_date|dmy }}</div></td>
+      <td><span class="status-pill {{ 'b-green' if r.running else 'b-gray' }}">{{ 'davom etmoqda' if r.running else 'nofaol' }}</span></td>
+      <td class="r">{{ r.students }}</td>
+      <td class="r">{{ r.sessions }}</td>
+      <td class="r {{ 'neg' if r.pending }}">{{ r.pending }}</td>
+      <td><a class="chip" href="/oquv/cohort/{{ r.cohort.id }}">Ochish →</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="sub">Hali oqim yo'q — avval «Oqimlar» bo'limida oqim oching</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <p class="hint" style="margin:0">Bu bo'lim moliya bilan bitta zanjirda ishlaydi:
+    to'lov kechikishi + davomat + vazifa signallari birga «dropout risk» ballini beradi.
+    Yuqori riskka chiqqan o'quvchi avtomatika lentasiga tushadi.
+    Uy vazifasi saqlanganda AI (Claude) rubrika bo'yicha birinchi bahoni taklif qiladi —
+    kurator bir tugma bilan tasdiqlaydi.</p>
+</div>
+{% endblock %}
