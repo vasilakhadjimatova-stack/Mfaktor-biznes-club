@@ -59,24 +59,25 @@ function syncThemeColor(t){
   --shadow:0 14px 44px rgba(0,0,0,.6);
 }
 :root[data-theme="light"]{
-  /* yorug' mavzu — "qog'oz daftar": iliq oq-qaymoq fon, quyuq siyoh matn */
+  /* yorug' mavzu — "luxury white": chinni-oq iliq fon, shampan oltini,
+     siyoh-jigarrang matn. Sovuq ko'k emas — mehmonxona qog'ozi tuyg'usi. */
   color-scheme:light;
-  --ink:#eef1f9; --ink2:#e4e9f5; --ink3:#ffffff;
-  --line:rgba(40,60,120,.1); --line2:rgba(40,60,120,.18);
-  --txt:#1a2137; --mut:#5b6682; --dim:#8f9ab5;
-  --gold:#9a6f10; --gold2:#7a570b; --gold-dim:rgba(200,150,30,.14);
-  --green:#0d8a57; --green-dim:rgba(13,138,87,.11);
-  --red:#cc3d4e; --red-dim:rgba(204,61,78,.10);
-  --blue:#2563c4;
-  --hover:rgba(40,60,120,.05); --track:rgba(40,60,120,.08);
-  --card-top:rgba(255,255,255,.82); --card-bot:rgba(255,255,255,.55);
-  --card-faint:rgba(255,255,255,.55);
-  --btn-g1:#f6cd6d; --btn-g2:#e3a92f; --btn-txt:#241a05;
-  --row-strong:rgba(40,60,120,.06);
-  --row-inc:rgba(13,138,87,.08); --row-exp:rgba(204,61,78,.07);
-  --row-fin:rgba(37,99,196,.08);
-  --hint-bg:rgba(37,99,196,.06);
-  --shadow:0 14px 40px rgba(40,60,120,.16);
+  --ink:#f7f5f0; --ink2:#f1eee7; --ink3:#ffffff;
+  --line:rgba(146,118,60,.14); --line2:rgba(146,118,60,.26);
+  --txt:#221e15; --mut:#6f6754; --dim:#a89f8b;
+  --gold:#9c7118; --gold2:#7c5a10; --gold-dim:rgba(190,150,60,.15);
+  --green:#1e7d4f; --green-dim:rgba(30,125,79,.11);
+  --red:#b93d47; --red-dim:rgba(185,61,71,.10);
+  --blue:#2b5aa0;
+  --hover:rgba(156,113,24,.06); --track:rgba(146,118,60,.10);
+  --card-top:rgba(255,255,255,.96); --card-bot:rgba(255,254,250,.88);
+  --card-faint:rgba(255,255,255,.72);
+  --btn-g1:#eed292; --btn-g2:#c9962f; --btn-txt:#241a05;
+  --row-strong:rgba(146,118,60,.07);
+  --row-inc:rgba(30,125,79,.08); --row-exp:rgba(185,61,71,.07);
+  --row-fin:rgba(43,90,160,.07);
+  --hint-bg:rgba(156,113,24,.06);
+  --shadow:0 20px 55px rgba(120,95,40,.14);
 }
 *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
 a,button,summary,.chip{touch-action:manipulation}
@@ -91,7 +92,10 @@ body::before{content:"";position:fixed;inset:-20%;pointer-events:none;z-index:0;
     radial-gradient(38% 30% at 8% 88%, rgba(130,185,255,.12), transparent 70%),
     radial-gradient(30% 26% at 88% 78%, rgba(62,229,154,.09), transparent 70%);
   animation:aurora 26s ease-in-out infinite alternate}
-:root[data-theme="light"] body::before{opacity:.55}
+:root[data-theme="light"] body::before{opacity:1;background:
+    radial-gradient(46% 36% at 80% 4%, rgba(212,175,95,.16), transparent 70%),
+    radial-gradient(40% 32% at 4% 90%, rgba(226,201,141,.13), transparent 70%),
+    radial-gradient(28% 24% at 90% 80%, rgba(199,164,88,.08), transparent 70%)}
 @keyframes aurora{
   0%{transform:translate(0,0) scale(1)}
   50%{transform:translate(-2.5%,2%) scale(1.06)}
@@ -100,7 +104,8 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   background-image:radial-gradient(rgba(160,180,255,.09) 1px, transparent 1px);
   background-size:26px 26px;
   mask-image:radial-gradient(70% 60% at 50% 30%, #000, transparent)}
-:root[data-theme="light"] body::after{opacity:.5}
+:root[data-theme="light"] body::after{opacity:.55;
+  background-image:radial-gradient(rgba(160,130,70,.12) 1px, transparent 1px)}
 a{color:var(--blue);text-decoration:none}
 a:hover{text-decoration:underline}
 ::-webkit-scrollbar{height:9px;width:9px}
@@ -198,7 +203,9 @@ h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--g
   border-radius:18px 18px 0 0;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);
   pointer-events:none}
-:root[data-theme="light"] .card{box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 8px 26px rgba(40,60,120,.1)}
+:root[data-theme="light"] .card{border-color:rgba(146,118,60,.18);
+  box-shadow:0 1px 0 #fff inset, 0 1px 2px rgba(120,95,40,.06),
+             0 12px 34px -6px rgba(120,95,40,.14)}
 .card.kpi{position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s,background .25s}
 .card.kpi:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(60,48,20,.13)}
 :root[data-theme="dark"] .card.kpi:hover{box-shadow:0 10px 26px rgba(0,0,0,.45)}
@@ -371,7 +378,7 @@ main > *:nth-child(6){animation-delay:.25s}
 
 /* ══ Diagrammalar ══ */
 :root{ --s1:#3987e5; --s2:#d95926; }
-:root[data-theme="light"]{ --s1:#2a78d6; --s2:#eb6834; }
+:root[data-theme="light"]{ --s1:#2b5aa0; --s2:#c26433; }
 .viz{position:relative;width:100%}
 .viz-svg{width:100%;height:auto;display:block;overflow:visible}
 .viz-grid{stroke:var(--line);stroke-width:1}
