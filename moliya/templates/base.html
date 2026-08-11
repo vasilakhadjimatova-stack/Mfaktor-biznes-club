@@ -194,6 +194,7 @@ h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--g
 
 /* ── Cards / grids ── */
 .grid{display:grid;gap:14px;align-items:start}
+.grid.g4:has(.kpi-x){align-items:stretch}
 .g4{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
 .g2{grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}
 /* KPI kartalari: ichidagi 5 ustunli jadval qisilmasligi uchun kengroq */
@@ -210,7 +211,7 @@ h2::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--g
 :root[data-theme="light"] .card{border-color:rgba(146,118,60,.18);
   box-shadow:0 1px 0 #fff inset, 0 1px 2px rgba(120,95,40,.06),
              0 12px 34px -6px rgba(120,95,40,.14)}
-.card.kpi{position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s,background .25s}
+.card.kpi{position:relative;overflow:hidden;display:flex;flex-direction:column;transition:transform .18s,box-shadow .18s,background .25s}
 .card.kpi:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(60,48,20,.13)}
 :root[data-theme="dark"] .card.kpi:hover{box-shadow:0 10px 26px rgba(0,0,0,.45)}
 .kpi .l{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.09em;font-weight:600;padding-right:44px}
@@ -725,6 +726,101 @@ main > *:nth-child(6){animation-delay:.25s}
 .nbadge{margin-left:auto;font:700 10.5px var(--sans);font-style:normal;
   background:var(--gold);color:#1a1206;border-radius:99px;
   padding:2px 7px;min-width:20px;text-align:center}
+
+/* ══════════════════════════════════════════════════════════════
+   O'QUV BO'LIMI — kurator ish joyi
+   Maqsad: bir qarashda «bugun nima qilishim kerak» ko'rinsin,
+   raqamlarning ma'nosi o'z yonida yozilgan bo'lsin.
+════════════════════════════════════════════════════════════════ */
+.pghead{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;
+  margin-bottom:16px}
+.pghead>div:first-child{flex:1;min-width:200px}
+.pgacts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pgacts form{margin:0}
+.tsub{font-size:12px;color:var(--mut);margin-top:2px}
+.crumb{font-size:12.5px;margin-bottom:6px}
+.kpi .v .of{font-size:17px;color:var(--dim);font-weight:600}
+
+/* ── Ish navbati ── */
+.wq{border-color:var(--line2)}
+.wq-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.wq-h h2{margin:0}
+.wq-n{font:600 11px var(--sans);letter-spacing:.06em;padding:3px 9px;
+  border-radius:99px;background:var(--gold-dim);color:var(--gold)}
+.wq-i{display:flex;align-items:center;gap:13px;padding:12px 13px;
+  margin-bottom:8px;border-radius:12px;color:var(--txt);text-decoration:none;
+  border:1px solid var(--line);background:var(--card-faint);
+  transition:border-color .15s,transform .15s}
+.wq-i:last-of-type{margin-bottom:0}
+.wq-i:hover{border-color:var(--gold);transform:translateX(2px);
+  text-decoration:none}
+.wq-i.urgent{border-color:var(--red);background:var(--red-dim)}
+.wq-ic{flex:none;width:32px;height:32px;border-radius:9px;display:grid;
+  place-items:center;font-size:15px;background:var(--gold-dim);color:var(--gold)}
+.wq-i.urgent .wq-ic{background:var(--red-dim);color:var(--red)}
+.wq-tx{flex:1;min-width:0}
+.wq-tx b{font-size:13.5px;display:block}
+.wq-w{font-size:12.5px;color:var(--mut);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wq-note{flex:none;font-size:12px;color:var(--mut);white-space:nowrap}
+.wq-go{flex:none;font:600 12px var(--sans);color:var(--gold);white-space:nowrap}
+.wq-ok{display:flex;align-items:center;gap:14px;padding:6px 0 2px}
+.wq-ok-i{flex:none;width:38px;height:38px;border-radius:11px;display:grid;
+  place-items:center;font-size:18px;background:var(--green-dim);color:var(--green)}
+.wq-ok b{display:block;font-size:14px;margin-bottom:2px}
+
+/* ── KPI izohi ── */
+.kpi-x{margin-top:auto;padding-top:8px;font-size:11px;
+  color:var(--dim);line-height:1.4}
+
+/* ── Xavf o'lchagichi: raqam yonida so'z va chiziq ── */
+.rmeter{display:flex;align-items:center;gap:9px}
+.rbar{flex:1;min-width:52px;height:6px;border-radius:4px;overflow:hidden;
+  background:rgba(150,150,150,.18)}
+.rbar i{display:block;height:100%;border-radius:4px}
+.rbar.r-high i{background:var(--red)}
+.rbar.r-mid i{background:var(--gold)}
+.rbar.r-low i{background:var(--green)}
+.rmeter b{font-variant-numeric:tabular-nums;font-size:13px}
+.r-t-high{color:var(--red)} .r-t-mid{color:var(--gold)} .r-t-low{color:var(--green)}
+.rword{font-size:11px;color:var(--mut);text-transform:lowercase}
+.why{display:inline-block;font-size:11.5px;color:var(--mut);
+  background:rgba(150,150,150,.10);border:1px solid var(--line);
+  border-radius:7px;padding:2px 8px;margin:2px 4px 2px 0}
+
+/* ── Oqim qatorlari ── */
+.cohorts{display:flex;flex-direction:column;gap:9px}
+.co-r{display:flex;align-items:center;gap:16px;padding:13px 15px;
+  border:1px solid var(--line);border-radius:13px;background:var(--card-faint);
+  color:var(--txt);text-decoration:none;transition:border-color .15s}
+.co-r:hover{border-color:var(--gold);text-decoration:none}
+.co-r.done{opacity:.62}
+.co-main{flex:1;min-width:170px}
+.co-t{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.co-t b{font-size:14px}
+.co-p{font:600 10px var(--sans);letter-spacing:.08em;text-transform:uppercase;
+  padding:2px 8px;border-radius:99px}
+.p-live{background:var(--green-dim);color:var(--green)}
+.p-soon{background:var(--gold-dim);color:var(--gold)}
+.p-done{background:rgba(150,150,150,.14);color:var(--mut)}
+.co-bar{height:4px;border-radius:3px;margin-top:9px;max-width:280px;
+  background:rgba(150,150,150,.18);overflow:hidden}
+.co-bar i{display:block;height:100%;border-radius:3px;background:var(--gold)}
+.co-num{flex:none;width:78px;text-align:center}
+.co-num b{display:block;font-size:16px;font-variant-numeric:tabular-nums}
+.co-num b .of{font-size:12px;color:var(--dim)}
+.co-num span{font-size:10px;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.06em}
+.co-go{flex:none;color:var(--gold);font-size:15px}
+
+@media(max-width:900px){
+  .co-r{flex-wrap:wrap;gap:10px}
+  .co-main{flex-basis:100%}
+  .co-num{width:auto;flex:1;text-align:left}
+  .co-go{display:none}
+  .wq-note{display:none}
+  .wq-w{white-space:normal}
+}
 
 /* ══ To'lovlar navbati ══ */
 .mtr-top{display:flex;justify-content:space-between;align-items:baseline;

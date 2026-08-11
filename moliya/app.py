@@ -1378,28 +1378,21 @@ def register_edu_routes(app):
     @app.route("/oquv")
     def oquv():
         today = date.today()
-        cohorts = (Cohort.query.order_by(Cohort.start_date.desc()).all())
-        rows = []
-        for ch in cohorts:
-            contracts = [c for c in Contract.query.filter_by(
-                cohort_id=ch.id, status="active").all()]
-            sessions = LessonSession.query.filter_by(cohort_id=ch.id).count()
-            pending = (Submission.query.join(Assignment)
-                       .filter(Assignment.cohort_id == ch.id,
-                               Submission.status == "pending").count())
-            rows.append({"cohort": ch, "students": len(contracts),
-                         "sessions": sessions, "pending": pending,
-                         "running": ch.start_date <= today <= ch.end_date})
         # Risk to'lov kechikishiga ham bog'liq — u har kuni o'zgaradi.
         # Sahifa ochilganda davom etayotgan oqimlarniki yangilanadi.
         try:
             education.refresh_all_risk(only_running=True)
         except Exception:                              # noqa: BLE001
             db.session.rollback()
-        return render_template("oquv.html", stats=education.edu_stats(),
-                               rows=rows, risk=education.risk_students(),
-                               courses=Course.query.order_by(Course.name).all(),
-                               msg=education.contact_message)
+        return render_template(
+            "oquv.html", stats=education.edu_stats(), today=today,
+            queue=education.curator_queue(today),
+            rows=education.cohort_rows(today),
+            risk=education.risk_students(),
+            rlevel=education.risk_level,
+            courses=Course.query.order_by(Course.name).all(),
+            tg=notify.enabled(),
+            msg=education.contact_message)
 
     @app.route("/oquv/cohort/<int:chid>")
     def oquv_cohort(chid):
@@ -1430,7 +1423,10 @@ def register_edu_routes(app):
                                contracts=contracts, sessions=sessions,
                                assignments=assignments, att=att, prog=prog,
                                sub_stats=sub_stats, msg=education.contact_message,
-                               att_statuses=ATT_STATUSES, today=date.today())
+                               att_statuses=ATT_STATUSES, today=date.today(),
+                               rlevel=education.risk_level,
+                               tg=notify.enabled(),
+                               tglink=notify.link_url)
 
     @app.route("/oquv/cohort/<int:chid>/session/add", methods=["POST"])
     def oquv_session_add(chid):

@@ -1,23 +1,54 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>{{ ch.course.name }} — {{ ch.name|replace('[namuna]','')|trim }}{% if '[namuna]' in ch.name %} <span class="badge b-gold" style="vertical-align:middle;font-size:12px">NAMUNA</span>{% endif %}</h1>
-<p class="sub"><a href="/oquv">← O'quv bo'limi</a> ·
-  {{ ch.start_date|dmy }} – {{ ch.end_date|dmy }} ·
-  {{ contracts|selectattr('status','equalto','active')|list|length }} faol o'quvchi</p>
+{% set actives = contracts|selectattr('status','equalto','active')|list %}
+{% set held = sessions|selectattr('held')|list %}
+{% set pend_n = sub_stats.values()|map(attribute=1)|sum %}
+{% set risky = actives|selectattr('risk_score','ge',30)|list %}
+{% set due_next = sessions|rejectattr('held')|list %}
+
+<div class="pghead">
+  <div>
+    <p class="crumb"><a href="/oquv">← O'quv bo'limi</a></p>
+    <h1>{{ ch.course.name }}</h1>
+    <p class="sub">{{ ch.name|replace('[namuna]','')|trim }} ·
+      {{ ch.start_date|dmy }} – {{ ch.end_date|dmy }}
+      {% if '[namuna]' in ch.name %}
+      <span class="badge b-gold">NAMUNA</span>{% endif %}</p>
+  </div>
+  <div class="pgacts">
+    <form method="post" action="/oquv/cohort/{{ ch.id }}/links">
+      <button class="chip" title="Havolasi yo'q o'quvchilarga ilova havolasi yaratadi">
+        🔗 Hammaga ilova havolasi</button></form>
+  </div>
+</div>
+
+<div class="grid g4">
+  <div class="card kpi"><div class="l">Faol o'quvchi</div>
+    <div class="v">{{ actives|length }}</div>
+    <div class="kpi-x">shartnomasi ochiq turganlar</div></div>
+  <div class="card kpi"><div class="l">Dars o'tkazildi</div>
+    <div class="v">{{ held|length }}<span class="of">/{{ sessions|length }}</span></div>
+    <div class="kpi-x">{% if due_next %}{{ due_next|length }} tasida davomat olinmagan
+      {% else %}hammasi belgilangan{% endif %}</div></div>
+  <div class="card kpi"><div class="l">Tekshirilmagan javob</div>
+    <div class="v {{ 'neg' if pend_n else '' }}">{{ pend_n }}</div>
+    <div class="kpi-x">o'quvchi bahoni kutmoqda</div></div>
+  <div class="card kpi"><div class="l">Xavf ostida</div>
+    <div class="v {{ 'neg' if risky else 'pos' }}">{{ risky|length }}</div>
+    <div class="kpi-x">tashlab ketishi mumkin</div></div>
+</div>
 
 {# ── O'quvchilar ─────────────────────────────────────────────── #}
 <div class="card">
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-    <h2 style="margin:0;flex:1">O'quvchilar</h2>
-    <form method="post" action="/oquv/cohort/{{ ch.id }}/links">
-      <button class="chip" title="Havolasi yo'q o'quvchilarga kabinet havolasi yaratadi">
-        🔗 Hammaga kabinet havolasi</button></form>
-  </div>
+  <h2 style="margin-top:0">O'quvchilar</h2>
+  <p class="hint" style="margin:0 0 12px">Xavf balli uchta signaldan yig'iladi:
+    darsga kelmaslik, vazifa topshirmaslik va to'lov kechikishi.
+    Sabablari ism ostida yozib turiladi.</p>
   <div class="tablewrap edu-st">
   <table>
     <tr><th>O'quvchi</th><th class="r">Davomat</th><th class="r">Vazifa</th>
         <th class="r">O'rt. ball</th><th class="r">Qoldiq to'lov</th>
-        <th>Risk</th><th></th></tr>
+        <th style="width:170px">Tashlab ketish xavfi</th><th></th></tr>
     {% for c in contracts %}
     {% set p = prog.get(c.id) %}
     <tr>
@@ -27,7 +58,10 @@
           {% else %}—{% endif %}</div>
         {% if c.certificate %}<div style="font-size:12px" class="pos">🎓 {{ c.certificate.serial }}</div>{% endif %}
         {% if c.risk_reasons and c.status == 'active' %}
-        <div style="font-size:11.5px;color:var(--mut);margin-top:2px">{{ c.risk_reasons }}</div>{% endif %}</td>
+        <div style="margin-top:3px">
+          {% for why in c.risk_reasons.split(';') %}
+          {% if why|trim %}<span class="why">{{ why|trim }}</span>{% endif %}
+          {% endfor %}</div>{% endif %}</td>
       <td data-l="Davomat" class="r">
         {% if p.att_pct is not none %}
           <b class="{{ 'neg' if p.att_pct < 60 else ('gold' if p.att_pct < 80 else 'pos') }}">{{ p.att_pct|round|int }}%</b>
@@ -38,17 +72,22 @@
       <td data-l="O'rt. ball" class="r">{% if p.avg_score is not none %}{{ p.avg_score|round|int }}
         {% else %}<span style="color:var(--dim)">—</span>{% endif %}</td>
       <td data-l="Qoldiq" class="r {{ 'neg' if c.due_total() > 0 }}">{{ c.due_total()|grp }}</td>
-      <td data-l="Risk">{% if c.status == 'active' %}
-        <span class="badge {{ 'b-red' if c.risk_score >= 60 else ('b-gold' if c.risk_score >= 30 else 'b-green') }}">{{ c.risk_score or 0 }}</span>
+      <td data-l="Xavf">{% if c.status == 'active' %}
+        {% set lv, word = rlevel(c.risk_score) %}
+        <div class="rmeter">
+          <span class="rbar r-{{ lv }}"><i style="width:{{ c.risk_score or 0 }}%"></i></span>
+          <b class="r-t-{{ lv }}">{{ c.risk_score or 0 }}</b>
+          <span class="rword">{{ word }}</span>
+        </div>
         {% else %}<span class="badge b-gray">{{ STATUSES.get(c.status, c.status) }}</span>{% endif %}</td>
       <td style="white-space:nowrap">
         {% if c.status == 'active' %}
           {% if c.portal_token %}
-          <button type="button" class="chip" title="Kabinet havolasini nusxalash"
-                  onclick="copyLink(this,'{{ c.portal_token }}')">Kabinet</button>
+          <button type="button" class="chip" title="Ilova havolasini nusxalash"
+                  onclick="copyLink(this,'{{ c.portal_token }}')">Havola</button>
           {% else %}
           <form method="post" action="/oquv/contract/{{ c.id }}/link" style="display:inline">
-            <button class="chip" title="O'quvchiga shaxsiy kabinet havolasini berish">+ Kabinet</button>
+            <button class="chip" title="O'quvchiga shaxsiy ilova havolasini berish">+ Havola</button>
           </form>
           {% endif %}
         {% endif %}
@@ -59,7 +98,7 @@
         {% if not c.certificate and c.status == 'active' %}
         <form method="post" action="/oquv/contract/{{ c.id }}/certificate" style="display:inline"
               onsubmit="return confirm('{{ c.student.name }} — bitirdi deb belgilab, sertifikat berilsinmi?')">
-          <button class="chip" title="Sertifikat berish">🎓</button>
+          <button class="chip" title="Bitirdi deb belgilab, sertifikat berish">🎓 Sertifikat</button>
         </form>
         {% elif c.certificate %}
         <a class="chip" href="/cert/{{ c.certificate.token }}" target="_blank">Ko'rish →</a>
@@ -74,7 +113,7 @@
 </div>
 
 <div class="grid g2" style="margin-top:14px">
-  {# ── Darslar va davomat ────────────────────────────────────── #}
+{# ── Darslar va davomat ────────────────────────────────────── #}
   <div class="card">
     <h2 style="margin-top:0">Darslar va davomat</h2>
     {% set actives = contracts|selectattr('status','equalto','active')|list %}
@@ -150,34 +189,6 @@
     </details>
   </div>
 
-  {# ── Reyting ───────────────────────────────────────────────── #}
-  <div class="card" style="grid-column:1/-1">
-    <h2 style="margin-top:0">Reyting</h2>
-    {% if board %}
-    <div class="tablewrap">
-    <table>
-      <tr><th style="width:44px">O'rin</th><th>O'quvchi</th>
-          <th class="r">O'rt. ball</th><th class="r">Davomat</th>
-          <th class="r">Vazifa</th><th class="r">Umumiy</th></tr>
-      {% for r in board %}
-      <tr>
-        <td><span class="badge {{ 'b-gold' if r.place <= 3 else 'b-gray' }}">{{ r.place }}</span></td>
-        <td><a href="/contracts/{{ r.c.id }}">{{ r.name }}</a></td>
-        <td class="r">{{ r.avg|round|int if r.avg is not none else '—' }}</td>
-        <td class="r">{{ (r.att|round|int ~ '%') if r.att is not none else '—' }}</td>
-        <td class="r">{{ r.done }}/{{ r.total }}</td>
-        <td class="r"><b class="gold">{{ r.score }}</b></td>
-      </tr>
-      {% endfor %}
-    </table>
-    </div>
-    <p class="hint" style="margin-top:10px">Umumiy ball = o'rtacha baho × 0,7 +
-      davomat × 0,3. To'lov holati reytingga umuman ta'sir qilmaydi.</p>
-    {% else %}
-    <div class="empty">Reyting uchun hali baho va davomat yo'q</div>
-    {% endif %}
-  </div>
-
   {# ── Uy vazifalari ─────────────────────────────────────────── #}
   <div class="card">
     <h2 style="margin-top:0">Uy vazifalari</h2>
@@ -214,10 +225,38 @@
   </div>
 </div>
 
+{# ── Reyting ───────────────────────────────────────────────── #}
+  <div class="card" style="margin-top:14px">
+    <h2 style="margin-top:0">Reyting</h2>
+    {% if board %}
+    <div class="tablewrap">
+    <table>
+      <tr><th style="width:44px">O'rin</th><th>O'quvchi</th>
+          <th class="r">O'rt. ball</th><th class="r">Davomat</th>
+          <th class="r">Vazifa</th><th class="r">Umumiy</th></tr>
+      {% for r in board %}
+      <tr>
+        <td><span class="badge {{ 'b-gold' if r.place <= 3 else 'b-gray' }}">{{ r.place }}</span></td>
+        <td><a href="/contracts/{{ r.c.id }}">{{ r.name }}</a></td>
+        <td class="r">{{ r.avg|round|int if r.avg is not none else '—' }}</td>
+        <td class="r">{{ (r.att|round|int ~ '%') if r.att is not none else '—' }}</td>
+        <td class="r">{{ r.done }}/{{ r.total }}</td>
+        <td class="r"><b class="gold">{{ r.score }}</b></td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    <p class="hint" style="margin-top:10px">Umumiy ball = o'rtacha baho × 0,7 +
+      davomat × 0,3. To'lov holati reytingga umuman ta'sir qilmaydi.</p>
+    {% else %}
+    <div class="empty">Reyting uchun hali baho va davomat yo'q</div>
+    {% endif %}
+  </div>
+
 <script>
 /* Kabinet havolasini nusxalash */
 function copyLink(btn, token){
-  var url = location.origin + "/kabinet/" + token;
+  var url = location.origin + "/app/" + token;
   var done = function(){ var t = btn.textContent; btn.textContent = "✓ Nusxalandi";
     setTimeout(function(){ btn.textContent = t; }, 1600); };
   if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, function(){ prompt("Havola:", url); });

@@ -768,3 +768,126 @@ def quiz_stats(quiz):
     hard.sort(key=lambda x: (x["pct"] is None, x["pct"] or 0))
     return {"attempts": len(atts), "people": len(people), "avg": avg,
             "passed": passed, "best": people, "hard": hard}
+
+
+# ──────────────────────────────────────────────────────────────────
+# KURATOR ISH NAVBATI
+# ──────────────────────────────────────────────────────────────────
+# Bo'lim sahifasi avval faqat raqam ko'rsatardi: «12 faol o'quvchi,
+# 3 tekshirilmagan». Kurator bundan nima qilish kerakligini bilmasdi.
+# Quyidagi funksiya aynan shuni beradi — bugun qo'l tegishi kerak
+# bo'lgan ishlar, eng shoshilinchidan boshlab.
+
+def curator_queue(today=None):
+    from models import (Assignment, Cohort, Contract, LessonSession,
+                        Submission)
+    today = today or date.today()
+    items = []
+
+    # 1) Davomat olinmagan darslar — eng shoshilinchi, chunki kechiksa
+    #    o'quvchi kelgan-kelmagani umuman yozilmay qoladi.
+    late = (LessonSession.query
+            .filter(LessonSession.held.is_(False), LessonSession.date <= today)
+            .order_by(LessonSession.date).all())
+    for s in late:
+        d = (today - s.date).days
+        items.append({
+            "kind": "davomat", "urgent": d >= 1,
+            "title": "Davomat olinmagan",
+            "what": f"{s.cohort.course.name} — {s.date.strftime('%d.%m')}"
+                    + (f" · {s.topic}" if s.topic else ""),
+            "note": "bugungi dars" if d == 0 else f"{d} kun kechikdi",
+            "url": f"/oquv/cohort/{s.cohort_id}#s{s.id}",
+            "cta": "Davomat olish",
+        })
+
+    # 2) Tekshirilmagan topshiriqlar — vazifa bo'yicha guruhlanadi
+    pend = {}
+    for sb in Submission.query.filter_by(status="pending").all():
+        pend.setdefault(sb.assignment_id, 0)
+        pend[sb.assignment_id] += 1
+    for aid, n in sorted(pend.items(), key=lambda x: -x[1]):
+        a = db.session.get(Assignment, aid)
+        if a is None:
+            continue
+        items.append({
+            "kind": "baho", "urgent": n >= 5,
+            "title": "Tekshirilmagan javob",
+            "what": a.title,
+            "note": f"{n} ta o'quvchi kutmoqda",
+            "url": f"/oquv/assignment/{a.id}",
+            "cta": "Tekshirish",
+        })
+
+    # 3) Ertaga boshlanadigan yoki bugun tugaydigan oqim
+    for ch in Cohort.query.all():
+        if ch.start_date == today:
+            items.append({"kind": "oqim", "urgent": False,
+                          "title": "Bugun oqim boshlanadi",
+                          "what": f"{ch.course.name} — {ch.name}",
+                          "note": "dars jadvali tayyormi?",
+                          "url": f"/oquv/cohort/{ch.id}", "cta": "Ochish"})
+        elif ch.end_date == today:
+            items.append({"kind": "oqim", "urgent": False,
+                          "title": "Bugun oqim tugaydi",
+                          "what": f"{ch.course.name} — {ch.name}",
+                          "note": "sertifikat berish vaqti",
+                          "url": f"/oquv/cohort/{ch.id}", "cta": "Ochish"})
+
+    # 4) Ilova havolasi berilmagan o'quvchilar — ular darslarni ko'ra olmaydi
+    no_link = (Contract.query.filter(Contract.status == "active",
+                                     Contract.portal_token.is_(None)).count())
+    if no_link:
+        items.append({"kind": "havola", "urgent": False,
+                      "title": "Ilova havolasi berilmagan",
+                      "what": f"{no_link} ta faol o'quvchi",
+                      "note": "havolasiz ular darsni ocha olmaydi",
+                      "url": "/oquv", "cta": None})
+
+    items.sort(key=lambda x: (not x["urgent"],
+                             {"davomat": 0, "baho": 1, "oqim": 2,
+                              "havola": 3}.get(x["kind"], 9)))
+    return items
+
+
+def cohort_rows(today=None):
+    """Oqimlar ro'yxati — har birida jarayon qay darajada ketgani."""
+    from models import (Assignment, Cohort, Contract, LessonSession,
+                        Submission)
+    today = today or date.today()
+    out = []
+    for ch in Cohort.query.order_by(Cohort.start_date.desc()).all():
+        actives = Contract.query.filter_by(cohort_id=ch.id,
+                                           status="active").count()
+        total = LessonSession.query.filter_by(cohort_id=ch.id).count()
+        held = LessonSession.query.filter_by(cohort_id=ch.id, held=True).count()
+        pending = (Submission.query.join(Assignment)
+                   .filter(Assignment.cohort_id == ch.id,
+                           Submission.status == "pending").count())
+        at_risk = Contract.query.filter(Contract.cohort_id == ch.id,
+                                        Contract.status == "active",
+                                        Contract.risk_score >= RISK_MID).count()
+        if ch.start_date > today:
+            phase, plabel = "soon", "boshlanmagan"
+        elif ch.end_date < today:
+            phase, plabel = "done", "tugagan"
+        else:
+            phase, plabel = "live", "davom etmoqda"
+        out.append({"cohort": ch, "students": actives, "sessions": total,
+                    "held": held, "pending": pending, "at_risk": at_risk,
+                    "phase": phase, "plabel": plabel,
+                    "pct": round(100.0 * held / total) if total else 0,
+                    "running": phase == "live"})
+    order = {"live": 0, "soon": 1, "done": 2}
+    out.sort(key=lambda r: (order[r["phase"]], -r["cohort"].start_date.toordinal()))
+    return out
+
+
+def risk_level(score):
+    """Ball -> (sinf, so'z) — raqamning o'zi kuratorga hech nima demaydi."""
+    s = score or 0
+    if s >= RISK_HIGH:
+        return "high", "yuqori"
+    if s >= RISK_MID:
+        return "mid", "o'rta"
+    return "low", "past"
