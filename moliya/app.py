@@ -28,6 +28,7 @@ import matching
 import notify
 import planner
 import praytimes
+import recover
 import roles
 import transfers
 from database import db, init_db
@@ -268,6 +269,15 @@ def _parse_date(s, default=None):
         except ValueError:
             continue
     return default or date.today()
+
+
+def _num(s):
+    """«12 500 000» / «12500000,5» → son. Bo'sh bo'lsa None."""
+    s = (s or "").replace(" ", "").replace(" ", "").replace(",", ".")
+    try:
+        return float(s) if s else None
+    except ValueError:
+        return None
 
 
 def _ym():
@@ -771,6 +781,67 @@ def register_routes(app):
             return render_template("dds_excel.html", x=core.dds_excel(year),
                                    year=year)
         return render_template("dds.html", d=core.dds_matrix(year))
+
+    # ── Shartnomalarni to'lovlardan tiklash ───────────────────────
+    @app.route("/contracts/tiklash")
+    def recover_page():
+        cands = recover.candidates()
+        groups = []
+        for tag in sorted({c["tag"] for c in cands}):
+            rows = [c for c in cands if c["tag"] == tag]
+            groups.append({"tag": tag, "rows": rows,
+                           "paid": sum(r["paid"] for r in rows),
+                           "cohorts": recover.cohorts_for(tag)})
+        groups.sort(key=lambda g: -g["paid"])
+        return render_template(
+            "recover.html", groups=groups, skipped=recover.skipped(),
+            made=Contract.query.filter(
+                Contract.note.like(f"%{recover.MARK}%")).count(),
+            courses=Course.query.order_by(Course.name).all())
+
+    @app.route("/contracts/tiklash/yaratish", methods=["POST"])
+    def recover_create():
+        f = request.form
+        keys = f.getlist("pick")
+        ok, errs = 0, []
+        for k in keys:
+            ids = [int(x) for x in (f.get(f"ids_{k}") or "").split(",") if x]
+            _, err = recover.create(
+                ids, int(f.get(f"cohort_{k}") or 0),
+                f.get(f"name_{k}", ""),
+                price=_num(f.get(f"price_{k}")))
+            if err:
+                errs.append(f"{f.get(f'name_{k}', k)}: {err}")
+            else:
+                ok += 1
+        if ok:
+            flash(f"{ok} ta shartnoma yaratildi va to'lovlari bog'landi", "ok")
+        for e in errs[:4]:
+            flash(e, "err")
+        return redirect(url_for("recover_page"))
+
+    @app.route("/contracts/tiklash/oqim", methods=["POST"])
+    def recover_cohort():
+        f = request.form
+        cid = int(f.get("course_id") or 0)
+        if not db.session.get(Course, cid):
+            flash("Kurs tanlanmagan", "err")
+            return redirect(url_for("recover_page"))
+        ch = Cohort(course_id=cid, name=f.get("name", "").strip() or "Yangi oqim",
+                    start_date=_parse_date(f.get("start_date")),
+                    end_date=_parse_date(f.get("end_date")),
+                    capacity=int(f.get("capacity") or 30))
+        db.session.add(ch)
+        db.session.commit()
+        flash(f"«{ch.name}» oqimi ochildi", "ok")
+        return redirect(url_for("recover_page"))
+
+    @app.route("/contracts/tiklash/bekor", methods=["POST"])
+    def recover_undo():
+        n = recover.undo_all()
+        flash(f"{n} ta tiklangan shartnoma olib tashlandi, "
+              f"to'lovlar bog'lanmagan holatga qaytdi", "ok")
+        return redirect(url_for("recover_page"))
 
     # ── Juftlanmagan o'tkazmalar ──────────────────────────────────
     # Hamyon qoldig'i manfiy chiqsa deyarli har doim sababi shu: o'tkazmaning

@@ -35,6 +35,32 @@ STOPWORDS = {
     "поступление", "клиент", "оплата",
 }
 
+# Yuqoridagi ro'yxat faqat AYNAN mos kelgan izohni ushlaydi. Amalda izohlar
+# xato yoziladi («prixod klientt rop», «prixod klietn», «klienty») va bunday
+# qator ism deb qabul qilinib qolardi. Shuning uchun har bir so'z alohida,
+# o'zak bo'yicha tekshiriladi.
+JARGON_STEMS = (
+    "prix", "prih", "приход", "klien", "kliyen", "kleint", "klietn", "клиент",
+    "oplat", "оплат", "tolov", "tulov", "inkass", "инкасс", "perevod", "перевод",
+    "postup", "поступ", "depozit", "депозит", "ostatok", "остаток",
+    "vozvrat", "возврат", "dogovor", "договор", "shartnoma", "avans", "аванс",
+    "predoplat", "chastich", "summa", "сумма", "obmen", "обмен",
+)
+# to'liq so'z sifatida uchrasa jargon (o'zak sifatida ismga tegib ketmasin)
+JARGON_WORDS = {
+    "rop", "smk", "tbb", "twb", "tvv", "mbm", "mfaktor", "click", "payme",
+    "uzum", "mchj", "yatt", "ooo", "мчж", "naqd", "karta", "kartaga",
+    "schet", "schetdan", "bank", "bankdan", "dolg", "qarz", "kurs", "seminar",
+}
+
+# Bitta qatorda bir nechta odamning ismi sanalgan bo'lishi mumkin (to'plam
+# to'lov). Bunday qator bitta shartnomaga tegishli emas — chetlab o'tiladi.
+MAX_NAME_WORDS = 4
+
+
+def _is_jargon(word):
+    return word in JARGON_WORDS or any(word.startswith(s) for s in JARGON_STEMS)
+
 # lotin ↔ kirill: ismlarni bir alifboga keltiramiz
 _CYR = {
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
@@ -74,6 +100,11 @@ def looks_like_name(purpose):
         return False
     parts = n.split()
     if len(parts) < 2:
+        return False
+    if len(parts) > MAX_NAME_WORDS:
+        return False                      # to'plam to'lov: ko'p ism sanalgan
+    # jargon so'z qatnashsa — bu ism emas, to'lov izohi
+    if any(_is_jargon(p) for p in parts):
         return False
     # har bir bo'lak stop-so'z bo'lsa — ism emas
     if all(p in STOPWORDS for p in parts):

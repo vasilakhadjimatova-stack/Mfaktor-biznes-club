@@ -55,6 +55,7 @@ _FINANCE = {
     "ddsdata", "ddsdata_add", "ddsdata_delete", "ddsdata_edit",
     "ddsdata_export", "ddsdata_rebuild", "dds",
     "transfers_page", "transfer_fix",
+    "recover_page", "recover_create", "recover_cohort", "recover_undo",
     "taqvim", "taqvim_set", "taqvim_fill", "taqvim_copy", "taqvim_clear",
     "reports", "launch_planner", "add_budget",
     "add_contract", "contract_pay",

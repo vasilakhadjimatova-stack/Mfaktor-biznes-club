@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Shartnomalarni to'lovlardan tiklash</h1>
+<p class="sub">Shartnomalar reyestri hech qayerda yozilmagan edi — lekin ДДС'dagi
+  mijoz to'lovlarining izohida o'quvchi ismi bor. Shu ismlar bo'yicha
+  shartnomalar tiklanadi va to'lovlar ularga bog'lanadi. Bir odam bo'lib
+  to'lagan bo'lsa, to'lovlari bitta shartnomaga yig'iladi.</p>
+
+<div class="card note">
+  <b>Narx haqida.</b> To'lov tarixi qancha <i>to'langanini</i> biladi, lekin
+  shartnoma <i>narxini</i> bilmaydi. Shuning uchun narx maydoniga to'langan
+  summa qo'yilgan — ya'ni «to'liq to'lagan» deb faraz qilinadi. Narxni
+  bilsangiz o'zgartiring: farqi avtomatik qarzdorlikka tushadi.
+</div>
+
+{% if made %}
+<div class="card" style="margin-bottom:14px;display:flex;align-items:center;gap:14px">
+  <div class="grow"><b>{{ made|grp }} ta shartnoma shu yo'l bilan tiklangan.</b>
+    <p class="note-s">Xato bo'lsa hammasini bir tugma bilan qaytarish mumkin —
+      to'lovlar bog'lanmagan holatga qaytadi, pul yozuvlariga tegilmaydi.</p></div>
+  <form method="post" action="/contracts/tiklash/bekor"
+        onsubmit="return confirm('Tiklangan {{ made }} ta shartnoma o\'chiriladi. Davom etamizmi?')">
+    <button class="btn ghost">Hammasini qaytarish</button></form>
+</div>
+{% endif %}
+
+{% if not groups %}
+<div class="card"><div class="empty">
+  Tiklanadigan nomzod qolmadi — barcha ismli to'lovlar shartnomaga bog'langan.
+</div></div>
+{% else %}
+
+<form method="post" action="/contracts/tiklash/yaratish">
+{% for g in groups %}
+<div class="card gblock">
+  <div class="ghead">
+    <div>
+      <span class="gtag">{{ g.tag }}</span>
+      <b>{{ g.rows|length }} nomzod</b>
+      <span class="note-s">· jami {{ g.paid|grp }} so'm</span>
+    </div>
+    <div class="gco">
+      {% if g.cohorts %}
+      <label class="note-s">Oqim:
+        <select onchange="setCohort(this, '{{ g.tag }}')">
+          {% for ch in g.cohorts %}
+          <option value="{{ ch.id }}">{{ ch.name }}</option>{% endfor %}
+        </select></label>
+      {% else %}
+      <span class="warnpill">Bu kurs uchun oqim yo'q — pastda oching</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if g.cohorts %}
+  <div class="tablewrap">
+  <table class="rcv">
+    <thead><tr>
+      <th style="width:34px"><input type="checkbox" onclick="all(this)"></th>
+      <th>O'quvchi</th><th class="r">To'lov</th><th class="r">To'langan</th>
+      <th>Davri</th><th class="r">Shartnoma narxi</th><th>Oqim</th>
+    </tr></thead>
+    <tbody>
+    {% for c in g.rows %}
+    {% set k = g.tag ~ '_' ~ loop.index0 %}
+    <tr>
+      <td><input type="checkbox" name="pick" value="{{ k }}"
+                 {{ 'checked' if not c.exists }}></td>
+      <td>
+        <input class="nm" name="name_{{ k }}" value="{{ c.name }}">
+        <input type="hidden" name="ids_{{ k }}" value="{{ c.ids|join(',') }}">
+        {% if c.exists %}<span class="flag f-red">shu ismli shartnoma bor</span>{% endif %}
+        {% if c.seen > 1 %}<span class="flag f-gold">ismi {{ c.seen }} xil yozilgan</span>{% endif %}
+      </td>
+      <td class="r">{{ c.rows|length }}</td>
+      <td class="r"><b>{{ c.paid|grp }}</b></td>
+      <td class="nw note-s">{{ c.first.strftime('%d.%m') }} →
+        {{ c.last.strftime('%d.%m.%y') }}</td>
+      <td class="r"><input class="pr" name="price_{{ k }}"
+                           value="{{ c.paid|round|int }}" inputmode="numeric"></td>
+      <td><select name="cohort_{{ k }}" data-tag="{{ g.tag }}">
+        {% for ch in g.cohorts %}<option value="{{ ch.id }}">{{ ch.name }}</option>{% endfor %}
+      </select></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+<div class="card" style="position:sticky;bottom:14px;display:flex;
+     align-items:center;gap:14px">
+  <div class="grow note-s">Belgilangan qatorlardan shartnoma yaratiladi va
+    to'lovlari darhol bog'lanadi. Xato bo'lsa yuqoridagi tugma bilan
+    qaytariladi.</div>
+  <button class="btn">Belgilanganlarni yaratish</button>
+</div>
+</form>
+{% endif %}
+
+{% if skipped.n %}
+<div class="card" style="margin-top:16px">
+  <b>{{ skipped.n|grp }} ta to'lovda ism yo'q</b>
+  <span class="note-s">· {{ skipped.sum|grp }} so'm</span>
+  <p class="note-s" style="margin-top:6px">Izohi «prixod klient», «click»,
+    «smk depozit» kabi bo'lgan to'lovlar. Tizim ism o'rniga taxmin qilmaydi —
+    ular <a href="/inbox">To'lovlar navbati</a>da qo'lda bog'lanadi.</p>
+</div>
+{% endif %}
+
+{# ── Yangi oqim ochish ── #}
+<details class="adder" style="margin-top:16px">
+  <summary>Yangi oqim ochish</summary>
+  <form method="post" action="/contracts/tiklash/oqim" class="ofrm">
+    <label>Kurs<select name="course_id" required>
+      {% for c in courses %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+    </select></label>
+    <label>Nomi<input name="name" placeholder="РОП-3" required></label>
+    <label>Boshlanish<input type="date" name="start_date" required></label>
+    <label>Tugash<input type="date" name="end_date" required></label>
+    <label>Sig'im<input name="capacity" value="30" inputmode="numeric"></label>
+    <button class="btn">Ochish</button>
+  </form>
+</details>
+
+<script>
+function all(box){
+  var t = box.closest('table');
+  t.querySelectorAll('tbody input[name="pick"]').forEach(function(c){
+    c.checked = box.checked; });
+}
+// Guruh sarlavhasidagi oqim tanlansa — shu guruhdagi hamma qatorga qo'yiladi
+function setCohort(sel, tag){
+  document.querySelectorAll('select[data-tag="' + tag + '"]').forEach(
+    function(s){ s.value = sel.value; });
+}
+</script>
+
+<style>
+.card.note{background:var(--tint);border-color:var(--line2);margin-bottom:14px;
+  font-size:13px;line-height:1.65;color:var(--mut)}
+.card.note b{color:var(--txt)}
+.note-s{font-size:12px;color:var(--mut)}
+.gblock{padding:0;overflow:hidden;margin-bottom:14px}
+.ghead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 18px;border-bottom:1px solid var(--line)}
+.ghead>div:first-child{flex:1}
+.gtag{display:inline-block;padding:3px 11px;border-radius:99px;font-size:11.5px;
+  font-weight:700;background:var(--gold-dim);color:var(--gold);margin-right:8px}
+.gco select{margin-left:6px;padding:6px 9px;border-radius:9px;
+  border:1px solid var(--line2);background:var(--ink3);color:var(--txt);
+  font:400 13px var(--sans)}
+.warnpill{padding:4px 11px;border-radius:99px;font-size:11.5px;
+  background:var(--red-dim);color:var(--red)}
+.rcv .nm{width:100%;min-width:180px;padding:6px 9px;border-radius:9px;
+  border:1px solid transparent;background:transparent;color:var(--txt);
+  font:600 13.5px var(--sans)}
+.rcv .nm:focus{outline:0;border-color:var(--line2);background:var(--ink3)}
+.rcv .pr{width:130px;padding:6px 9px;border-radius:9px;text-align:right;
+  border:1px solid var(--line2);background:var(--ink3);color:var(--txt);
+  font:400 13px var(--sans);font-variant-numeric:tabular-nums}
+.rcv select{padding:6px 9px;border-radius:9px;border:1px solid var(--line2);
+  background:var(--ink3);color:var(--txt);font:400 12.5px var(--sans)}
+.rcv .nw{white-space:nowrap}
+.flag{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:99px;
+  font-size:10.5px;font-weight:600}
+.f-red{background:var(--red-dim);color:var(--red)}
+.f-gold{background:var(--gold-dim);color:var(--gold)}
+.ofrm{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:14px 2px}
+.ofrm label{display:block;font-size:11px;color:var(--mut);
+  text-transform:uppercase;letter-spacing:.07em}
+.ofrm input,.ofrm select{display:block;margin-top:5px;padding:8px 11px;
+  border-radius:10px;border:1px solid var(--line2);background:var(--ink3);
+  color:var(--txt);font:400 13.5px var(--sans)}
+</style>
+{% endblock %}
