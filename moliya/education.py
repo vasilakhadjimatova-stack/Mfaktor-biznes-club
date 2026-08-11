@@ -13,8 +13,9 @@ tekshirib ball + izoh taklif qiladi; bo'lmasa modul to'liq qo'lda ishlaydi.
 import json
 import logging
 import os
+import re
 import urllib.request
-from datetime import date
+from datetime import date, datetime
 
 from database import db
 
@@ -402,3 +403,83 @@ def my_rank(contract):
             return {"place": r["place"], "of": len(board),
                     "score": r["score"]}
     return None
+
+
+# ──────────────────────────────────────────────────────────────────
+# VIDEO DARSLIKLAR — o'quvchi ilovasi kontenti
+# ──────────────────────────────────────────────────────────────────
+def embed_url(url):
+    """Havolani ilova ichida ochiladigan pleyer manziliga aylantiradi.
+
+    Video o'z serverimizda saqlanmaydi (trafik qimmat) — YouTube/Vimeo/
+    Drive havolasi beriladi, ilova uni o'z ichida ko'rsatadi.
+    Tanilmagan havola bo'lsa None qaytadi — u oddiy tugma bo'lib chiqadi.
+    """
+    u = (url or "").strip()
+    if not u:
+        return None
+    m = re.search(r"(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/))"
+                   r"([A-Za-z0-9_-]{6,})", u)
+    if m:
+        return f"https://www.youtube.com/embed/{m.group(1)}?rel=0&modestbranding=1"
+    m = re.search(r"vimeo\.com/(?:video/)?(\d+)", u)
+    if m:
+        return f"https://player.vimeo.com/video/{m.group(1)}"
+    m = re.search(r"drive\.google\.com/file/d/([A-Za-z0-9_-]+)", u)
+    if m:
+        return f"https://drive.google.com/file/d/{m.group(1)}/preview"
+    if u.lower().endswith((".mp4", ".webm", ".m3u8")):
+        return u                      # to'g'ridan-to'g'ri video fayl
+    return None
+
+
+def course_content(contract):
+    """O'quvchining kursi bo'yicha modullar, darslar va ko'rilganlik."""
+    from models import LessonView, VideoLesson, VideoModule
+    course_id = contract.cohort.course_id if contract.cohort else None
+    mods = (VideoModule.query.filter_by(course_id=course_id)
+            .order_by(VideoModule.sort, VideoModule.id).all()) if course_id else []
+    lids = [l.id for m in mods for l in m.lessons]
+    seen = set()
+    if lids:
+        seen = {v.lesson_id for v in LessonView.query.filter(
+            LessonView.contract_id == contract.id,
+            LessonView.lesson_id.in_(lids), LessonView.done.is_(True)).all()}
+
+    out, total, done = [], 0, 0
+    for m in mods:
+        rows = []
+        for l in m.lessons:
+            ok = l.id in seen
+            total += 1
+            done += 1 if ok else 0
+            rows.append({"l": l, "done": ok})
+        out.append({"m": m, "lessons": rows,
+                    "done": sum(1 for r in rows if r["done"]),
+                    "total": len(rows)})
+    # navbatdagi dars — ketma-ket birinchi ko'rilmagani
+    nxt = None
+    for g in out:
+        for r in g["lessons"]:
+            if not r["done"]:
+                nxt = {"l": r["l"], "m": g["m"]}
+                break
+        if nxt:
+            break
+    return {"modules": out, "total": total, "done": done,
+            "pct": (done / total * 100) if total else 0, "next": nxt,
+            "seen": seen}
+
+
+def mark_view(contract, lesson, done=True):
+    """Darsni «ko'rildi» deb belgilash (yoki bekor qilish)."""
+    from models import LessonView
+    row = LessonView.query.filter_by(lesson_id=lesson.id,
+                                     contract_id=contract.id).first()
+    if row is None:
+        row = LessonView(lesson_id=lesson.id, contract_id=contract.id)
+        db.session.add(row)
+    row.done = bool(done)
+    row.viewed_at = datetime.utcnow()
+    db.session.commit()
+    return row

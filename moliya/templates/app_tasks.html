@@ -1,0 +1,53 @@
+{% extends "app_base.html" %}
+{% block title %}Vazifalar — Mfaktor{% endblock %}
+{% block body %}
+<div class="card"><h1>Uy vazifalari</h1>
+  <p class="sub" style="margin-top:2px">
+    {{ d.prog.assign_done }} / {{ d.prog.assign_total }} topshirildi</p></div>
+
+{% for t in d.tasks %}
+<div class="card" id="v{{ t.a.id }}" {% if t.overdue %}style="border-color:rgba(185,61,71,.4)"{% endif %}>
+  <div style="display:flex;gap:10px;align-items:flex-start">
+    <b style="flex:1;font-size:15.5px">{{ t.a.title }}</b>
+    {% if t.graded %}<span class="pill p-ok">{{ t.sub.score }} / {{ t.a.max_score }}</span>
+    {% elif t.done %}<span class="pill p-wait">Tekshirilmoqda</span>
+    {% elif t.overdue %}<span class="pill p-no">Muddati o'tdi</span>
+    {% else %}<span class="pill p-gray">Topshirilmagan</span>{% endif %}
+  </div>
+  {% if t.a.due_date %}
+  <p class="sub" style="font-size:12.5px;margin-top:4px">
+    Muddat: {{ t.a.due_date.strftime('%d.%m.%Y') }}</p>{% endif %}
+  {% if t.a.description %}
+  <div style="margin-top:9px;white-space:pre-wrap;font-size:13.5px;color:var(--mut)">{{ t.a.description }}</div>{% endif %}
+  {% if t.a.material_url %}
+  <a class="btn ghost" style="margin-top:10px;width:100%" href="{{ t.a.material_url }}"
+     target="_blank" rel="noopener">▶ Dars materiali</a>{% endif %}
+
+  {% if t.graded %}
+    {% if t.sub.feedback %}
+    <div style="margin-top:11px;padding:11px 13px;border-radius:11px;font-size:13.5px;
+      background:var(--green-dim);border:1px solid rgba(30,125,79,.25)">
+      <b style="display:block;color:var(--green);margin-bottom:3px">Kurator izohi</b>
+      {{ t.sub.feedback }}</div>{% endif %}
+    <div style="margin-top:10px;padding:11px 13px;border-radius:11px;font-size:13.5px;
+      background:rgba(146,118,60,.06);white-space:pre-wrap;color:var(--mut)">
+      <b style="color:var(--txt)">Javobingiz:</b><br>{{ t.sub.content }}</div>
+  {% else %}
+    <form method="post" action="/kabinet/{{ token }}/topshirish/{{ t.a.id }}">
+      <textarea name="content" required rows="5"
+        style="width:100%;margin-top:11px;padding:11px 12px;border-radius:11px;
+        border:1px solid var(--line);background:#fffdf9;font:14px/1.55 var(--sans);
+        color:var(--txt);resize:vertical"
+        placeholder="Javobingizni shu yerga yozing...">{{ t.sub.content if t.sub }}</textarea>
+      <button style="margin-top:10px;width:100%">{{ 'Javobni yangilash' if t.done else 'Topshirish' }}</button>
+    </form>
+    {% if t.done %}
+    <p class="sub" style="font-size:12px;margin-top:7px">
+      Topshirilgan: {{ t.sub.submitted_at.strftime('%d.%m.%Y %H:%M') }} —
+      kurator tekshirgunicha o'zgartirishingiz mumkin.</p>{% endif %}
+  {% endif %}
+</div>
+{% else %}
+<div class="card"><p class="empty">Hozircha vazifa berilmagan</p></div>
+{% endfor %}
+{% endblock %}

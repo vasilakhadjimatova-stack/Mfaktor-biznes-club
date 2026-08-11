@@ -1,0 +1,45 @@
+{% extends "app_base.html" %}
+{% block title %}Darslar — Mfaktor{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>Video darslar</h1>
+  {% if cc.total %}
+  <p class="sub" style="margin-top:2px">{{ cc.done }} / {{ cc.total }} dars ko'rildi</p>
+  <div class="bar" style="margin-top:11px"><i style="width:{{ cc.pct }}%"></i></div>
+  {% else %}
+  <p class="sub" style="margin-top:2px">Bu kurs uchun video darslar hali joylanmagan.
+    Kurator joylashi bilan shu yerda paydo bo'ladi.</p>
+  {% endif %}
+</div>
+
+{% for g in cc.modules %}
+<div class="card">
+  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">
+    <h2 style="margin:0;flex:1">{{ g.m.title }}</h2>
+    <span class="sub" style="font-size:12px">{{ g.done }}/{{ g.total }}</span>
+  </div>
+  {% if g.m.subtitle %}<p class="sub" style="margin-bottom:10px">{{ g.m.subtitle }}</p>{% endif %}
+
+  {% for r in g.lessons %}
+  <a href="/app/{{ token }}/dars/{{ r.l.id }}"
+     style="display:flex;gap:12px;align-items:center;padding:11px 0;color:inherit;
+     border-bottom:1px solid var(--line)">
+    <span style="width:30px;height:30px;border-radius:50%;flex:none;display:grid;
+      place-items:center;font:700 12px var(--sans);
+      {% if r.done %}background:var(--green-dim);color:var(--green)
+      {% else %}background:rgba(146,118,60,.1);color:var(--mut){% endif %}">
+      {% if r.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
+    <div style="flex:1;min-width:0">
+      <b style="font-size:14.5px;display:block">{{ r.l.title }}</b>
+      <span class="sub" style="font-size:12px">
+        {% if r.l.minutes %}{{ r.l.minutes }} daqiqa{% else %}video dars{% endif %}
+        {% if r.l.file_url %} · material bor{% endif %}</span>
+    </div>
+    <span class="sub">▶</span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+{% if not cc.total %}<div class="card"><p class="empty">Hozircha bo'sh</p></div>{% endif %}
+{% endfor %}
+{% endblock %}

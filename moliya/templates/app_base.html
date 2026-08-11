@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}Mfaktor — O'quvchi{% endblock %}</title>
+{% if token %}<link rel="manifest" href="/app/{{ token }}/manifest.webmanifest">{% endif %}
+<meta name="theme-color" content="#12151f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mfaktor">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+<style>
+  :root{
+    --bg:#f7f5f0; --card:#fff; --line:rgba(146,118,60,.16);
+    --txt:#221e15; --mut:#6f6754; --dim:#a89f8b;
+    --gold:#9c7118; --gold-dim:rgba(190,150,60,.14);
+    --green:#1e7d4f; --green-dim:rgba(30,125,79,.12);
+    --red:#b93d47; --red-dim:rgba(185,61,71,.11);
+    --blue:#2b5aa0; --ink:#12151f;
+    --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+    --tab:calc(58px + env(safe-area-inset-bottom,0px));
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font:15px/1.6 var(--sans);
+    padding-bottom:calc(var(--tab) + 18px);-webkit-tap-highlight-color:transparent}
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(48% 30% at 84% 0%, rgba(212,175,95,.16), transparent 70%),
+               radial-gradient(40% 28% at 0% 94%, rgba(226,201,141,.13), transparent 70%)}
+  .wrap{position:relative;z-index:1;max-width:720px;margin:0 auto;padding:0 15px}
+
+  /* ── Sarlavha ── */
+  header{background:var(--ink);color:#f2f4fb;
+    padding:calc(13px + env(safe-area-inset-top,0px)) 0 30px}
+  header .wrap{display:flex;align-items:center;gap:11px}
+  .logo{width:36px;height:36px;border-radius:10px;flex:none}
+  .brand{flex:1;min-width:0;font:700 14.5px var(--serif);letter-spacing:.07em;color:#f5c15c}
+  .brand span{display:block;font:400 10px var(--sans);letter-spacing:.15em;
+    color:#9ba7c2;text-transform:uppercase;margin-top:1px}
+  .hi{font-size:12.5px;color:#9ba7c2;text-align:right;line-height:1.35}
+  .hi b{display:block;color:#f2f4fb;font-size:13.5px;font-weight:600}
+
+  /* ── Umumiy bloklar ── */
+  .body{margin-top:-20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:17px;
+    padding:16px;margin-bottom:13px;
+    box-shadow:0 1px 0 #fff inset, 0 10px 30px -10px rgba(120,95,40,.16)}
+  h1{font:700 20px var(--sans);letter-spacing:-.01em}
+  h2{font:700 15px var(--sans);margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  h2::before{content:"";width:3px;height:15px;border-radius:2px;background:var(--gold)}
+  .sub{color:var(--mut);font-size:13px}
+  .empty{color:var(--mut);font-size:13.5px;text-align:center;padding:16px 0}
+  .g{color:var(--green)} .r{color:var(--red)} .gold{color:var(--gold)}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+    background:var(--line);border-radius:13px;overflow:hidden}
+  .stats>div{background:var(--card);padding:11px 6px;text-align:center}
+  .stats .l{font-size:9.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+  .stats .v{font:700 18px var(--sans);margin-top:2px;font-variant-numeric:tabular-nums}
+
+  .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;
+    font-weight:600;white-space:nowrap}
+  .p-ok{background:var(--green-dim);color:var(--green)}
+  .p-no{background:var(--red-dim);color:var(--red)}
+  .p-wait{background:var(--gold-dim);color:var(--gold)}
+  .p-gray{background:rgba(146,118,60,.1);color:var(--mut)}
+
+  /* progress bar */
+  .bar{height:7px;border-radius:5px;background:rgba(146,118,60,.14);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:5px;
+    background:linear-gradient(90deg,#e0bd6d,var(--gold));transition:width .5s}
+
+  a{color:var(--blue);text-decoration:none}
+  button,.btn{padding:11px 18px;border:0;border-radius:11px;cursor:pointer;
+    background:linear-gradient(135deg,#eed292,#c9962f);color:#241a05;
+    font:700 14px var(--sans);display:inline-block;text-align:center}
+  button:active,.btn:active{transform:scale(.985)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .flash{padding:11px 14px;border-radius:12px;margin-bottom:12px;
+    font-size:13.5px;font-weight:600}
+  .f-ok{background:var(--green-dim);color:var(--green)}
+  .f-err{background:var(--red-dim);color:var(--red)}
+
+  /* ── Pastki tab-panel ── */
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;
+    background:rgba(255,253,248,.985);backdrop-filter:blur(18px) saturate(1.1);
+    box-shadow:0 -6px 20px -12px rgba(120,95,40,.35);
+    border-top:1px solid var(--line);
+    padding:7px 4px calc(7px + env(safe-area-inset-bottom,0px))}
+  .tabs a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:5px 2px;color:var(--dim);font-size:10.5px;font-weight:600}
+  .tabs a.on{color:var(--gold)}
+  .tabs svg{width:22px;height:22px;stroke-width:1.9;fill:none;stroke:currentColor}
+  .tabs a.on svg{stroke-width:2.3}
+</style>
+</head>
+<body>
+
+{% if d is defined and not d %}
+<header><div class="wrap">
+  <img class="logo" src="/static/icons/logo.svg" alt="Mfaktor">
+  <div class="brand">MFAKTOR<span>Biznes maktabi</span></div>
+</div></header>
+<div class="wrap body"><div class="card" style="text-align:center;padding:28px 20px">
+  <h1>Havola topilmadi</h1>
+  <p class="sub" style="margin-top:8px">Bu havola eskirgan yoki noto'g'ri
+    ko'chirilgan. Kuratoringizdan yangi havola so'rang.</p>
+</div></div>
+
+{% else %}
+<header><div class="wrap">
+  <img class="logo" src="/static/icons/logo.svg" alt="Mfaktor">
+  <div class="brand">MFAKTOR<span>Biznes maktabi</span></div>
+  <div class="hi"><b>{{ d.c.student.name.split()[0] }}</b>
+    {{ d.ch.course.name[:22] }}</div>
+</div></header>
+
+<div class="wrap body">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in msgs %}
+    <div class="flash {{ 'f-err' if cat == 'err' else 'f-ok' }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+</div>
+
+<nav class="tabs">
+  <a class="{{ 'on' if tab == 'home' }}" href="/app/{{ token }}">
+    <svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Asosiy</a>
+  <a class="{{ 'on' if tab == 'lessons' }}" href="/app/{{ token }}/darslar">
+    <svg viewBox="0 0 24 24"><rect x="2.5" y="4.5" width="19" height="13" rx="2.5"/><path d="M10 9l5 2.5-5 2.5V9z"/><path d="M8 21h8"/></svg>Darslar</a>
+  <a class="{{ 'on' if tab == 'tasks' }}" href="/app/{{ token }}/vazifalar">
+    <svg viewBox="0 0 24 24"><path d="M9 4h6a1 1 0 011 1v1H8V5a1 1 0 011-1z"/><rect x="4" y="6" width="16" height="15" rx="2.5"/><path d="M8.5 12.5l2 2 4.5-4.5"/></svg>Vazifalar</a>
+  <a class="{{ 'on' if tab == 'rank' }}" href="/app/{{ token }}/reyting">
+    <svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M6 4h12v5a6 6 0 01-12 0V4z"/><path d="M6 6H3.5v1.5A3.5 3.5 0 006 11M18 6h2.5v1.5A3.5 3.5 0 0118 11"/></svg>Reyting</a>
+</nav>
+{% endif %}
+</body>
+</html>

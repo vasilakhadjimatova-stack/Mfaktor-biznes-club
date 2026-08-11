@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Video darsliklar</h1>
+<p class="sub">Kurs bo'yicha modullar va darslar — o'quvchi ilovasida shu tartibda ko'rinadi.
+  Video o'z serverimizda saqlanmaydi: YouTube (yashirin), Vimeo yoki Drive havolasi qo'yiladi,
+  ilova uni o'z ichida ochadi.</p>
+
+<div class="monthnav" style="flex-wrap:wrap">
+  {% for c in courses %}
+  <a class="chip {{ 'on' if c.id == course.id }}" href="/oquv/kurs/{{ c.id }}/darsliklar">{{ c.name }}</a>
+  {% endfor %}
+</div>
+
+{% for m in mods %}
+<div class="card" style="margin-top:14px">
+  <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+    <h2 style="margin:0;flex:1">{{ m.title }}
+      <span class="sub" style="font-weight:400">· {{ m.lessons|length }} dars</span></h2>
+    <form method="post" action="/oquv/modul/{{ m.id }}/ochirish"
+          onsubmit="return confirm('«{{ m.title }}» moduli va uning barcha darslari o‘chirilsinmi?')">
+      <button class="chip">O'chirish</button></form>
+  </div>
+  {% if m.subtitle %}<p class="sub">{{ m.subtitle }}</p>{% endif %}
+
+  <div class="tablewrap" style="margin-top:10px">
+  <table>
+    <tr><th style="width:38px">#</th><th>Dars</th><th>Video</th>
+        <th class="r">Daqiqa</th><th></th></tr>
+    {% for l in m.lessons %}
+    <tr>
+      <td class="sub">{{ loop.index }}</td>
+      <td><b>{{ l.title }}</b>
+        {% if l.file_url %}<div class="sub" style="font-size:12px">+ qo'shimcha material</div>{% endif %}</td>
+      <td>{% if l.video_url %}
+          {% if embed(l.video_url) %}<span class="badge b-green">Pleyerda ochiladi</span>
+          {% else %}<span class="badge b-gold">Tashqi havola</span>{% endif %}
+          {% else %}<span class="badge b-gray">Video yo'q</span>{% endif %}</td>
+      <td class="r">{{ l.minutes or '—' }}</td>
+      <td><form method="post" action="/oquv/dars/{{ l.id }}/ochirish"
+                onsubmit="return confirm('«{{ l.title }}» darsi o‘chirilsinmi?')">
+        <button class="chip">✕</button></form></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="sub">Bu modulda hali dars yo'q</td></tr>
+    {% endfor %}
+  </table>
+  </div>
+
+  <details class="adder" style="margin-top:10px">
+    <summary>Dars qo'shish</summary>
+    <div class="body">
+    <form class="inline" method="post" action="/oquv/modul/{{ m.id }}/dars">
+      <div style="flex-basis:100%"><label>Dars nomi</label>
+        <input name="title" required placeholder="Ehtiyojni aniqlash texnikasi"></div>
+      <div style="flex-basis:100%"><label>Video havolasi (YouTube / Vimeo / Drive)</label>
+        <input name="video_url" placeholder="https://youtu.be/..."></div>
+      <div><label>Davomiyligi (daqiqa)</label>
+        <input name="minutes" type="number" min="0" placeholder="12"></div>
+      <div style="flex:1"><label>Qo'shimcha material havolasi</label>
+        <input name="file_url" placeholder="PDF yoki Drive havolasi"></div>
+      <div style="flex-basis:100%"><label>Konspekt (ixtiyoriy)</label>
+        <textarea name="body" rows="2" style="width:100%"></textarea></div>
+      <div><button>Qo'shish</button></div>
+    </form>
+    </div>
+  </details>
+</div>
+{% else %}
+<div class="card" style="margin-top:14px"><div class="empty">
+  «{{ course.name }}» uchun hali modul yo'q — quyida birinchisini yarating</div></div>
+{% endfor %}
+
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">Yangi modul</h2>
+  <form class="inline" method="post" action="/oquv/kurs/{{ course.id }}/modul">
+    <div style="flex:1"><label>Modul nomi</label>
+      <input name="title" required placeholder="1-modul. Sotuvga kirish"></div>
+    <div style="flex:1"><label>Qisqa izoh</label>
+      <input name="subtitle" placeholder="Asosiy tushunchalar va tayyorgarlik"></div>
+    <div><button>Modul yaratish</button></div>
+  </form>
+</div>
+{% endblock %}

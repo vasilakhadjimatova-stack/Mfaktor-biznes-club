@@ -581,3 +581,55 @@ class PlanCell(db.Model):
     amount   = db.Column(db.Float, default=0.0)
     __table_args__ = (db.UniqueConstraint("year", "month", "day", "category",
                                           name="uq_plan_cell"),)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  VIDEO DARSLIKLAR — o'quvchi ilovasi uchun kontent qatlami
+# ══════════════════════════════════════════════════════════════════
+# Muhim qaror: videoni O'ZIMIZ saqlamaymiz. Fayl hosting va trafik qimmat
+# turadi, buning o'rniga havola (YouTube unlisted / Vimeo / Drive) qo'yiladi
+# va ilova ichida o'rnatilgan pleyerda ochiladi. Shunda kontent egasi biz
+# bo'lamiz, xarajat esa nolga yaqin.
+
+class VideoModule(db.Model):
+    """Kurs moduli — video darslar shu ichida guruhlanadi."""
+    __tablename__ = "video_modules"
+    id        = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey("courses.id"),
+                          nullable=False, index=True)
+    title     = db.Column(db.String(200), nullable=False)
+    subtitle  = db.Column(db.String(300), default="")
+    sort      = db.Column(db.Integer, default=0)
+    course    = db.relationship("Course", backref="modules")
+    lessons   = db.relationship("VideoLesson", backref="module",
+                                order_by="VideoLesson.sort",
+                                cascade="all, delete-orphan")
+
+
+class VideoLesson(db.Model):
+    """Bitta video dars: havola + tavsif + davomiyligi."""
+    __tablename__ = "video_lessons"
+    id        = db.Column(db.Integer, primary_key=True)
+    module_id = db.Column(db.Integer, db.ForeignKey("video_modules.id"),
+                          nullable=False, index=True)
+    title     = db.Column(db.String(200), nullable=False)
+    video_url = db.Column(db.String(500), default="")
+    body      = db.Column(db.Text, default="")        # matnli konspekt
+    file_url  = db.Column(db.String(500), default="")  # qo'shimcha material
+    minutes   = db.Column(db.Integer, default=0)
+    sort      = db.Column(db.Integer, default=0)
+    is_free   = db.Column(db.Boolean, default=False)   # tanishuv darsi
+
+
+class LessonView(db.Model):
+    """O'quvchi qaysi darsni ko'rib bo'lgani (progress uchun)."""
+    __tablename__ = "lesson_views"
+    __table_args__ = (db.UniqueConstraint("lesson_id", "contract_id",
+                                          name="uq_lesson_view"),)
+    id          = db.Column(db.Integer, primary_key=True)
+    lesson_id   = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
+                            nullable=False, index=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            nullable=False, index=True)
+    done        = db.Column(db.Boolean, default=True)
+    viewed_at   = db.Column(db.DateTime, default=datetime.utcnow)

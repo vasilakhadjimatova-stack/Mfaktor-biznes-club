@@ -41,7 +41,13 @@
 {% endif %}
 
 <div class="card" style="margin-top:14px">
-  <h2 style="margin-top:0">Oqimlar bo'yicha o'quv jarayoni</h2>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+    <h2 style="margin:0;flex:1">Oqimlar bo'yicha o'quv jarayoni</h2>
+    {% for co in courses %}
+    <a class="chip" href="/oquv/kurs/{{ co.id }}/darsliklar"
+       title="{{ co.name }}">🎬 {{ co.name[:18] }}</a>
+    {% endfor %}
+  </div>
   <table>
     <tr><th>Oqim</th><th>Holat</th><th class="r">O'quvchi</th>
         <th class="r">Darslar</th><th class="r">Tekshirilmagan</th><th></th></tr>

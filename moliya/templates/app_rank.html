@@ -1,0 +1,34 @@
+{% extends "app_base.html" %}
+{% block title %}Reyting — Mfaktor{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>Guruh reytingi</h1>
+  <p class="sub" style="margin-top:2px">O'rtacha baho va davomat asosida.
+    To'lov holati reytingga ta'sir qilmaydi.</p>
+</div>
+
+<div class="card">
+  {% for r in board %}
+  <div style="display:flex;gap:12px;align-items:center;padding:11px 0;
+    border-bottom:1px solid var(--line);
+    {% if r.c.id == me %}background:var(--gold-dim);margin:0 -16px;padding-left:16px;
+    padding-right:16px;border-radius:11px{% endif %}">
+    <span style="width:29px;height:29px;border-radius:50%;flex:none;display:grid;
+      place-items:center;font:700 12.5px var(--sans);
+      {% if r.place == 1 %}background:linear-gradient(135deg,#eed292,#c9962f);color:#241a05
+      {% elif r.place <= 3 %}background:var(--gold-dim);color:var(--gold)
+      {% else %}background:rgba(146,118,60,.1);color:var(--mut){% endif %}">{{ r.place }}</span>
+    <div style="flex:1;min-width:0">
+      <b style="font-size:14.5px">{{ r.name }}{% if r.c.id == me %} <span class="sub">(siz)</span>{% endif %}</b>
+      <div class="sub" style="font-size:12px">
+        {% if r.avg is not none %}o'rt. {{ r.avg|round|int }} ball · {% endif %}
+        {% if r.att is not none %}davomat {{ r.att|round|int }}%{% endif %}
+        · {{ r.done }}/{{ r.total }} vazifa</div>
+    </div>
+    <b class="gold" style="font-size:15px">{{ r.score }}</b>
+  </div>
+  {% else %}
+  <p class="empty">Reyting uchun hali natija yo'q</p>
+  {% endfor %}
+</div>
+{% endblock %}

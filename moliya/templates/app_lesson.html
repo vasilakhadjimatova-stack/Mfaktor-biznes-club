@@ -1,0 +1,48 @@
+{% extends "app_base.html" %}
+{% block title %}{{ les.title }} — Mfaktor{% endblock %}
+{% block body %}
+<div class="card" style="padding:0;overflow:hidden">
+  {% if embed %}
+  <div style="position:relative;width:100%;padding-top:56.25%;background:#000">
+    <iframe src="{{ embed }}" style="position:absolute;inset:0;width:100%;height:100%;border:0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
+            allowfullscreen loading="lazy"></iframe>
+  </div>
+  {% elif les.video_url %}
+  <div style="padding:18px">
+    <a class="btn" style="width:100%" href="{{ les.video_url }}" target="_blank" rel="noopener">
+      ▶ Videoni ochish</a>
+  </div>
+  {% endif %}
+  <div style="padding:16px">
+    <h1 style="font-size:18px">{{ les.title }}</h1>
+    <p class="sub" style="margin-top:3px">{{ les.module.title }}
+      {% if les.minutes %} · {{ les.minutes }} daqiqa{% endif %}</p>
+    {% if les.body %}
+    <div style="margin-top:12px;white-space:pre-wrap;font-size:14px;color:var(--mut)">{{ les.body }}</div>
+    {% endif %}
+    {% if les.file_url %}
+    <a class="btn ghost" style="margin-top:12px;width:100%" href="{{ les.file_url }}"
+       target="_blank" rel="noopener">⇩ Qo'shimcha material</a>
+    {% endif %}
+
+    <form method="post" action="/app/{{ token }}/dars/{{ les.id }}/belgilash"
+          style="margin-top:14px">
+      {% if done %}
+        <input type="hidden" name="undo" value="1">
+        <button class="btn ghost" style="width:100%">✓ Ko'rildi — bekor qilish</button>
+      {% else %}
+        {% if nxt %}<input type="hidden" name="next" value="{{ nxt.id }}">{% endif %}
+        <button style="width:100%">Ko'rdim{% if nxt %} va keyingisiga o'tish →{% endif %}</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div style="display:flex;gap:10px">
+  {% if prev %}<a class="btn ghost" style="flex:1" href="/app/{{ token }}/dars/{{ prev.id }}">← Oldingi</a>{% endif %}
+  {% if nxt %}<a class="btn ghost" style="flex:1" href="/app/{{ token }}/dars/{{ nxt.id }}">Keyingi →</a>{% endif %}
+</div>
+<p style="text-align:center;margin-top:12px">
+  <a href="/app/{{ token }}/darslar" class="sub">← Barcha darslar</a></p>
+{% endblock %}

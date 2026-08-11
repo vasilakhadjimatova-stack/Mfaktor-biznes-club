@@ -7,6 +7,7 @@ Ishga tushirish:
     python app.py       # http://localhost:5060
 """
 import hmac
+import json
 import os
 import secrets
 import time
@@ -32,7 +33,8 @@ from models import (AppSetting, Budget, Cohort, Contract, Course, DdsRow, DDS_LO
                     RecurringPayment, Student, Transaction, Wallet,
                     CONTRACT_STATUSES, income_cat_for_course,
                     ATT_STATUSES, LessonSession, LessonAttendance,
-                    Assignment, Submission, EduCertificate)
+                    Assignment, Submission, EduCertificate,
+                    VideoModule, VideoLesson, LessonView)
 
 
 def _session_secret(app):
@@ -99,8 +101,8 @@ def create_app():
     _pin_fails = {}                    # ip -> (soni, oxirgi urinish vaqti)
     _PUBLIC = ("/login", "/static/", "/manifest.json", "/sw.js",
                "/offline.html", "/healthz", "/cert/",
-               # o'quvchi kabineti: shaxsiy kalit bilan, kodsiz ochiladi
-               "/kabinet/")
+               # o'quvchi ilovasi: shaxsiy kalit bilan, kodsiz ochiladi
+               "/kabinet/", "/app/")
 
     @app.before_request
     def _guard():
@@ -1280,6 +1282,7 @@ def register_routes(app):
             db.session.rollback()
         return render_template("oquv.html", stats=education.edu_stats(),
                                rows=rows, risk=education.risk_students(),
+                               courses=Course.query.order_by(Course.name).all(),
                                msg=education.contact_message)
 
     @app.route("/oquv/cohort/<int:chid>")
@@ -1522,13 +1525,169 @@ def register_routes(app):
               f"(oldin berilganlari o'zgarmadi).", "ok")
         return redirect(url_for("oquv_cohort", chid=ch.id))
 
+
+    # ── Video darsliklar (kurator tomoni) ────────────────────────
+    @app.route("/oquv/kurs/<int:cid>/darsliklar")
+    def oquv_content(cid):
+        course = Course.query.get_or_404(cid)
+        mods = (VideoModule.query.filter_by(course_id=cid)
+                .order_by(VideoModule.sort, VideoModule.id).all())
+        return render_template("oquv_content.html", course=course, mods=mods,
+                               courses=Course.query.order_by(Course.name).all(),
+                               embed=education.embed_url)
+
+    @app.route("/oquv/kurs/<int:cid>/modul", methods=["POST"])
+    def oquv_module_add(cid):
+        Course.query.get_or_404(cid)
+        title = (request.form.get("title") or "").strip()
+        if not title:
+            flash("Modul nomi majburiy", "err")
+            return redirect(url_for("oquv_content", cid=cid))
+        last = (db.session.query(db.func.max(VideoModule.sort))
+                .filter_by(course_id=cid).scalar() or 0)
+        db.session.add(VideoModule(
+            course_id=cid, title=title[:200], sort=last + 1,
+            subtitle=(request.form.get("subtitle") or "").strip()[:300]))
+        db.session.commit()
+        flash("Modul qo'shildi", "ok")
+        return redirect(url_for("oquv_content", cid=cid))
+
+    @app.route("/oquv/modul/<int:mid>/dars", methods=["POST"])
+    def oquv_lesson_add(mid):
+        m = VideoModule.query.get_or_404(mid)
+        title = (request.form.get("title") or "").strip()
+        if not title:
+            flash("Dars nomi majburiy", "err")
+            return redirect(url_for("oquv_content", cid=m.course_id))
+        last = (db.session.query(db.func.max(VideoLesson.sort))
+                .filter_by(module_id=mid).scalar() or 0)
+        try:
+            mins = int(request.form.get("minutes") or 0)
+        except ValueError:
+            mins = 0
+        db.session.add(VideoLesson(
+            module_id=mid, title=title[:200], sort=last + 1, minutes=mins,
+            video_url=(request.form.get("video_url") or "").strip()[:500],
+            file_url=(request.form.get("file_url") or "").strip()[:500],
+            body=(request.form.get("body") or "").strip()[:8000]))
+        db.session.commit()
+        flash("Dars qo'shildi", "ok")
+        return redirect(url_for("oquv_content", cid=m.course_id))
+
+    @app.route("/oquv/dars/<int:lid>/ochirish", methods=["POST"])
+    def oquv_lesson_del(lid):
+        l = VideoLesson.query.get_or_404(lid)
+        cid = l.module.course_id
+        LessonView.query.filter_by(lesson_id=l.id).delete()
+        db.session.delete(l)
+        db.session.commit()
+        flash("Dars o'chirildi", "ok")
+        return redirect(url_for("oquv_content", cid=cid))
+
+    @app.route("/oquv/modul/<int:mid>/ochirish", methods=["POST"])
+    def oquv_module_del(mid):
+        m = VideoModule.query.get_or_404(mid)
+        cid = m.course_id
+        for l in list(m.lessons):
+            LessonView.query.filter_by(lesson_id=l.id).delete()
+        db.session.delete(m)
+        db.session.commit()
+        flash("Modul va uning darslari o'chirildi", "ok")
+        return redirect(url_for("oquv_content", cid=cid))
+
+    # ── O'quvchi ilovasi (alohida PWA, /app/<kalit>) ─────────────
+    def _student(token):
+        return Contract.query.filter_by(portal_token=token).first()
+
     @app.route("/kabinet/<token>")
     def kabinet(token):
-        c = Contract.query.filter_by(portal_token=token).first()
+        return redirect(url_for("app_home", token=token))
+
+    @app.route("/app/<token>")
+    def app_home(token):
+        c = _student(token)
         if not c:
-            return render_template("kabinet.html", d=None), 404
-        return render_template("kabinet.html", d=education.portal_data(c),
-                               token=token)
+            return render_template("app_base.html", d=None), 404
+        return render_template("app_home.html", tab="home", token=token,
+                               d=education.portal_data(c),
+                               cc=education.course_content(c))
+
+    @app.route("/app/<token>/darslar")
+    def app_lessons(token):
+        c = _student(token)
+        if not c:
+            return render_template("app_base.html", d=None), 404
+        return render_template("app_lessons.html", tab="lessons", token=token,
+                               d=education.portal_data(c),
+                               cc=education.course_content(c))
+
+    @app.route("/app/<token>/dars/<int:lid>")
+    def app_lesson(token, lid):
+        c = _student(token)
+        les = db.session.get(VideoLesson, lid)
+        if not c or not les:
+            return render_template("app_base.html", d=None), 404
+        # begona kursning darsini ochib bo'lmaydi
+        if les.module.course_id != c.cohort.course_id:
+            return redirect(url_for("app_lessons", token=token))
+        cc = education.course_content(c)
+        flat = [r["l"] for g in cc["modules"] for r in g["lessons"]]
+        idx = next((i for i, x in enumerate(flat) if x.id == les.id), 0)
+        return render_template(
+            "app_lesson.html", tab="lessons", token=token, les=les,
+            d=education.portal_data(c), cc=cc,
+            embed=education.embed_url(les.video_url),
+            done=les.id in cc["seen"],
+            prev=flat[idx - 1] if idx > 0 else None,
+            nxt=flat[idx + 1] if idx + 1 < len(flat) else None)
+
+    @app.route("/app/<token>/dars/<int:lid>/belgilash", methods=["POST"])
+    def app_lesson_done(token, lid):
+        c = _student(token)
+        les = db.session.get(VideoLesson, lid)
+        if not c or not les or les.module.course_id != c.cohort.course_id:
+            return redirect(url_for("app_lessons", token=token))
+        education.mark_view(c, les, request.form.get("undo") != "1")
+        nxt = request.form.get("next")
+        if nxt and nxt.isdigit():
+            return redirect(url_for("app_lesson", token=token, lid=int(nxt)))
+        return redirect(url_for("app_lesson", token=token, lid=lid))
+
+    @app.route("/app/<token>/vazifalar")
+    def app_tasks(token):
+        c = _student(token)
+        if not c:
+            return render_template("app_base.html", d=None), 404
+        return render_template("app_tasks.html", tab="tasks", token=token,
+                               d=education.portal_data(c))
+
+    @app.route("/app/<token>/reyting")
+    def app_rank(token):
+        c = _student(token)
+        if not c:
+            return render_template("app_base.html", d=None), 404
+        return render_template("app_rank.html", tab="rank", token=token,
+                               d=education.portal_data(c), me=c.id,
+                               board=education.leaderboard(c.cohort_id))
+
+    @app.route("/app/<token>/manifest.webmanifest")
+    def app_manifest(token):
+        """Har o'quvchiga o'z manifesti — ilova o'z kalitidan ochiladi."""
+        return Response(json.dumps({
+            "name": "Mfaktor O'quvchi", "short_name": "Mfaktor",
+            "start_url": f"/app/{token}", "scope": f"/app/{token}",
+            "display": "standalone", "background_color": "#f7f5f0",
+            "theme_color": "#12151f", "lang": "uz",
+            "icons": [
+                {"src": "/static/icons/icon-192.png", "sizes": "192x192",
+                 "type": "image/png", "purpose": "any"},
+                {"src": "/static/icons/icon-512.png", "sizes": "512x512",
+                 "type": "image/png", "purpose": "any"},
+                {"src": "/static/icons/icon-maskable-512.png",
+                 "sizes": "512x512",
+                 "type": "image/png", "purpose": "maskable"},
+            ],
+        }, ensure_ascii=False), mimetype="application/manifest+json")
 
     @app.route("/kabinet/<token>/topshirish/<int:aid>", methods=["POST"])
     def kabinet_submit(token, aid):

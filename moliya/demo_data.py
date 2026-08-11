@@ -49,7 +49,7 @@ def clear_demo():
     tashlanmasa, baza «NOT NULL» xatosini beradi.
     """
     from models import (Assignment, EduCertificate, LessonAttendance,
-                        LessonSession, Submission)
+                        LessonSession, LessonView, Submission)
 
     contracts = Contract.query.filter(Contract.note.like(f"%{MARK}%")).all()
     cids = [c.id for c in contracts]
@@ -59,7 +59,8 @@ def clear_demo():
     n = len(contracts)
 
     if cids:
-        for model in (LessonAttendance, Submission, EduCertificate):
+        for model in (LessonAttendance, Submission, EduCertificate,
+                      LessonView):
             model.query.filter(model.contract_id.in_(cids)).delete(
                 synchronize_session=False)
     if chids:
