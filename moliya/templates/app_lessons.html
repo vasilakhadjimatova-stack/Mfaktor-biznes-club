@@ -21,25 +21,48 @@
   {% if g.m.subtitle %}<p class="sub" style="margin-bottom:10px">{{ g.m.subtitle }}</p>{% endif %}
 
   {% for r in g.lessons %}
-  <a href="/app/{{ token }}/dars/{{ r.l.id }}"
-     style="display:flex;gap:12px;align-items:center;padding:11px 0;color:inherit;
-     border-bottom:1px solid var(--line)">
-    <span style="width:30px;height:30px;border-radius:50%;flex:none;display:grid;
-      place-items:center;font:700 12px var(--sans);
-      {% if r.done %}background:var(--green-dim);color:var(--green)
-      {% else %}background:rgba(146,118,60,.1);color:var(--mut){% endif %}">
-      {% if r.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
+  {% if r.locked %}
+  <div class="ls locked">
+    <span class="ls-n lock">🔒</span>
+    <div style="flex:1;min-width:0">
+      <b style="font-size:14.5px;display:block">{{ r.l.title }}</b>
+      <span class="sub" style="font-size:12px">
+        {{ r.open_at.strftime('%d.%m.%Y') }} dan ochiladi</span>
+    </div>
+  </div>
+  {% else %}
+  <a class="ls" href="/app/{{ token }}/dars/{{ r.l.id }}">
+    <span class="ls-n {{ 'ok' if r.done }}">{% if r.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
     <div style="flex:1;min-width:0">
       <b style="font-size:14.5px;display:block">{{ r.l.title }}</b>
       <span class="sub" style="font-size:12px">
         {% if r.l.minutes %}{{ r.l.minutes }} daqiqa{% else %}video dars{% endif %}
-        {% if r.l.file_url %} · material bor{% endif %}</span>
+        {% if r.quiz %} · test bor{% endif %}
+        {% if r.l.file_url %} · material{% endif %}</span>
+      {% if r.pct and not r.done %}
+      <span class="lsbar"><i style="width:{{ r.pct }}%"></i></span>
+      {% endif %}
     </div>
-    <span class="sub">▶</span>
+    <span class="sub">{% if r.pct and not r.done %}{{ r.pct }}%{% else %}▶{% endif %}</span>
   </a>
+  {% endif %}
   {% endfor %}
 </div>
 {% else %}
 {% if not cc.total %}<div class="card"><p class="empty">Hozircha bo'sh</p></div>{% endif %}
 {% endfor %}
+<style>
+.ls{display:flex;gap:12px;align-items:center;padding:11px 0;color:inherit;
+  border-bottom:1px solid var(--line)}
+.ls:last-child{border-bottom:0}
+.ls.locked{opacity:.55}
+.ls-n{width:30px;height:30px;border-radius:50%;flex:none;display:grid;
+  place-items:center;font:700 12px var(--sans);
+  background:rgba(146,118,60,.1);color:var(--mut)}
+.ls-n.ok{background:var(--green-dim);color:var(--green)}
+.ls-n.lock{font-size:13px}
+.lsbar{display:block;height:4px;border-radius:3px;margin-top:5px;max-width:180px;
+  background:rgba(146,118,60,.18);overflow:hidden}
+.lsbar i{display:block;height:100%;background:var(--gold)}
+</style>
 {% endblock %}

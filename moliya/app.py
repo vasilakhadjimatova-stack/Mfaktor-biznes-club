@@ -15,7 +15,7 @@ import time
 from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
-from flask import (Flask, Response, flash, redirect, render_template,
+from flask import (Flask, Response, abort, flash, redirect, render_template,
                    request, session, url_for)
 
 import analytics
@@ -25,6 +25,7 @@ import ddsflow
 import education
 import kpi
 import matching
+import notify
 import planner
 import praytimes
 import roles
@@ -36,7 +37,8 @@ from models import (AppSetting, Budget, Cohort, Contract, Course, DdsRow, DDS_LO
                     CONTRACT_STATUSES, income_cat_for_course,
                     ATT_STATUSES, LessonSession, LessonAttendance,
                     Assignment, Submission, EduCertificate,
-                    VideoModule, VideoLesson, LessonView)
+                    VideoModule, VideoLesson, LessonView, LessonWatch,
+                    Quiz, QuizQuestion, QuizOption, QuizAttempt)
 
 
 def _session_secret(app):
@@ -65,6 +67,13 @@ def _session_secret(app):
             db.session.rollback()
             # baza hali tayyor emas: jarayon uchun vaqtincha kalit
             return secrets.token_urlsafe(48)
+
+
+def _tg_secret():
+    """Webhook manzilining maxfiy qismi — sessiya kalitidan hosil bo'ladi."""
+    from flask import current_app
+    return hashlib.sha256(
+        f"tg:{current_app.secret_key}".encode()).hexdigest()[:24]
 
 
 def _current_role():
@@ -1641,6 +1650,7 @@ def register_edu_routes(app):
                 .order_by(VideoModule.sort, VideoModule.id).all())
         return render_template("oquv_content.html", course=course, mods=mods,
                                courses=Course.query.order_by(Course.name).all(),
+                               watch=education.course_watch_summary(cid),
                                embed=education.embed_url)
 
     @app.route("/oquv/kurs/<int:cid>/modul", methods=["POST"])
@@ -1672,8 +1682,13 @@ def register_edu_routes(app):
             mins = int(request.form.get("minutes") or 0)
         except ValueError:
             mins = 0
+        try:
+            oday = max(0, int(request.form.get("open_day") or 0))
+        except ValueError:
+            oday = 0
         db.session.add(VideoLesson(
             module_id=mid, title=title[:200], sort=last + 1, minutes=mins,
+            open_day=oday,
             video_url=(request.form.get("video_url") or "").strip()[:500],
             file_url=(request.form.get("file_url") or "").strip()[:500],
             body=(request.form.get("body") or "").strip()[:8000]))
@@ -1735,6 +1750,10 @@ def register_edu_routes(app):
             les.minutes = max(0, int(request.form.get("minutes") or 0))
         except ValueError:
             pass
+        try:
+            les.open_day = max(0, int(request.form.get("open_day") or 0))
+        except ValueError:
+            pass
         les.title = title[:200]
         les.video_url = (request.form.get("video_url") or "").strip()[:500]
         les.file_url = (request.form.get("file_url") or "").strip()[:500]
@@ -1776,6 +1795,138 @@ def register_edu_routes(app):
         db.session.commit()
         return redirect(url_for("oquv_content", cid=m.course_id))
 
+    # ── Ko'rish analitikasi ──────────────────────────────────────
+    @app.route("/oquv/dars/<int:lid>/analitika")
+    def oquv_lesson_stats(lid):
+        les = VideoLesson.query.get_or_404(lid)
+        if les.module is None:         # moduli o'chirilgan yetim yozuv
+            abort(404)
+        return render_template("oquv_lesson_stats.html", les=les,
+                               st=education.lesson_watch_stats(les),
+                               qs=(education.quiz_stats(les.quiz)
+                                   if les.quiz else None),
+                               fmt=education.fmt_sec)
+
+    # ── Testlar (kurator tomoni) ─────────────────────────────────
+    @app.route("/oquv/dars/<int:lid>/test", methods=["POST"])
+    def oquv_quiz_save(lid):
+        les = VideoLesson.query.get_or_404(lid)
+        q = les.quiz
+        if q is None:
+            q = Quiz(lesson_id=les.id)
+            db.session.add(q)
+        q.title = (request.form.get("title") or "Nazorat testi").strip()[:200]
+        try:
+            q.pass_score = max(0, min(100, int(request.form.get("pass") or 70)))
+        except ValueError:
+            q.pass_score = 70
+        db.session.commit()
+        flash("Test sozlamasi saqlandi", "ok")
+        return redirect(url_for("oquv_content", cid=les.module.course_id))
+
+    @app.route("/oquv/test/<int:qid>/savol", methods=["POST"])
+    def oquv_quiz_question_add(qid):
+        q = Quiz.query.get_or_404(qid)
+        text = (request.form.get("text") or "").strip()
+        opts = [(request.form.get(f"opt{i}") or "").strip() for i in range(1, 5)]
+        opts = [o for o in opts if o]
+        try:
+            right = int(request.form.get("right") or 1)
+        except ValueError:
+            right = 1
+        if not text or len(opts) < 2:
+            flash("Savol matni va kamida 2 ta variant kerak", "err")
+            return redirect(url_for("oquv_content", cid=q.lesson.module.course_id))
+        last = (db.session.query(db.func.max(QuizQuestion.sort))
+                .filter_by(quiz_id=q.id).scalar() or 0)
+        qq = QuizQuestion(quiz_id=q.id, text=text[:500], sort=last + 1)
+        db.session.add(qq)
+        db.session.flush()
+        for i, o in enumerate(opts, 1):
+            db.session.add(QuizOption(question_id=qq.id, text=o[:300],
+                                      is_correct=(i == right)))
+        db.session.commit()
+        flash("Savol qo'shildi", "ok")
+        return redirect(url_for("oquv_content", cid=q.lesson.module.course_id))
+
+    @app.route("/oquv/savol/<int:qqid>/ochirish", methods=["POST"])
+    def oquv_quiz_question_del(qqid):
+        qq = QuizQuestion.query.get_or_404(qqid)
+        cid = qq.quiz.lesson.module.course_id
+        db.session.delete(qq)
+        db.session.commit()
+        flash("Savol o'chirildi", "ok")
+        return redirect(url_for("oquv_content", cid=cid))
+
+    @app.route("/oquv/test/<int:qid>/ochirish", methods=["POST"])
+    def oquv_quiz_del(qid):
+        q = Quiz.query.get_or_404(qid)
+        cid = q.lesson.module.course_id
+        QuizAttempt.query.filter_by(quiz_id=q.id).delete(
+            synchronize_session=False)
+        db.session.delete(q)
+        db.session.commit()
+        flash("Test va uning natijalari o'chirildi", "ok")
+        return redirect(url_for("oquv_content", cid=cid))
+
+    # ── Telegram xabarnoma ───────────────────────────────────────
+    @app.route("/oquv/xabarnoma")
+    def oquv_notify():
+        items = notify.pending() if notify.enabled() else []
+        from models import TgMessage
+        return render_template(
+            "oquv_notify.html", items=items, on=notify.enabled(),
+            bot=notify.bot_username(), KINDS=notify.KINDS,
+            hook=url_for("tg_webhook", secret=_tg_secret(), _external=True),
+            log=(TgMessage.query.order_by(TgMessage.sent_at.desc())
+                 .limit(30).all()))
+
+    @app.route("/oquv/xabarnoma/bot", methods=["POST"])
+    def oquv_notify_bot():
+        notify.set_bot(request.form.get("token", ""),
+                       request.form.get("username", ""))
+        if notify.bot_token():
+            ok, res = notify.check_bot()
+            flash(f"Bot ulandi: @{res}" if ok else f"Bot javob bermadi: {res}",
+                  "ok" if ok else "err")
+        else:
+            flash("Bot tokeni tozalandi — xabarnoma o'chdi", "ok")
+        return redirect(url_for("oquv_notify"))
+
+    @app.route("/oquv/xabarnoma/yuborish", methods=["POST"])
+    def oquv_notify_send():
+        if not notify.enabled():
+            flash("Avval bot tokenini kiriting", "err")
+            return redirect(url_for("oquv_notify"))
+        want = request.form.getlist("key")
+        items = [i for i in notify.pending() if i["key"] in set(want)]
+        sent, skipped, failed = notify.send_pending(items)
+        flash(f"Yuborildi: {sent} ta"
+              + (f" · o'tkazildi (takror): {skipped}" if skipped else "")
+              + (f" · yetmadi: {failed}" if failed else ""),
+              "err" if failed and not sent else "ok")
+        return redirect(url_for("oquv_notify"))
+
+    @app.route("/oquv/contract/<int:cid>/tg", methods=["POST"])
+    def oquv_tg_link(cid):
+        c = Contract.query.get_or_404(cid)
+        c.tg_chat_id = "".join(ch for ch in request.form.get("chat_id", "")
+                               if ch.isdigit() or ch == "-")[:32]
+        db.session.commit()
+        flash("Telegram bog'lanishi yangilandi", "ok")
+        return redirect(url_for("oquv_cohort", chid=c.cohort_id))
+
+    @app.route("/tg/webhook/<secret>", methods=["POST"])
+    def tg_webhook(secret):
+        """Telegram shu manzilga xabar tashlaydi — o'quvchini bog'laymiz."""
+        if not hmac.compare_digest(secret, _tg_secret()):
+            return {"ok": False}, 404
+        try:
+            notify.handle_update(request.get_json(silent=True) or {})
+        except Exception:                              # noqa: BLE001
+            db.session.rollback()
+        return {"ok": True}
+
     # ── O'quvchi ilovasi (alohida PWA, /app/<kalit>) ─────────────
     def _student(token):
         return Contract.query.filter_by(portal_token=token).first()
@@ -1806,27 +1957,81 @@ def register_edu_routes(app):
     def app_lesson(token, lid):
         c = _student(token)
         les = db.session.get(VideoLesson, lid)
-        if not c or not les:
+        if not c or not les or les.module is None:
             return render_template("app_base.html", d=None), 404
         # begona kursning darsini ochib bo'lmaydi
         if les.module.course_id != c.cohort.course_id:
             return redirect(url_for("app_lessons", token=token))
         cc = education.course_content(c)
-        flat = [r["l"] for g in cc["modules"] for r in g["lessons"]]
+        # hali ochilmagan dars — bosqichma-bosqich ochilish
+        lock, odate = education.lesson_locked(les, c.cohort)
+        if lock:
+            flash(f"Bu dars {odate.strftime('%d.%m.%Y')} dan ochiladi.", "err")
+            return redirect(url_for("app_lessons", token=token))
+        # faqat ochiq darslar orasida oldinga/orqaga yuramiz
+        flat = [r["l"] for g in cc["modules"] for r in g["lessons"]
+                if not r["locked"]]
         idx = next((i for i, x in enumerate(flat) if x.id == les.id), 0)
+        w = cc["watch"].get(les.id)
         return render_template(
             "app_lesson.html", tab="lessons", token=token, les=les,
             d=education.portal_data(c), cc=cc,
             embed=education.embed_url(les.video_url),
-            done=les.id in cc["seen"],
+            done=les.id in cc["seen"], watch=w,
+            quiz=les.quiz, best=(education.quiz_best(les.quiz.id, c.id)
+                                 if les.quiz else None),
             prev=flat[idx - 1] if idx > 0 else None,
             nxt=flat[idx + 1] if idx + 1 < len(flat) else None)
+
+    @app.route("/app/<token>/dars/<int:lid>/vaqt", methods=["POST"])
+    def app_lesson_beat(token, lid):
+        """Ilova har 15 soniyada ko'rilgan oraliqlarni shu yerga yuboradi."""
+        c = _student(token)
+        les = db.session.get(VideoLesson, lid)
+        if (not c or not les or les.module is None
+                or les.module.course_id != c.cohort.course_id):
+            return {"ok": False}, 404
+        # hali ochilmagan darsga hisob yozilmaydi
+        if education.lesson_locked(les, c.cohort)[0]:
+            return {"ok": False, "locked": True}, 403
+        data = request.get_json(silent=True) or {}
+        spans = data.get("spans") or []
+        if not isinstance(spans, list) or len(spans) > 200:
+            spans = spans[:200] if isinstance(spans, list) else []
+        row = education.record_watch(
+            c, les, spans, data.get("duration") or 0,
+            data.get("pos") or 0, bool(data.get("opened")))
+        return {"ok": True, "pct": row.pct}
+
+    @app.route("/app/<token>/dars/<int:lid>/test", methods=["POST"])
+    def app_quiz_submit(token, lid):
+        c = _student(token)
+        les = db.session.get(VideoLesson, lid)
+        if (not c or not les or les.module is None
+                or les.module.course_id != c.cohort.course_id):
+            return redirect(url_for("app_lessons", token=token))
+        if not les.quiz or not les.quiz.questions:
+            return redirect(url_for("app_lesson", token=token, lid=lid))
+        if education.lesson_locked(les, c.cohort)[0]:
+            return redirect(url_for("app_lessons", token=token))
+        chosen = {k[1:]: v for k, v in request.form.items()
+                  if k.startswith("q") and k[1:].isdigit()}
+        att = education.grade_quiz(les.quiz, c, chosen)
+        if att is None:
+            return redirect(url_for("app_lesson", token=token, lid=lid))
+        if att.passed:
+            flash(f"Test topshirildi — {att.score} ball. Tabriklaymiz!", "ok")
+        else:
+            flash(f"Natija: {att.score} ball. O'tish uchun "
+                  f"{les.quiz.pass_score} kerak — qayta urinib ko'ring.", "err")
+        return redirect(url_for("app_lesson", token=token, lid=lid) + "#test")
 
     @app.route("/app/<token>/dars/<int:lid>/belgilash", methods=["POST"])
     def app_lesson_done(token, lid):
         c = _student(token)
         les = db.session.get(VideoLesson, lid)
-        if not c or not les or les.module.course_id != c.cohort.course_id:
+        if (not c or not les or les.module is None
+                or les.module.course_id != c.cohort.course_id):
             return redirect(url_for("app_lessons", token=token))
         education.mark_view(c, les, request.form.get("undo") != "1")
         nxt = request.form.get("next")

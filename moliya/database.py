@@ -32,6 +32,9 @@ NEW_COLUMNS = [
     # O'quvchi kabineti va dars materiallari
     ("contracts", "portal_token", "VARCHAR(48)"),
     ("assignments", "material_url", "VARCHAR(500) DEFAULT ''"),
+    # Bosqichma-bosqich ochilish va Telegram bog'lanishi
+    ("video_lessons", "open_day", "INTEGER DEFAULT 0"),
+    ("contracts", "tg_chat_id", "VARCHAR(32) DEFAULT ''"),
 ]
 
 

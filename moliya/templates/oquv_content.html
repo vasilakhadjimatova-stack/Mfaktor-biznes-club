@@ -51,7 +51,8 @@
   <div class="tablewrap" style="margin-top:10px">
   <table>
     <tr><th style="width:34px">#</th><th>Dars</th><th>Video</th>
-        <th class="r">Daqiqa</th><th style="width:150px"></th></tr>
+        <th class="r">Daqiqa</th><th class="r">Ko'rilish</th>
+        <th style="width:190px"></th></tr>
     {% for l in m.lessons %}
     <tr>
       <td class="sub">{{ loop.index }}</td>
@@ -62,6 +63,11 @@
           {% else %}<span class="badge b-gold">Tashqi havola</span>{% endif %}
           {% else %}<span class="badge b-gray">Video yo'q</span>{% endif %}</td>
       <td class="r">{{ l.minutes or '—' }}</td>
+      <td class="r">
+        {% set w = watch.get(l.id) %}
+        {% if w %}<b>{{ w.avg|round }}%</b>
+          <div class="sub" style="font-size:11px">{{ w.started }} o'quvchi</div>
+        {% else %}<span class="sub">—</span>{% endif %}</td>
       <td>
         <div class="ordbtns">
           {% if not loop.first %}
@@ -72,6 +78,7 @@
           <form method="post" action="/oquv/dars/{{ l.id }}/kochirish">
             <input type="hidden" name="dir" value="down">
             <button class="chip" title="Pastga">▼</button></form>{% endif %}
+          <a class="chip" href="/oquv/dars/{{ l.id }}/analitika">Tahlil</a>
           <button class="chip" type="button"
                   onclick="var d=document.getElementById('ed{{ l.id }}');d.open=!d.open">
             Tahrir</button>
@@ -79,7 +86,7 @@
       </td>
     </tr>
     <tr class="edrow">
-      <td colspan="5" style="padding:0">
+      <td colspan="6" style="padding:0">
         <details class="adder" id="ed{{ l.id }}"><summary style="display:none"></summary>
         <div class="body">
         <form class="inline" method="post" action="/oquv/dars/{{ l.id }}/tahrir">
@@ -90,6 +97,9 @@
                    placeholder="https://youtu.be/..."></div>
           <div><label>Daqiqa</label>
             <input name="minutes" type="number" min="0" value="{{ l.minutes or 0 }}"></div>
+          <div><label>Ochilish kuni</label>
+            <input name="open_day" type="number" min="0" value="{{ l.open_day or 0 }}"
+                   title="Oqim boshlanganidan necha kun keyin ochiladi. 0 — darhol"></div>
           <div><label>Modul</label>
             <select name="module_id">
               {% for mm in mods %}
@@ -104,7 +114,58 @@
             <textarea name="body" rows="2" style="width:100%">{{ l.body or '' }}</textarea></div>
           <div><button>Saqlash</button></div>
         </form>
-        <form method="post" action="/oquv/dars/{{ l.id }}/ochirish" style="margin-top:8px"
+        {# ── Test ── #}
+        <div class="qzbox">
+          <b style="font-size:13px">Nazorat testi</b>
+          <form class="inline" method="post" action="/oquv/dars/{{ l.id }}/test"
+                style="margin-top:8px">
+            <div style="flex:1"><label>Test nomi</label>
+              <input name="title" value="{{ l.quiz.title if l.quiz else 'Nazorat testi' }}"></div>
+            <div><label>O'tish bali (%)</label>
+              <input name="pass" type="number" min="0" max="100"
+                     value="{{ l.quiz.pass_score if l.quiz else 70 }}"></div>
+            <div><button class="chip">{{ 'Saqlash' if l.quiz else 'Test yaratish' }}</button></div>
+          </form>
+
+          {% if l.quiz %}
+          {% for q in l.quiz.questions %}
+          <div class="qrow">
+            <div style="flex:1">
+              <b>{{ loop.index }}. {{ q.text }}</b>
+              <div class="sub" style="font-size:12px">
+                {% for o in q.options %}<span class="{{ 'g' if o.is_correct }}">{{ o.text }}</span>{% if not loop.last %} · {% endif %}{% endfor %}</div>
+            </div>
+            <form method="post" action="/oquv/savol/{{ q.id }}/ochirish">
+              <button class="chip">✕</button></form>
+          </div>
+          {% endfor %}
+
+          <details class="adder plain" style="margin-top:8px">
+            <summary class="chip" style="display:inline-block">Savol qo'shish</summary>
+            <div class="body" style="padding:10px 0 0">
+            <form class="inline" method="post" action="/oquv/test/{{ l.quiz.id }}/savol">
+              <div style="grid-column:1/-1"><label>Savol matni</label>
+                <input name="text" required placeholder="Sovuq qo'ng'iroqda birinchi nima qilinadi?"></div>
+              {% for i in range(1, 5) %}
+              <div><label>{{ i }}-variant{% if i > 2 %} (ixtiyoriy){% endif %}</label>
+                <input name="opt{{ i }}" {{ 'required' if i <= 2 }}></div>
+              {% endfor %}
+              <div><label>To'g'ri javob</label>
+                <select name="right">
+                  {% for i in range(1, 5) %}<option value="{{ i }}">{{ i }}-variant</option>{% endfor %}
+                </select></div>
+              <div><button class="chip">Qo'shish</button></div>
+            </form>
+            </div>
+          </details>
+
+          <form method="post" action="/oquv/test/{{ l.quiz.id }}/ochirish" style="margin-top:8px"
+                onsubmit="return confirm('Test va uning barcha natijalari o‘chirilsinmi?')">
+            <button class="chip">Testni o'chirish</button></form>
+          {% endif %}
+        </div>
+
+        <form method="post" action="/oquv/dars/{{ l.id }}/ochirish" style="margin-top:10px"
               onsubmit="return confirm('«{{ l.title }}» darsi o‘chirilsinmi? O‘quvchilarning shu darsni ko‘rgani ham yo‘qoladi.')">
           <button class="chip">Darsni o'chirish</button></form>
         </div>
@@ -112,7 +173,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="5" class="sub">Bu modulda hali dars yo'q</td></tr>
+    <tr><td colspan="6" class="sub">Bu modulda hali dars yo'q</td></tr>
     {% endfor %}
   </table>
   </div>
@@ -127,6 +188,9 @@
         <input name="video_url" placeholder="https://youtu.be/..."></div>
       <div><label>Davomiyligi (daqiqa)</label>
         <input name="minutes" type="number" min="0" placeholder="12"></div>
+      <div><label>Ochilish kuni</label>
+        <input name="open_day" type="number" min="0" placeholder="0"
+               title="Oqim boshlanganidan necha kun keyin ochiladi. 0 — darhol"></div>
       <div style="grid-column:1/-1"><label>Qo'shimcha material havolasi</label>
         <input name="file_url" placeholder="PDF yoki Drive havolasi"></div>
       <div style="grid-column:1/-1"><label>Konspekt (ixtiyoriy)</label>
@@ -156,6 +220,13 @@
 .ordbtns{display:flex;gap:5px;align-items:center;justify-content:flex-end}
 .ordbtns form{display:flex;margin:0}
 .ordbtns .chip{padding:4px 9px;line-height:1.1}
+.qzbox{margin-top:14px;padding:12px;border-radius:12px;
+  border:1px dashed var(--line2);background:var(--card-faint)}
+.qrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;
+  border-bottom:1px solid var(--line)}
+.qrow:last-of-type{border-bottom:0}
+.qrow form{margin:0}
+.qrow .g{color:var(--pos,#3ecf8e);font-weight:700}
 /* yopiq tahrir panellari umuman joy egallamasin */
 details.plain:not([open]),
 tr.edrow details:not([open]){display:none}

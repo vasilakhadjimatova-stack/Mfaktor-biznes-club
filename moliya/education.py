@@ -421,7 +421,10 @@ def embed_url(url):
     m = re.search(r"(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/))"
                    r"([A-Za-z0-9_-]{6,})", u)
     if m:
-        return f"https://www.youtube.com/embed/{m.group(1)}?rel=0&modestbranding=1"
+        # enablejsapi — ilova pleyerdan «hozir nechinchi soniyada» deb
+        # so'ray olishi uchun; ko'rish analitikasi shunga asoslangan.
+        return (f"https://www.youtube.com/embed/{m.group(1)}"
+                f"?rel=0&modestbranding=1&enablejsapi=1&playsinline=1")
     m = re.search(r"vimeo\.com/(?:video/)?(\d+)", u)
     if m:
         return f"https://player.vimeo.com/video/{m.group(1)}"
@@ -434,7 +437,11 @@ def embed_url(url):
 
 
 def course_content(contract):
-    """O'quvchining kursi bo'yicha modullar, darslar va ko'rilganlik."""
+    """O'quvchining kursi bo'yicha modullar, darslar, ko'rilganlik va qulf.
+
+    Har dars uchun: ko'rildi belgisi, video necha foiz ko'rilgani va
+    bosqichma-bosqich ochilish bo'yicha qulflanganmi.
+    """
     from models import LessonView, VideoLesson, VideoModule
     course_id = contract.cohort.course_id if contract.cohort else None
     mods = (VideoModule.query.filter_by(course_id=course_id)
@@ -445,30 +452,37 @@ def course_content(contract):
         seen = {v.lesson_id for v in LessonView.query.filter(
             LessonView.contract_id == contract.id,
             LessonView.lesson_id.in_(lids), LessonView.done.is_(True)).all()}
+    watch = watch_map(contract.id, lids)
+    today = date.today()
 
-    out, total, done = [], 0, 0
+    out, total, done, locked_n = [], 0, 0, 0
     for m in mods:
         rows = []
         for l in m.lessons:
             ok = l.id in seen
+            lock, odate = lesson_locked(l, contract.cohort, today)
             total += 1
             done += 1 if ok else 0
-            rows.append({"l": l, "done": ok})
+            locked_n += 1 if lock else 0
+            w = watch.get(l.id)
+            rows.append({"l": l, "done": ok, "locked": lock, "open_at": odate,
+                         "pct": round(w.pct) if w else 0,
+                         "quiz": l.quiz})
         out.append({"m": m, "lessons": rows,
                     "done": sum(1 for r in rows if r["done"]),
                     "total": len(rows)})
-    # navbatdagi dars — ketma-ket birinchi ko'rilmagani
+    # navbatdagi dars — ketma-ket birinchi ko'rilmagan va OCHIQ darsi
     nxt = None
     for g in out:
         for r in g["lessons"]:
-            if not r["done"]:
+            if not r["done"] and not r["locked"]:
                 nxt = {"l": r["l"], "m": g["m"]}
                 break
         if nxt:
             break
     return {"modules": out, "total": total, "done": done,
             "pct": (done / total * 100) if total else 0, "next": nxt,
-            "seen": seen}
+            "seen": seen, "watch": watch, "locked": locked_n}
 
 
 def mark_view(contract, lesson, done=True):
@@ -483,3 +497,274 @@ def mark_view(contract, lesson, done=True):
     row.viewed_at = datetime.utcnow()
     db.session.commit()
     return row
+
+
+# ──────────────────────────────────────────────────────────────────
+# VIDEO KO'RISH ANALITIKASI
+# ──────────────────────────────────────────────────────────────────
+WATCH_DONE_PCT = 85          # shu foizdan oshsa dars «ko'rildi» bo'ladi
+_GAP = 1.5                   # shundan kichik uzilish — bir oraliq deb olinadi
+
+
+def merge_spans(spans, duration=0.0):
+    """Oraliqlarni tartiblab birlashtiradi: [[0,10],[8,20]] -> [[0,20]].
+
+    Foizni oxirgi nuqtadan emas, aynan shu birlashgan oraliqlardan
+    hisoblaymiz — videoni sudrab o'tgan o'quvchi 100% olmaydi.
+    """
+    clean = []
+    for sp in spans or []:
+        try:
+            a, b = float(sp[0]), float(sp[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if b < a:
+            a, b = b, a
+        a = max(0.0, a)
+        if duration and duration > 0:
+            b = min(b, duration)
+        if b - a >= 0.5:                       # juda qisqa bo'lagi hisobmas
+            clean.append([round(a, 1), round(b, 1)])
+    if not clean:
+        return []
+    clean.sort()
+    out = [clean[0]]
+    for a, b in clean[1:]:
+        if a <= out[-1][1] + _GAP:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return out
+
+
+def spans_seconds(spans):
+    return round(sum(b - a for a, b in spans), 1)
+
+
+def record_watch(contract, lesson, spans, duration=0.0, pos=0.0, opened=False):
+    """Ilovadan kelgan oraliqlarni saqlaydi va foizni qayta hisoblaydi."""
+    from models import LessonWatch
+    row = LessonWatch.query.filter_by(lesson_id=lesson.id,
+                                      contract_id=contract.id).first()
+    if row is None:
+        row = LessonWatch(lesson_id=lesson.id, contract_id=contract.id,
+                          covered="[]")
+        db.session.add(row)
+    if duration and duration > 0:
+        row.duration = round(float(duration), 1)
+    try:
+        old = json.loads(row.covered or "[]")
+    except ValueError:
+        old = []
+    merged = merge_spans(list(old) + list(spans or []), row.duration)
+    row.covered = json.dumps(merged)
+    row.seconds = spans_seconds(merged)
+    row.pct = round(100.0 * row.seconds / row.duration, 1) if row.duration else 0.0
+    row.max_pos = max(row.max_pos or 0.0, float(pos or 0.0),
+                      merged[-1][1] if merged else 0.0)
+    if opened:
+        row.opens = (row.opens or 0) + 1
+    row.last_at = datetime.utcnow()
+
+    # Yetarlicha ko'rilgan bo'lsa — «ko'rildi» belgisini o'zi qo'yadi
+    if row.pct >= WATCH_DONE_PCT:
+        from models import LessonView
+        v = LessonView.query.filter_by(lesson_id=lesson.id,
+                                       contract_id=contract.id).first()
+        if v is None:
+            db.session.add(LessonView(lesson_id=lesson.id,
+                                      contract_id=contract.id, done=True))
+        elif not v.done:
+            v.done = True
+    db.session.commit()
+    return row
+
+
+def watch_map(contract_id, lesson_ids):
+    """{dars_id: foiz} — ilovada har dars yonida ko'rsatish uchun."""
+    from models import LessonWatch
+    if not lesson_ids:
+        return {}
+    rows = LessonWatch.query.filter(
+        LessonWatch.contract_id == contract_id,
+        LessonWatch.lesson_id.in_(lesson_ids)).all()
+    return {r.lesson_id: r for r in rows}
+
+
+RETENTION_BUCKETS = 20
+
+
+def lesson_watch_stats(lesson):
+    """Bitta dars bo'yicha: kim qancha ko'rgan va qayerda tashlab ketishgan.
+
+    «retention» — videoni 20 bo'lakka bo'lib, har bo'lakni nechta o'quvchi
+    ko'rgani. Egri chiziq keskin tushgan joy — darsning zaif nuqtasi.
+    """
+    from models import Contract, LessonWatch
+    rows = (LessonWatch.query.filter_by(lesson_id=lesson.id)
+            .order_by(LessonWatch.pct.desc()).all())
+    rows = [r for r in rows if r.contract is not None]
+    dur = max([r.duration or 0 for r in rows], default=0.0)
+
+    buckets = [0] * RETENTION_BUCKETS
+    for r in rows:
+        if not dur:
+            continue
+        try:
+            spans = json.loads(r.covered or "[]")
+        except ValueError:
+            spans = []
+        for i in range(RETENTION_BUCKETS):
+            lo = dur * i / RETENTION_BUCKETS
+            hi = dur * (i + 1) / RETENTION_BUCKETS
+            if any(a < hi and b > lo for a, b in spans):
+                buckets[i] += 1
+
+    started = len(rows)
+    finished = sum(1 for r in rows if (r.pct or 0) >= WATCH_DONE_PCT)
+    avg = round(sum(r.pct or 0 for r in rows) / started, 1) if started else 0.0
+
+    # Eng katta tushish qaysi bo'lakda — «shu yerda tashlab ketishadi»
+    drop_i, drop_n = None, 0
+    for i in range(1, RETENTION_BUCKETS):
+        d = buckets[i - 1] - buckets[i]
+        if d > drop_n:
+            drop_i, drop_n = i, d
+    drop_at = (dur * drop_i / RETENTION_BUCKETS) if (drop_i and dur) else None
+
+    # Shu kursning oqimlarida bor, lekin darsni umuman ochmagan o'quvchilar
+    from models import Cohort
+    seen_ids = {r.contract_id for r in rows}
+    cohort_ids = [ch.id for ch in Cohort.query.filter_by(
+        course_id=lesson.module.course_id).all()]
+    never = []
+    if cohort_ids:
+        q = Contract.query.filter(Contract.status == "active",
+                                  Contract.cohort_id.in_(cohort_ids))
+        if seen_ids:
+            q = q.filter(~Contract.id.in_(seen_ids))
+        never = q.all()
+
+    return {"rows": rows, "duration": dur, "buckets": buckets,
+            "started": started, "finished": finished, "avg": avg,
+            "drop_at": drop_at, "drop_n": drop_n, "never": never,
+            "max_bucket": max(buckets or [0])}
+
+
+def course_watch_summary(course_id):
+    """{dars_id: {'started','avg'}} — darsliklar jadvalida ko'rsatish uchun."""
+    from models import LessonWatch, VideoLesson, VideoModule
+    ids = [l.id for l in VideoLesson.query.join(VideoModule).filter(
+        VideoModule.course_id == course_id).all()]
+    if not ids:
+        return {}
+    out = {}
+    for r in LessonWatch.query.filter(LessonWatch.lesson_id.in_(ids)).all():
+        d = out.setdefault(r.lesson_id, {"started": 0, "sum": 0.0})
+        d["started"] += 1
+        d["sum"] += (r.pct or 0)
+    for d in out.values():
+        d["avg"] = round(d["sum"] / d["started"], 1) if d["started"] else 0.0
+    return out
+
+
+def fmt_sec(s):
+    """123.4 -> «2:03»"""
+    try:
+        s = int(round(float(s)))
+    except (TypeError, ValueError):
+        return "—"
+    return f"{s // 60}:{s % 60:02d}"
+
+
+# ──────────────────────────────────────────────────────────────────
+# BOSQICHMA-BOSQICH OCHILISH
+# ──────────────────────────────────────────────────────────────────
+def lesson_open_date(lesson, cohort):
+    """Dars qaysi kundan ochiladi (oqim boshlanishiga nisbatan)."""
+    from datetime import timedelta
+    d = int(lesson.open_day or 0)
+    if d <= 0 or cohort is None or cohort.start_date is None:
+        return None
+    return cohort.start_date + timedelta(days=d)
+
+
+def lesson_locked(lesson, cohort, today=None):
+    """(qulflangan_mi, ochilish_sanasi)."""
+    od = lesson_open_date(lesson, cohort)
+    if od is None:
+        return False, None
+    return (today or date.today()) < od, od
+
+
+# ──────────────────────────────────────────────────────────────────
+# TESTLAR
+# ──────────────────────────────────────────────────────────────────
+def grade_quiz(quiz, contract, chosen):
+    """chosen = {savol_id: variant_id}. Tekshiradi va urinishni saqlaydi."""
+    from models import QuizAttempt
+    qs = list(quiz.questions)
+    if not qs:
+        return None
+    right = 0
+    for q in qs:
+        pick = chosen.get(str(q.id)) or chosen.get(q.id)
+        try:
+            pick = int(pick)
+        except (TypeError, ValueError):
+            continue
+        if any(o.id == pick and o.is_correct for o in q.options):
+            right += 1
+    score = int(round(100.0 * right / len(qs)))
+    att = QuizAttempt(quiz_id=quiz.id, contract_id=contract.id, score=score,
+                      passed=score >= (quiz.pass_score or 70),
+                      answers=json.dumps({str(k): v for k, v in chosen.items()}))
+    db.session.add(att)
+    db.session.commit()
+    return att
+
+
+def quiz_best(quiz_id, contract_id):
+    """O'quvchining shu testdagi eng yaxshi urinishi."""
+    from models import QuizAttempt
+    return (QuizAttempt.query.filter_by(quiz_id=quiz_id,
+                                        contract_id=contract_id)
+            .order_by(QuizAttempt.score.desc()).first())
+
+
+def quiz_stats(quiz):
+    """Kurator uchun: nechta urinish, o'rtacha ball, qaysi savol qiyin."""
+    from models import QuizAttempt
+    atts = QuizAttempt.query.filter_by(quiz_id=quiz.id).all()
+    best = {}
+    for a in atts:
+        cur = best.get(a.contract_id)
+        if cur is None or (a.score or 0) > (cur.score or 0):
+            best[a.contract_id] = a
+    people = list(best.values())
+    avg = round(sum(a.score or 0 for a in people) / len(people), 1) if people else 0.0
+    passed = sum(1 for a in people if a.passed)
+
+    # Savol bo'yicha to'g'ri javob ulushi — past ko'rsatkich «tushunilmagan»
+    hard = []
+    for q in quiz.questions:
+        ok = tot = 0
+        right_ids = {o.id for o in q.options if o.is_correct}
+        for a in people:
+            try:
+                ans = json.loads(a.answers or "{}")
+            except ValueError:
+                continue
+            if str(q.id) not in ans:
+                continue
+            tot += 1
+            try:
+                if int(ans[str(q.id)]) in right_ids:
+                    ok += 1
+            except (TypeError, ValueError):
+                pass
+        hard.append({"q": q, "ok": ok, "total": tot,
+                     "pct": round(100.0 * ok / tot) if tot else None})
+    hard.sort(key=lambda x: (x["pct"] is None, x["pct"] or 0))
+    return {"attempts": len(atts), "people": len(people), "avg": avg,
+            "passed": passed, "best": people, "hard": hard}

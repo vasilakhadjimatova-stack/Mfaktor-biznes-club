@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ les.title }}</h1>
+<p class="sub">{{ les.module.course.name }} · {{ les.module.title }}
+  {% if st.duration %} · video {{ fmt(st.duration) }}{% endif %}</p>
+
+<div class="monthnav">
+  <a class="chip" href="/oquv/kurs/{{ les.module.course_id }}/darsliklar">← Darsliklar</a>
+</div>
+
+<div class="grid g4">
+  <div class="card kpi"><div class="l">Boshlagan</div>
+    <div class="v">{{ st.started }}</div></div>
+  <div class="card kpi"><div class="l">Oxirigacha ko'rgan</div>
+    <div class="v {{ 'pos' if st.finished else '' }}">{{ st.finished }}</div></div>
+  <div class="card kpi"><div class="l">O'rtacha ko'rilish</div>
+    <div class="v">{{ st.avg }}%</div></div>
+  <div class="card kpi"><div class="l">Umuman ochmagan</div>
+    <div class="v {{ 'neg' if st.never else '' }}">{{ st.never|length }}</div></div>
+</div>
+
+{% if st.started and st.duration %}
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">Videoning qaysi joyigacha ko'rishadi</h2>
+  <p class="sub">Har ustun — videoning bir bo'lagi. Balandligi shu bo'lakni
+    nechta o'quvchi ko'rganini bildiradi. Chiziq keskin tushgan joy —
+    darsning zaif nuqtasi.</p>
+
+  <div class="ret">
+    {% for n in st.buckets %}
+    <div class="ret-col" title="{{ fmt(st.duration * loop.index0 / st.buckets|length) }} — {{ n }} o'quvchi">
+      <div class="ret-bar" style="height:{{ (100 * n / st.max_bucket)|round if st.max_bucket else 0 }}%"></div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ret-ax">
+    <span>0:00</span><span>{{ fmt(st.duration / 2) }}</span><span>{{ fmt(st.duration) }}</span>
+  </div>
+
+  {% if st.drop_at and st.drop_n %}
+  <p class="hint" style="margin-top:12px"><b>Eng katta tushish: {{ fmt(st.drop_at) }}</b>
+    — shu nuqtada {{ st.drop_n }} ta o'quvchi to'xtagan.
+    Agar bu son katta bo'lsa, darsning o'sha qismini qayta ko'rib chiqing.</p>
+  {% endif %}
+</div>
+{% else %}
+<div class="card" style="margin-top:14px"><div class="empty">
+  Bu darsni hali hech kim ko'rmagan — ma'lumot yig'ilgach shu yerda
+  chiqadi.</div></div>
+{% endif %}
+
+{% if st.rows %}
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">O'quvchilar bo'yicha</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>O'quvchi</th><th>Oqim</th><th style="width:150px">Ko'rildi</th>
+        <th class="r">Foiz</th><th class="r">Eng uzoq</th>
+        <th class="r">Ochgan</th><th class="r">Oxirgi marta</th></tr>
+    {% for r in st.rows %}
+    <tr>
+      <td><b>{{ r.contract.student.name }}</b></td>
+      <td class="sub">{{ r.contract.cohort.name|replace('[namuna]','')|trim }}</td>
+      <td><div class="mini"><i style="width:{{ r.pct|round }}%"></i></div></td>
+      <td class="r">{{ r.pct|round }}%</td>
+      <td class="r">{{ fmt(r.max_pos) }}</td>
+      <td class="r">{{ r.opens }}</td>
+      <td class="r sub">{{ r.last_at.strftime('%d.%m %H:%M') if r.last_at }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% if st.never %}
+  <p class="hint" style="margin-top:12px"><b>Umuman ochmaganlar:</b>
+    {{ st.never|map(attribute='student.name')|join(', ') }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if qs %}
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">Test natijalari</h2>
+  <div class="grid g4" style="margin-bottom:12px">
+    <div class="card kpi"><div class="l">Topshirgan</div>
+      <div class="v">{{ qs.people }}</div></div>
+    <div class="card kpi"><div class="l">O'tgan</div>
+      <div class="v pos">{{ qs.passed }}</div></div>
+    <div class="card kpi"><div class="l">O'rtacha ball</div>
+      <div class="v">{{ qs.avg }}</div></div>
+    <div class="card kpi"><div class="l">Jami urinish</div>
+      <div class="v">{{ qs.attempts }}</div></div>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Savol</th><th class="r">To'g'ri javob</th></tr>
+    {% for h in qs.hard %}
+    <tr>
+      <td>{{ h.q.text }}</td>
+      <td class="r {{ 'neg' if h.pct is not none and h.pct < 50 }}">
+        {% if h.pct is none %}—{% else %}{{ h.pct }}% ({{ h.ok }}/{{ h.total }}){% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p class="hint" style="margin-top:10px">Ro'yxat eng qiyin savoldan
+    boshlanadi. 50% dan past savol — mavzu tushunilmagan degani.</p>
+</div>
+{% endif %}
+
+<style>
+.ret{display:flex;align-items:flex-end;gap:3px;height:150px;margin-top:14px;
+  padding:10px;border-radius:12px;background:var(--card-faint);
+  border:1px solid var(--line)}
+.ret-col{flex:1;height:100%;display:flex;align-items:flex-end}
+.ret-bar{width:100%;border-radius:4px 4px 0 0;min-height:2px;
+  background:linear-gradient(180deg,var(--gold),rgba(240,179,66,.35))}
+.ret-ax{display:flex;justify-content:space-between;margin-top:6px;
+  font-size:11px;color:var(--mut)}
+.mini{height:7px;border-radius:5px;background:rgba(146,118,60,.18);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:5px;background:var(--gold)}
+</style>
+{% endblock %}

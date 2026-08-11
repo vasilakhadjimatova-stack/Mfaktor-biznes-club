@@ -201,6 +201,7 @@ class Contract(db.Model):
     # O'quvchi kabineti uchun shaxsiy havola kaliti (parolsiz kirish).
     # Faqat kerak bo'lganda yaratiladi — har shartnomada bo'lishi shart emas.
     portal_token = db.Column(db.String(48), unique=True, index=True)
+    tg_chat_id   = db.Column(db.String(32), default="")   # Telegram bog'lanishi
     risk_score   = db.Column(db.Integer, default=0)          # 0–100
     risk_reasons = db.Column(db.String(300), default="")
     student = db.relationship("Student", backref="contracts")
@@ -619,6 +620,9 @@ class VideoLesson(db.Model):
     minutes   = db.Column(db.Integer, default=0)
     sort      = db.Column(db.Integer, default=0)
     is_free   = db.Column(db.Boolean, default=False)   # tanishuv darsi
+    # Bosqichma-bosqich ochilish: oqim boshlanganidan necha kun keyin
+    # ochiladi. 0 — birinchi kundanoq ochiq.
+    open_day  = db.Column(db.Integer, default=0)
 
 
 class LessonView(db.Model):
@@ -633,3 +637,106 @@ class LessonView(db.Model):
                             nullable=False, index=True)
     done        = db.Column(db.Boolean, default=True)
     viewed_at   = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  VIDEO KO'RISH ANALITIKASI
+# ══════════════════════════════════════════════════════════════════
+# Video boshqa saytda tursa ham, u bizning sahifamiz ichida ochiladi —
+# demak pleyerning JS API'si «hozir nechinchi soniyada» deb ayta oladi.
+# Ilova har 15 soniyada ko'rilgan ORALIQLARNI yuboradi, biz ularni
+# birlashtirib saqlaymiz. Oxirgi nuqtani emas, aynan oraliqlarni:
+# aks holda o'quvchi tugmani oxiriga sudrasa 100% bo'lib qolardi.
+
+class LessonWatch(db.Model):
+    __tablename__ = "lesson_watch"
+    __table_args__ = (db.UniqueConstraint("lesson_id", "contract_id",
+                                          name="uq_lesson_watch"),)
+    id          = db.Column(db.Integer, primary_key=True)
+    lesson_id   = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
+                            nullable=False, index=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            nullable=False, index=True)
+    duration    = db.Column(db.Float, default=0.0)   # video uzunligi, soniya
+    covered     = db.Column(db.Text, default="[]")   # JSON: [[a,b], ...]
+    seconds     = db.Column(db.Float, default=0.0)   # oraliqlar yig'indisi
+    pct         = db.Column(db.Float, default=0.0)   # foiz
+    max_pos     = db.Column(db.Float, default=0.0)   # eng uzoq borgan nuqta
+    opens       = db.Column(db.Integer, default=0)   # necha marta ochgan
+    first_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    last_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    lesson      = db.relationship("VideoLesson")
+    contract    = db.relationship("Contract")
+
+
+# ══════════════════════════════════════════════════════════════════
+#  TESTLAR (avtomatik tekshiriladigan)
+# ══════════════════════════════════════════════════════════════════
+class Quiz(db.Model):
+    """Darsga biriktirilgan test."""
+    __tablename__ = "quizzes"
+    id         = db.Column(db.Integer, primary_key=True)
+    lesson_id  = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
+                           nullable=False, index=True)
+    title      = db.Column(db.String(200), default="Nazorat testi")
+    pass_score = db.Column(db.Integer, default=70)   # o'tish uchun kerak, %
+    lesson     = db.relationship("VideoLesson", backref=db.backref(
+        "quiz", uselist=False, cascade="all, delete-orphan"))
+    questions  = db.relationship("QuizQuestion", backref="quiz",
+                                 order_by="QuizQuestion.sort",
+                                 cascade="all, delete-orphan")
+
+
+class QuizQuestion(db.Model):
+    __tablename__ = "quiz_questions"
+    id      = db.Column(db.Integer, primary_key=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey("quizzes.id"),
+                        nullable=False, index=True)
+    text    = db.Column(db.String(500), nullable=False)
+    sort    = db.Column(db.Integer, default=0)
+    options = db.relationship("QuizOption", backref="question",
+                              order_by="QuizOption.id",
+                              cascade="all, delete-orphan")
+
+
+class QuizOption(db.Model):
+    __tablename__ = "quiz_options"
+    id          = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey("quiz_questions.id"),
+                            nullable=False, index=True)
+    text        = db.Column(db.String(300), nullable=False)
+    is_correct  = db.Column(db.Boolean, default=False)
+
+
+class QuizAttempt(db.Model):
+    """Har urinish alohida saqlanadi — kurator dinamikani ko'ra oladi."""
+    __tablename__ = "quiz_attempts"
+    id          = db.Column(db.Integer, primary_key=True)
+    quiz_id     = db.Column(db.Integer, db.ForeignKey("quizzes.id"),
+                            nullable=False, index=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            nullable=False, index=True)
+    score       = db.Column(db.Integer, default=0)     # foiz
+    passed      = db.Column(db.Boolean, default=False)
+    answers     = db.Column(db.Text, default="{}")     # JSON: {savol: variant}
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    contract    = db.relationship("Contract")
+    quiz        = db.relationship("Quiz")
+
+
+# ══════════════════════════════════════════════════════════════════
+#  TELEGRAM XABARNOMA
+# ══════════════════════════════════════════════════════════════════
+class TgMessage(db.Model):
+    """Yuborilgan xabar tarixi — bir xil eslatma ikki marta ketmasin."""
+    __tablename__ = "tg_messages"
+    id          = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            index=True)
+    kind        = db.Column(db.String(20), default="")   # qarz/dars/vazifa
+    dedup_key   = db.Column(db.String(120), index=True)  # kun bo'yicha kalit
+    text        = db.Column(db.Text, default="")
+    ok          = db.Column(db.Boolean, default=False)
+    error       = db.Column(db.String(300), default="")
+    sent_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    contract    = db.relationship("Contract")

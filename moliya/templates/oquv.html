@@ -43,6 +43,7 @@
 <div class="card" style="margin-top:14px">
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
     <h2 style="margin:0;flex:1">Oqimlar bo'yicha o'quv jarayoni</h2>
+    <a class="chip" href="/oquv/xabarnoma">🔔 Xabarnoma</a>
     {% for co in courses %}
     <a class="chip" href="/oquv/kurs/{{ co.id }}/darsliklar"
        title="{{ co.name }}">🎬 {{ co.name[:18] }}</a>

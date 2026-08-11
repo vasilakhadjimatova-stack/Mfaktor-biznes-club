@@ -4,10 +4,23 @@
 <div class="card" style="padding:0;overflow:hidden">
   {% if embed %}
   <div style="position:relative;width:100%;padding-top:56.25%;background:#000">
-    <iframe src="{{ embed }}" style="position:absolute;inset:0;width:100%;height:100%;border:0"
+    {% if embed.endswith('.mp4') or embed.endswith('.webm') %}
+    <video id="vid" src="{{ embed }}" controls playsinline
+           style="position:absolute;inset:0;width:100%;height:100%"></video>
+    {% else %}
+    <iframe id="vid" src="{{ embed }}"
+            style="position:absolute;inset:0;width:100%;height:100%;border:0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
-            allowfullscreen loading="lazy"></iframe>
+            allowfullscreen></iframe>
+    {% endif %}
   </div>
+  {% if watch and watch.pct %}
+  <div class="wprog"><i style="width:{{ watch.pct|round }}%"></i></div>
+  <div class="wtxt"><span id="wpct">{{ watch.pct|round }}</span>% ko'rildi</div>
+  {% else %}
+  <div class="wprog"><i id="wbar" style="width:0%"></i></div>
+  <div class="wtxt"><span id="wpct">0</span>% ko'rildi</div>
+  {% endif %}
   {% elif les.video_url %}
   <div style="padding:18px">
     <a class="btn" style="width:100%" href="{{ les.video_url }}" target="_blank" rel="noopener">
@@ -39,10 +52,174 @@
   </div>
 </div>
 
+{% if quiz and quiz.questions %}
+<div class="card" id="test">
+  <h2>{{ quiz.title }}</h2>
+  {% if best %}
+  <p class="sub">Eng yaxshi natijangiz:
+    <b class="{{ 'g' if best.passed else 'r' }}">{{ best.score }} ball</b>
+    {% if best.passed %}· o'tdingiz{% else %}· o'tish uchun {{ quiz.pass_score }} kerak{% endif %}</p>
+  {% else %}
+  <p class="sub">{{ quiz.questions|length }} ta savol ·
+    o'tish uchun {{ quiz.pass_score }} ball kerak</p>
+  {% endif %}
+
+  <form method="post" action="/app/{{ token }}/dars/{{ les.id }}/test"
+        style="margin-top:12px">
+    {% for q in quiz.questions %}
+    <div class="qz">
+      <div class="qz-t">{{ loop.index }}. {{ q.text }}</div>
+      {% for o in q.options %}
+      <label class="qz-o">
+        <input type="radio" name="q{{ q.id }}" value="{{ o.id }}" required>
+        <span>{{ o.text }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <button style="width:100%;margin-top:6px">
+      {{ 'Qayta topshirish' if best else 'Javoblarni yuborish' }}</button>
+  </form>
+</div>
+{% endif %}
+
 <div style="display:flex;gap:10px">
   {% if prev %}<a class="btn ghost" style="flex:1" href="/app/{{ token }}/dars/{{ prev.id }}">← Oldingi</a>{% endif %}
   {% if nxt %}<a class="btn ghost" style="flex:1" href="/app/{{ token }}/dars/{{ nxt.id }}">Keyingi →</a>{% endif %}
 </div>
 <p style="text-align:center;margin-top:12px">
   <a href="/app/{{ token }}/darslar" class="sub">← Barcha darslar</a></p>
+
+<style>
+.wprog{height:5px;background:rgba(146,118,60,.2)}
+.wprog i{display:block;height:100%;background:var(--gold);transition:width .4s}
+.wtxt{padding:6px 16px 0;font-size:11.5px;color:var(--mut)}
+.qz{padding:13px 0;border-bottom:1px solid var(--line)}
+.qz:last-of-type{border-bottom:0}
+.qz-t{font-weight:600;font-size:14.5px;margin-bottom:9px}
+.qz-o{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;
+  border:1px solid var(--line);border-radius:11px;margin-bottom:7px;
+  cursor:pointer;font-size:14px;background:var(--card)}
+.qz-o input{margin-top:2px;flex:none;accent-color:var(--gold)}
+.qz-o:has(input:checked){border-color:var(--gold);background:var(--gold-dim)}
+</style>
+
+{% if embed %}
+<script>
+/* ══════════════════════════════════════════════════════════════
+   Ko'rish kuzatuvchisi.
+
+   Video boshqa saytda tursa ham, u shu sahifa ichida ochilgani uchun
+   pleyerdan «hozir nechinchi soniyada» deb so'ray olamiz. Har soniyada
+   holatni o'qib, KO'RILGAN ORALIQLARNI yig'amiz va har 15 soniyada
+   serverga yuboramiz.
+
+   Nega oxirgi nuqta emas, oraliq: o'quvchi tugmani oxiriga sudrasa,
+   oxirgi nuqta bo'yicha 100% chiqib ketardi. Oraliqlar yig'ilsa —
+   haqiqatan ko'rilgan qismi chiqadi.
+════════════════════════════════════════════════════════════════ */
+(function(){
+  var URL = "/app/{{ token }}/dars/{{ les.id }}/vaqt";
+  var spans = [], cur = null, dur = 0, last = null, opened = true;
+  var bar = document.getElementById("wbar") ||
+            document.querySelector(".wprog i");
+  var lbl = document.getElementById("wpct");
+
+  function tick(pos, duration, playing){
+    if (duration > 0) dur = duration;
+    if (!playing || pos == null || isNaN(pos)) { cur = null; last = null; return; }
+    if (cur && last != null && Math.abs(pos - last) < 2.5) {
+      cur[1] = pos;                       // uzluksiz davom etyapti
+    } else {
+      if (cur && cur[1] - cur[0] >= 0.5) spans.push(cur);
+      cur = [pos, pos];                   // sakrab o'tdi — yangi oraliq
+    }
+    last = pos;
+  }
+
+  function flush(sync){
+    var out = spans.slice();
+    if (cur && cur[1] - cur[0] >= 0.5) out.push([cur[0], cur[1]]);
+    if (!out.length && !opened) return;
+    spans = [];
+    if (cur) cur = [cur[1], cur[1]];
+    var body = JSON.stringify({ spans: out, duration: dur,
+                                pos: last || 0, opened: opened });
+    opened = false;
+    if (sync && navigator.sendBeacon) {
+      // sahifa yopilayotganda oddiy so'rov ulgurmaydi
+      navigator.sendBeacon(URL, new Blob([body], {type: "application/json"}));
+      return;
+    }
+    fetch(URL, { method: "POST", headers: {"Content-Type": "application/json"},
+                 body: body, keepalive: true })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d && d.pct != null) {
+          if (bar) bar.style.width = Math.round(d.pct) + "%";
+          if (lbl) lbl.textContent = Math.round(d.pct);
+        }
+      }).catch(function(){});
+  }
+
+  setInterval(function(){ flush(false); }, 15000);
+  addEventListener("pagehide", function(){ flush(true); });
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "hidden") flush(true);
+  });
+
+  var el = document.getElementById("vid");
+  if (!el) return;
+
+  /* ── 1) O'z serverimizdagi fayl: brauzerning o'z pleyeri ── */
+  if (el.tagName === "VIDEO") {
+    el.addEventListener("timeupdate", function(){
+      tick(el.currentTime, el.duration, !el.paused);
+    });
+    return;
+  }
+
+  var src = el.getAttribute("src") || "";
+
+  /* ── 2) YouTube: IFrame Player API ── */
+  if (src.indexOf("youtube.com/embed/") > -1) {
+    var s = document.createElement("script");
+    s.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(s);
+    window.onYouTubeIframeAPIReady = function(){
+      var p = new YT.Player("vid", { events: { onReady: function(){
+        setInterval(function(){
+          try {
+            tick(p.getCurrentTime(), p.getDuration(),
+                 p.getPlayerState() === YT.PlayerState.PLAYING);
+          } catch(e){}
+        }, 1000);
+      }}});
+    };
+    return;
+  }
+
+  /* ── 3) Vimeo: Player SDK ── */
+  if (src.indexOf("player.vimeo.com") > -1) {
+    var v = document.createElement("script");
+    v.src = "https://player.vimeo.com/api/player.js";
+    v.onload = function(){
+      var p = new Vimeo.Player(el);
+      var playing = false;
+      p.on("play", function(){ playing = true; });
+      p.on("pause", function(){ playing = false; });
+      p.on("ended", function(){ playing = false; });
+      p.on("timeupdate", function(d){ tick(d.seconds, d.duration, playing); });
+    };
+    document.head.appendChild(v);
+    return;
+  }
+
+  /* ── 4) Google Drive: pleyeri ma'lumot bermaydi ──
+     Faqat «ochdi» faktini yozamiz. Shuning uchun analitika kerak bo'lsa
+     YouTube yoki Vimeo havolasi qo'yish tavsiya etiladi. */
+  flush(false);
+})();
+</script>
+{% endif %}
 {% endblock %}
