@@ -2,67 +2,73 @@
 {% block title %}Darslar — Mfaktor{% endblock %}
 {% block body %}
 <div class="card">
-  <h1>Video darslar</h1>
+  <span class="kicker">Video darslar</span>
   {% if cc.total %}
-  <p class="sub" style="margin-top:2px">{{ cc.done }} / {{ cc.total }} dars ko'rildi</p>
-  <div class="bar" style="margin-top:11px"><i style="width:{{ cc.pct }}%"></i></div>
+  <div class="ldx">
+    <div><span class="fig fig-lg">{{ cc.done }}</span><span class="of">/{{ cc.total }}</span></div>
+    <div class="grow">
+      <div class="bar"><i style="width:{{ cc.pct }}%"></i></div>
+      <span class="tiny" style="display:block;margin-top:7px">
+        {{ cc.pct|round|int }}% ko'rildi{% if cc.locked %} · {{ cc.locked }} ta yopiq{% endif %}</span>
+    </div>
+  </div>
   {% else %}
-  <p class="sub" style="margin-top:2px">Bu kurs uchun video darslar hali joylanmagan.
-    Kurator joylashi bilan shu yerda paydo bo'ladi.</p>
+  <h1>Hozircha bo'sh</h1>
+  <p class="sub" style="margin-top:8px">Bu kurs uchun video darslar hali
+    joylanmagan. Kurator joylashi bilan shu yerda paydo bo'ladi.</p>
   {% endif %}
 </div>
 
 {% for g in cc.modules %}
 <div class="card">
-  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">
-    <h2 style="margin:0;flex:1">{{ g.m.title }}</h2>
-    <span class="sub" style="font-size:12px">{{ g.done }}/{{ g.total }}</span>
+  <div class="mhead">
+    <div class="grow">
+      <span class="kicker" style="margin-bottom:4px">{{ loop.index }}-modul</span>
+      <h2 style="margin:0">{{ g.m.title }}</h2>
+      {% if g.m.subtitle %}<p class="tiny" style="margin-top:4px">{{ g.m.subtitle }}</p>{% endif %}
+    </div>
+    <span class="mcount"><b>{{ g.done }}</b>/{{ g.total }}</span>
   </div>
-  {% if g.m.subtitle %}<p class="sub" style="margin-bottom:10px">{{ g.m.subtitle }}</p>{% endif %}
 
   {% for r in g.lessons %}
   {% if r.locked %}
-  <div class="ls locked">
-    <span class="ls-n lock">🔒</span>
-    <div style="flex:1;min-width:0">
-      <b style="font-size:14.5px;display:block">{{ r.l.title }}</b>
-      <span class="sub" style="font-size:12px">
-        {{ r.open_at.strftime('%d.%m.%Y') }} dan ochiladi</span>
-    </div>
+  <div class="row mute">
+    <span class="idx">🔒</span>
+    <div class="grow"><b>{{ r.l.title }}</b>
+      <div class="meta">{{ r.open_at.strftime('%d.%m.%Y') }} dan ochiladi</div></div>
   </div>
   {% else %}
-  <a class="ls" href="/app/{{ token }}/dars/{{ r.l.id }}">
-    <span class="ls-n {{ 'ok' if r.done }}">{% if r.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
-    <div style="flex:1;min-width:0">
-      <b style="font-size:14.5px;display:block">{{ r.l.title }}</b>
-      <span class="sub" style="font-size:12px">
+  <a class="row" href="/app/{{ token }}/dars/{{ r.l.id }}">
+    <span class="idx {{ 'on' if r.done }}">{% if r.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
+    <div class="grow">
+      <b>{{ r.l.title }}</b>
+      <div class="meta">
         {% if r.l.minutes %}{{ r.l.minutes }} daqiqa{% else %}video dars{% endif %}
-        {% if r.quiz %} · test bor{% endif %}
-        {% if r.l.file_url %} · material{% endif %}</span>
+        {% if r.quiz %} · test{% endif %}{% if r.l.file_url %} · material{% endif %}</div>
       {% if r.pct and not r.done %}
-      <span class="lsbar"><i style="width:{{ r.pct }}%"></i></span>
+      <span class="seek"><i style="width:{{ r.pct }}%"></i></span>
       {% endif %}
     </div>
-    <span class="sub">{% if r.pct and not r.done %}{{ r.pct }}%{% else %}▶{% endif %}</span>
+    <span class="tail">{% if r.pct and not r.done %}{{ r.pct }}%{% else %}▸{% endif %}</span>
   </a>
   {% endif %}
   {% endfor %}
 </div>
-{% else %}
-{% if not cc.total %}<div class="card"><p class="empty">Hozircha bo'sh</p></div>{% endif %}
 {% endfor %}
+
 <style>
-.ls{display:flex;gap:12px;align-items:center;padding:11px 0;color:inherit;
-  border-bottom:1px solid var(--line)}
-.ls:last-child{border-bottom:0}
-.ls.locked{opacity:.55}
-.ls-n{width:30px;height:30px;border-radius:50%;flex:none;display:grid;
-  place-items:center;font:700 12px var(--sans);
-  background:rgba(146,118,60,.1);color:var(--mut)}
-.ls-n.ok{background:var(--green-dim);color:var(--green)}
-.ls-n.lock{font-size:13px}
-.lsbar{display:block;height:4px;border-radius:3px;margin-top:5px;max-width:180px;
-  background:rgba(146,118,60,.18);overflow:hidden}
-.lsbar i{display:block;height:100%;background:var(--gold)}
+.ldx{display:flex;align-items:center;gap:18px;margin-top:4px}
+.ldx .of{font:600 17px var(--sans);color:var(--dim);margin-left:1px}
+.ldx .grow{flex:1;min-width:0}
+.mhead{display:flex;align-items:flex-start;gap:12px;
+  padding-bottom:12px;margin-bottom:2px;border-bottom:1px solid var(--rule-2)}
+.mcount{flex:none;font:500 12px var(--sans);color:var(--dim);
+  font-variant-numeric:tabular-nums;padding-top:14px}
+.mcount b{font-family:var(--serif);font-size:16px;color:var(--txt);font-weight:600}
+.seek{display:block;height:3px;border-radius:2px;margin-top:7px;max-width:190px;
+  background:rgba(146,116,52,.16);overflow:hidden}
+.seek i{display:block;height:100%;background:var(--foil)}
+.tail{flex:none;font:600 11.5px var(--sans);color:var(--dim);
+  font-variant-numeric:tabular-nums}
 </style>
 {% endblock %}

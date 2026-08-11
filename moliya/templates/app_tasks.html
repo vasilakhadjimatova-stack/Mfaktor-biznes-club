@@ -1,53 +1,88 @@
 {% extends "app_base.html" %}
 {% block title %}Vazifalar — Mfaktor{% endblock %}
 {% block body %}
-<div class="card"><h1>Uy vazifalari</h1>
-  <p class="sub" style="margin-top:2px">
-    {{ d.prog.assign_done }} / {{ d.prog.assign_total }} topshirildi</p></div>
+<div class="card">
+  <span class="kicker">Uy vazifalari</span>
+  {% if d.prog.assign_total %}
+  <div class="ldx">
+    <div><span class="fig fig-lg">{{ d.prog.assign_done }}</span><span class="of">/{{ d.prog.assign_total }}</span></div>
+    <div class="grow">
+      <div class="bar"><i style="width:{{ (100 * d.prog.assign_done / d.prog.assign_total)|round }}%"></i></div>
+      <span class="tiny" style="display:block;margin-top:7px">topshirildi</span>
+    </div>
+  </div>
+  {% else %}
+  <h1>Hozircha bo'sh</h1>
+  <p class="sub" style="margin-top:8px">Vazifa berilganda shu yerda chiqadi.</p>
+  {% endif %}
+</div>
 
 {% for t in d.tasks %}
-<div class="card" id="v{{ t.a.id }}" {% if t.overdue %}style="border-color:rgba(185,61,71,.4)"{% endif %}>
-  <div style="display:flex;gap:10px;align-items:flex-start">
-    <b style="flex:1;font-size:15.5px">{{ t.a.title }}</b>
-    {% if t.graded %}<span class="pill p-ok">{{ t.sub.score }} / {{ t.a.max_score }}</span>
+<div class="card task {{ 'late' if t.overdue and not t.done }}" id="v{{ t.a.id }}">
+  <div class="thead">
+    <div class="grow">
+      <h2 style="margin:0">{{ t.a.title }}</h2>
+      {% if t.a.due_date %}
+      <p class="tiny" style="margin-top:4px">Muddat: {{ t.a.due_date.strftime('%d.%m.%Y') }}</p>
+      {% endif %}
+    </div>
+    {% if t.graded %}
+    <div class="tscore">
+      <span class="fig fig-md">{{ t.sub.score }}</span><span class="of">/{{ t.a.max_score }}</span>
+    </div>
     {% elif t.done %}<span class="pill p-wait">Tekshirilmoqda</span>
     {% elif t.overdue %}<span class="pill p-no">Muddati o'tdi</span>
     {% else %}<span class="pill p-gray">Topshirilmagan</span>{% endif %}
   </div>
-  {% if t.a.due_date %}
-  <p class="sub" style="font-size:12.5px;margin-top:4px">
-    Muddat: {{ t.a.due_date.strftime('%d.%m.%Y') }}</p>{% endif %}
+
   {% if t.a.description %}
-  <div style="margin-top:9px;white-space:pre-wrap;font-size:13.5px;color:var(--mut)">{{ t.a.description }}</div>{% endif %}
+  <div class="tdesc">{{ t.a.description }}</div>{% endif %}
   {% if t.a.material_url %}
-  <a class="btn ghost" style="margin-top:10px;width:100%" href="{{ t.a.material_url }}"
+  <a class="btn ghost wide" style="margin-top:12px" href="{{ t.a.material_url }}"
      target="_blank" rel="noopener">▶ Dars materiali</a>{% endif %}
 
   {% if t.graded %}
     {% if t.sub.feedback %}
-    <div style="margin-top:11px;padding:11px 13px;border-radius:11px;font-size:13.5px;
-      background:var(--green-dim);border:1px solid rgba(30,125,79,.25)">
-      <b style="display:block;color:var(--green);margin-bottom:3px">Kurator izohi</b>
+    <div class="fbk">
+      <span class="kicker" style="color:var(--green);margin-bottom:5px">Kurator izohi</span>
       {{ t.sub.feedback }}</div>{% endif %}
-    <div style="margin-top:10px;padding:11px 13px;border-radius:11px;font-size:13.5px;
-      background:rgba(146,118,60,.06);white-space:pre-wrap;color:var(--mut)">
-      <b style="color:var(--txt)">Javobingiz:</b><br>{{ t.sub.content }}</div>
+    <div class="mine">
+      <span class="kicker" style="margin-bottom:5px">Javobingiz</span>
+      {{ t.sub.content }}</div>
   {% else %}
     <form method="post" action="/kabinet/{{ token }}/topshirish/{{ t.a.id }}">
       <textarea name="content" required rows="5"
-        style="width:100%;margin-top:11px;padding:11px 12px;border-radius:11px;
-        border:1px solid var(--line);background:#fffdf9;font:14px/1.55 var(--sans);
-        color:var(--txt);resize:vertical"
-        placeholder="Javobingizni shu yerga yozing...">{{ t.sub.content if t.sub }}</textarea>
-      <button style="margin-top:10px;width:100%">{{ 'Javobni yangilash' if t.done else 'Topshirish' }}</button>
+        placeholder="Javobingizni shu yerga yozing…">{{ t.sub.content if t.sub }}</textarea>
+      <button class="wide" style="margin-top:11px">
+        {{ 'Javobni yangilash' if t.done else 'Topshirish' }}</button>
     </form>
     {% if t.done %}
-    <p class="sub" style="font-size:12px;margin-top:7px">
+    <p class="tiny" style="margin-top:9px">
       Topshirilgan: {{ t.sub.submitted_at.strftime('%d.%m.%Y %H:%M') }} —
       kurator tekshirgunicha o'zgartirishingiz mumkin.</p>{% endif %}
   {% endif %}
 </div>
-{% else %}
-<div class="card"><p class="empty">Hozircha vazifa berilmagan</p></div>
 {% endfor %}
+
+<style>
+.ldx{display:flex;align-items:center;gap:18px;margin-top:4px}
+.ldx .of{font:600 17px var(--sans);color:var(--dim);margin-left:1px}
+.ldx .grow{flex:1;min-width:0}
+.task.late{border-color:rgba(165,51,62,.35)}
+.thead{display:flex;align-items:flex-start;gap:13px}
+.tscore{flex:none;line-height:1;color:var(--green)}
+.tscore .of{font:600 12px var(--sans);color:var(--dim)}
+.tdesc{margin-top:11px;padding-top:11px;border-top:1px solid var(--rule);
+  white-space:pre-wrap;font-size:13.5px;line-height:1.65;color:var(--mut)}
+.fbk{margin-top:13px;padding:13px 15px;border-radius:13px;font-size:13.5px;
+  line-height:1.6;background:var(--green-lo);border:1px solid rgba(28,111,71,.2)}
+.mine{margin-top:11px;padding:13px 15px;border-radius:13px;font-size:13.5px;
+  line-height:1.6;white-space:pre-wrap;color:var(--mut);background:var(--card-2);
+  border:1px solid var(--rule)}
+.task textarea{width:100%;margin-top:12px;padding:13px 14px;border-radius:13px;
+  border:1px solid var(--rule-2);background:var(--card-2);color:var(--txt);
+  font:400 14px/1.6 var(--sans);resize:vertical;transition:border-color .18s}
+.task textarea:focus{outline:0;border-color:rgba(201,150,47,.6);
+  background:var(--card)}
+</style>
 {% endblock %}
