@@ -1,4 +1,5 @@
 """db obyekti — Impulse andozasi: SQLite lokalda, PostgreSQL bulutda."""
+import logging
 import os
 
 from flask_sqlalchemy import SQLAlchemy
@@ -35,6 +36,11 @@ NEW_COLUMNS = [
     # Bosqichma-bosqich ochilish va Telegram bog'lanishi
     ("video_lessons", "open_day", "INTEGER DEFAULT 0"),
     ("contracts", "tg_chat_id", "VARCHAR(32) DEFAULT ''"),
+    # Dars elementlari: test va ko'rish hisobi endi elementga bog'lanadi
+    ("quizzes", "item_id", "INTEGER"),
+    ("lesson_watch", "item_id", "INTEGER"),
+    # Ilova kaliti endi o'quvchida — bitta hisob, ko'p kurs
+    ("students", "portal_token", "VARCHAR(48)"),
 ]
 
 
@@ -64,3 +70,12 @@ def init_db(app):
     with app.app_context():
         db.create_all()
         ensure_columns(app)
+        # Dars mazmuni elementlarga ko'chadi (bir marta, xavfsiz)
+        try:
+            import education
+            education.fix_watch_unique()
+            education.migrate_lesson_items()
+        except Exception as exc:                       # noqa: BLE001
+            db.session.rollback()
+            logging.getLogger(__name__).error(
+                f"O'quv bo'limi ko'chirishida xato: {exc}")

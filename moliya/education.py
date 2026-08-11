@@ -437,12 +437,8 @@ def embed_url(url):
 
 
 def course_content(contract):
-    """O'quvchining kursi bo'yicha modullar, darslar, ko'rilganlik va qulf.
-
-    Har dars uchun: ko'rildi belgisi, video necha foiz ko'rilgani va
-    bosqichma-bosqich ochilish bo'yicha qulflanganmi.
-    """
-    from models import LessonView, VideoLesson, VideoModule
+    """O'quvchining kursi bo'yicha modullar, darslar, elementlar va qulf."""
+    from models import LessonItem, LessonView, VideoModule
     course_id = contract.cohort.course_id if contract.cohort else None
     mods = (VideoModule.query.filter_by(course_id=course_id)
             .order_by(VideoModule.sort, VideoModule.id).all()) if course_id else []
@@ -452,7 +448,9 @@ def course_content(contract):
         seen = {v.lesson_id for v in LessonView.query.filter(
             LessonView.contract_id == contract.id,
             LessonView.lesson_id.in_(lids), LessonView.done.is_(True)).all()}
-    watch = watch_map(contract.id, lids)
+    item_ids = [i.id for i in LessonItem.query.filter(
+        LessonItem.lesson_id.in_(lids)).all()] if lids else []
+    watch = watch_map(contract.id, item_ids)
     today = date.today()
 
     out, total, done, locked_n = [], 0, 0, 0
@@ -464,14 +462,18 @@ def course_content(contract):
             total += 1
             done += 1 if ok else 0
             locked_n += 1 if lock else 0
-            w = watch.get(l.id)
-            rows.append({"l": l, "done": ok, "locked": lock, "open_at": odate,
-                         "pct": round(w.pct) if w else 0,
-                         "quiz": l.quiz})
+            vids = [i for i in l.items if i.kind == "video"]
+            pcts = [round(watch[i.id].pct) for i in vids if i.id in watch]
+            rows.append({
+                "l": l, "done": ok, "locked": lock, "open_at": odate,
+                "pct": round(sum(pcts) / len(vids)) if vids and pcts else 0,
+                "n_items": len(l.items),
+                "minutes": sum(i.minutes or 0 for i in vids),
+                "has_quiz": any(i.kind == "test" for i in l.items),
+            })
         out.append({"m": m, "lessons": rows,
                     "done": sum(1 for r in rows if r["done"]),
                     "total": len(rows)})
-    # navbatdagi dars — ketma-ket birinchi ko'rilmagan va OCHIQ darsi
     nxt = None
     for g in out:
         for r in g["lessons"]:
@@ -541,22 +543,26 @@ def spans_seconds(spans):
     return round(sum(b - a for a, b in spans), 1)
 
 
-def record_watch(contract, lesson, spans, duration=0.0, pos=0.0, opened=False):
-    """Ilovadan kelgan oraliqlarni saqlaydi va foizni qayta hisoblaydi."""
+def record_watch(contract, item, spans, duration=0.0, pos=0.0, opened=False):
+    """Ilovadan kelgan oraliqlarni saqlaydi va foizni qayta hisoblaydi.
+
+    Hisob dars emas, ELEMENT bo'yicha yuritiladi — bitta darsda bir
+    nechta video bo'lishi mumkin.
+    """
     from models import LessonWatch
-    row = LessonWatch.query.filter_by(lesson_id=lesson.id,
+    row = LessonWatch.query.filter_by(item_id=item.id,
                                       contract_id=contract.id).first()
     if row is None:
-        row = LessonWatch(lesson_id=lesson.id, contract_id=contract.id,
-                          covered="[]")
+        row = LessonWatch(item_id=item.id, lesson_id=item.lesson_id,
+                          contract_id=contract.id, covered="[]")
         db.session.add(row)
     if duration and duration > 0:
         row.duration = round(float(duration), 1)
     try:
-        old = json.loads(row.covered or "[]")
+        old_spans = json.loads(row.covered or "[]")
     except ValueError:
-        old = []
-    merged = merge_spans(list(old) + list(spans or []), row.duration)
+        old_spans = []
+    merged = merge_spans(list(old_spans) + list(spans or []), row.duration)
     row.covered = json.dumps(merged)
     row.seconds = spans_seconds(merged)
     row.pct = round(100.0 * row.seconds / row.duration, 1) if row.duration else 0.0
@@ -565,43 +571,85 @@ def record_watch(contract, lesson, spans, duration=0.0, pos=0.0, opened=False):
     if opened:
         row.opens = (row.opens or 0) + 1
     row.last_at = datetime.utcnow()
-
-    # Yetarlicha ko'rilgan bo'lsa — «ko'rildi» belgisini o'zi qo'yadi
-    if row.pct >= WATCH_DONE_PCT:
-        from models import LessonView
-        v = LessonView.query.filter_by(lesson_id=lesson.id,
-                                       contract_id=contract.id).first()
-        if v is None:
-            db.session.add(LessonView(lesson_id=lesson.id,
-                                      contract_id=contract.id, done=True))
-        elif not v.done:
-            v.done = True
     db.session.commit()
+    sync_lesson_done(contract, item.lesson)
     return row
 
 
-def watch_map(contract_id, lesson_ids):
-    """{dars_id: foiz} — ilovada har dars yonida ko'rsatish uchun."""
+def sync_lesson_done(contract, lesson):
+    """Darsning barcha majburiy elementlari bajarilgan bo'lsa — belgilaydi.
+
+    Majburiy deb video (85% ko'rilishi) va test (o'tish bali) olinadi.
+    Matn va material — ma'lumot uchun, ular belgilashga ta'sir qilmaydi.
+    """
+    from models import LessonView
+    st = lesson_state(contract, lesson)
+    if st["required"] == 0:
+        return None
+    v = LessonView.query.filter_by(lesson_id=lesson.id,
+                                   contract_id=contract.id).first()
+    done = st["done_required"] >= st["required"]
+    if done and v is None:
+        db.session.add(LessonView(lesson_id=lesson.id,
+                                  contract_id=contract.id, done=True))
+        db.session.commit()
+    elif done and not v.done:
+        v.done = True
+        db.session.commit()
+    return done
+
+
+def lesson_state(contract, lesson):
+    """Darsning har bir elementi qanday holatda — ilova va kurator uchun."""
+    from models import LessonWatch, Quiz
+    out, required, done_required = [], 0, 0
+    for it in lesson.items:
+        st = {"it": it, "done": False, "pct": 0, "resume": 0.0, "quiz": None,
+              "best": None}
+        if it.kind == "video":
+            w = LessonWatch.query.filter_by(item_id=it.id,
+                                            contract_id=contract.id).first()
+            st["pct"] = round(w.pct) if w else 0
+            st["resume"] = (w.max_pos or 0) if w else 0
+            st["done"] = bool(w and (w.pct or 0) >= WATCH_DONE_PCT)
+            required += 1
+            done_required += 1 if st["done"] else 0
+        elif it.kind == "test":
+            q = Quiz.query.filter_by(item_id=it.id).first()
+            st["quiz"] = q
+            if q is not None:
+                best = quiz_best(q.id, contract.id)
+                st["best"] = best
+                st["done"] = bool(best and best.passed)
+                required += 1
+                done_required += 1 if st["done"] else 0
+        out.append(st)
+    return {"rows": out, "required": required,
+            "done_required": done_required}
+
+
+def watch_map(contract_id, item_ids):
+    """{element_id: yozuv} — ilovada har video yonida foiz ko'rsatish uchun."""
     from models import LessonWatch
-    if not lesson_ids:
+    if not item_ids:
         return {}
     rows = LessonWatch.query.filter(
         LessonWatch.contract_id == contract_id,
-        LessonWatch.lesson_id.in_(lesson_ids)).all()
-    return {r.lesson_id: r for r in rows}
+        LessonWatch.item_id.in_(item_ids)).all()
+    return {r.item_id: r for r in rows}
 
 
 RETENTION_BUCKETS = 20
 
 
-def lesson_watch_stats(lesson):
-    """Bitta dars bo'yicha: kim qancha ko'rgan va qayerda tashlab ketishgan.
+def lesson_watch_stats(item):
+    """Bitta video elementi bo'yicha: kim qancha ko'rgan, qayerda tashlagan.
 
     «retention» — videoni 20 bo'lakka bo'lib, har bo'lakni nechta o'quvchi
     ko'rgani. Egri chiziq keskin tushgan joy — darsning zaif nuqtasi.
     """
-    from models import Contract, LessonWatch
-    rows = (LessonWatch.query.filter_by(lesson_id=lesson.id)
+    from models import Cohort, Contract, LessonWatch
+    rows = (LessonWatch.query.filter_by(item_id=item.id)
             .order_by(LessonWatch.pct.desc()).all())
     rows = [r for r in rows if r.contract is not None]
     dur = max([r.duration or 0 for r in rows], default=0.0)
@@ -624,7 +672,6 @@ def lesson_watch_stats(lesson):
     finished = sum(1 for r in rows if (r.pct or 0) >= WATCH_DONE_PCT)
     avg = round(sum(r.pct or 0 for r in rows) / started, 1) if started else 0.0
 
-    # Eng katta tushish qaysi bo'lakda — «shu yerda tashlab ketishadi»
     drop_i, drop_n = None, 0
     for i in range(1, RETENTION_BUCKETS):
         d = buckets[i - 1] - buckets[i]
@@ -632,11 +679,9 @@ def lesson_watch_stats(lesson):
             drop_i, drop_n = i, d
     drop_at = (dur * drop_i / RETENTION_BUCKETS) if (drop_i and dur) else None
 
-    # Shu kursning oqimlarida bor, lekin darsni umuman ochmagan o'quvchilar
-    from models import Cohort
     seen_ids = {r.contract_id for r in rows}
     cohort_ids = [ch.id for ch in Cohort.query.filter_by(
-        course_id=lesson.module.course_id).all()]
+        course_id=item.lesson.module.course_id).all()]
     never = []
     if cohort_ids:
         q = Contract.query.filter(Contract.status == "active",
@@ -652,15 +697,16 @@ def lesson_watch_stats(lesson):
 
 
 def course_watch_summary(course_id):
-    """{dars_id: {'started','avg'}} — darsliklar jadvalida ko'rsatish uchun."""
-    from models import LessonWatch, VideoLesson, VideoModule
-    ids = [l.id for l in VideoLesson.query.join(VideoModule).filter(
-        VideoModule.course_id == course_id).all()]
+    """{element_id: {'started','avg'}} — darsliklar jadvalida ko'rsatish uchun."""
+    from models import LessonItem, LessonWatch, VideoLesson, VideoModule
+    ids = [i.id for i in LessonItem.query.join(VideoLesson).join(VideoModule)
+           .filter(VideoModule.course_id == course_id,
+                   LessonItem.kind == "video").all()]
     if not ids:
         return {}
     out = {}
-    for r in LessonWatch.query.filter(LessonWatch.lesson_id.in_(ids)).all():
-        d = out.setdefault(r.lesson_id, {"started": 0, "sum": 0.0})
+    for r in LessonWatch.query.filter(LessonWatch.item_id.in_(ids)).all():
+        d = out.setdefault(r.item_id, {"started": 0, "sum": 0.0})
         d["started"] += 1
         d["sum"] += (r.pct or 0)
     for d in out.values():
@@ -891,3 +937,127 @@ def risk_level(score):
     if s >= RISK_MID:
         return "mid", "o'rta"
     return "low", "past"
+
+
+# ──────────────────────────────────────────────────────────────────
+# ESKI TUZILMADAN YANGISIGA KO'CHIRISH
+# ──────────────────────────────────────────────────────────────────
+# Ilgari dars maydonlarida turgan mazmun (video_url, body, file_url,
+# test) endi LessonItem qatorlariga aylanadi. Ko'chirish bir marta
+# bo'ladi va hech narsa yo'qolmaydi: ko'rish tarixi ham, test
+# natijalari ham o'z joyida qoladi.
+
+def migrate_lesson_items():
+    """Elementga ega bo'lmagan darslarni ko'chiradi. Qayta chaqirsa xavfsiz."""
+    from models import LessonItem, LessonWatch, Quiz, Student, VideoLesson
+    moved = 0
+    for l in VideoLesson.query.all():
+        if l.items:
+            continue                       # allaqachon ko'chirilgan
+        sort = 0
+        video_item = None
+        if (l.video_url or "").strip():
+            sort += 1
+            video_item = LessonItem(lesson_id=l.id, kind="video", sort=sort,
+                                    url=l.video_url, minutes=l.minutes or 0)
+            db.session.add(video_item)
+        if (l.body or "").strip():
+            sort += 1
+            db.session.add(LessonItem(lesson_id=l.id, kind="matn", sort=sort,
+                                      body=l.body, title="Konspekt"))
+        if (l.file_url or "").strip():
+            sort += 1
+            db.session.add(LessonItem(lesson_id=l.id, kind="fayl", sort=sort,
+                                      url=l.file_url,
+                                      title="Qo'shimcha material"))
+        q = Quiz.query.filter_by(lesson_id=l.id).first()
+        if q is not None:
+            sort += 1
+            titem = LessonItem(lesson_id=l.id, kind="test", sort=sort,
+                               title=q.title or "Nazorat testi")
+            db.session.add(titem)
+            db.session.flush()
+            q.item_id = titem.id
+        if sort:
+            moved += 1
+            db.session.flush()
+            # eski ko'rish yozuvlari video elementiga bog'lanadi
+            if video_item is not None:
+                for w in LessonWatch.query.filter_by(lesson_id=l.id,
+                                                     item_id=None).all():
+                    w.item_id = video_item.id
+
+    # Ilova kaliti: shartnomadan o'quvchiga ko'chadi
+    linked = 0
+    for s in Student.query.filter(Student.portal_token.is_(None)).all():
+        tok = next((c.portal_token for c in s.contracts if c.portal_token), None)
+        if tok:
+            s.portal_token = tok           # eski havola ishlashda davom etadi
+            linked += 1
+
+    if moved or linked:
+        db.session.commit()
+        logger.info(f"Ko'chirildi: {moved} dars, {linked} o'quvchi kaliti")
+    return moved, linked
+
+
+def fix_watch_unique():
+    """«lesson_watch» noyoblik shartini elementga o'tkazadi.
+
+    Ilgari shart (dars, o'quvchi) edi — darsda bitta video bo'lgani uchun
+    yetardi. Endi bir nechta video bo'lishi mumkin, shuning uchun shart
+    (element, o'quvchi) bo'lishi kerak. Ustun qo'shish bilan bu
+    o'zgarmaydi — jadvalni qayta qurish kerak.
+
+    Yarim qolgan ko'chirishni o'zi tugatadi: agar «lesson_watch_eski»
+    turgan bo'lsa, undagi yozuvlarni ko'chirib, keyin o'chiradi.
+    """
+    from sqlalchemy import inspect, text
+    from models import LessonWatch
+    COLS = ("id, lesson_id, item_id, contract_id, duration, covered, "
+            "seconds, pct, max_pos, opens, first_at, last_at")
+
+    def finish_copy():
+        """Eski jadvaldan yetishmayotgan yozuvlarni ko'chirib, uni o'chiradi."""
+        db.session.execute(text(
+            f"INSERT INTO lesson_watch ({COLS}) SELECT {COLS} "
+            f"FROM lesson_watch_eski WHERE id NOT IN "
+            f"(SELECT id FROM lesson_watch)"))
+        db.session.commit()
+        db.session.execute(text("DROP TABLE lesson_watch_eski"))
+        db.session.commit()
+
+    insp = inspect(db.engine)
+    tables = insp.get_table_names()
+    if "lesson_watch" not in tables:
+        return False
+    if "lesson_watch_eski" in tables:      # oldingi urinish yarim qolgan
+        finish_copy()
+        logger.info("lesson_watch ko'chirishi yakunlandi")
+        return True
+
+    cons = {u["name"]: set(u["column_names"] or [])
+            for u in insp.get_unique_constraints("lesson_watch")}
+    if any(c == {"item_id", "contract_id"} for c in cons.values()):
+        return False                        # allaqachon to'g'ri
+    old = [n for n, c in cons.items() if c == {"lesson_id", "contract_id"}]
+    if not old:
+        return False
+
+    if db.engine.dialect.name == "sqlite":
+        # SQLite shartni olib tashlay olmaydi — jadval qayta quriladi
+        db.session.execute(text("ALTER TABLE lesson_watch "
+                                "RENAME TO lesson_watch_eski"))
+        db.session.commit()
+        LessonWatch.__table__.create(db.engine)
+        finish_copy()
+    else:
+        for n in old:
+            db.session.execute(text(
+                f'ALTER TABLE lesson_watch DROP CONSTRAINT "{n}"'))
+        db.session.execute(text(
+            "ALTER TABLE lesson_watch ADD CONSTRAINT uq_lesson_watch_item "
+            "UNIQUE (item_id, contract_id)"))
+        db.session.commit()
+    logger.info("lesson_watch noyoblik sharti elementga o'tkazildi")
+    return True

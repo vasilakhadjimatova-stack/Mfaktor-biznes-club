@@ -181,6 +181,9 @@ class Student(db.Model):
     name    = db.Column(db.String(200), nullable=False)
     phone   = db.Column(db.String(50), default="")
     source  = db.Column(db.String(50), default="")   # qaysi kanaldan keldi (CAC/LTV)
+    # Ilova kaliti o'quvchida turadi — u bir nechta kursga yozilsa ham
+    # bitta havola bilan hammasini ko'radi.
+    portal_token = db.Column(db.String(48), unique=True, index=True)
     note    = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -650,11 +653,14 @@ class LessonView(db.Model):
 
 class LessonWatch(db.Model):
     __tablename__ = "lesson_watch"
-    __table_args__ = (db.UniqueConstraint("lesson_id", "contract_id",
-                                          name="uq_lesson_watch"),)
+    # Noyoblik ELEMENT bo'yicha: bitta darsda bir nechta video bo'lishi mumkin
+    __table_args__ = (db.UniqueConstraint("item_id", "contract_id",
+                                          name="uq_lesson_watch_item"),)
     id          = db.Column(db.Integer, primary_key=True)
     lesson_id   = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
                             nullable=False, index=True)
+    item_id     = db.Column(db.Integer, db.ForeignKey("lesson_items.id"),
+                            index=True)          # qaysi video elementi
     contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
                             nullable=False, index=True)
     duration    = db.Column(db.Float, default=0.0)   # video uzunligi, soniya
@@ -678,10 +684,14 @@ class Quiz(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
     lesson_id  = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
                            nullable=False, index=True)
+    item_id    = db.Column(db.Integer, db.ForeignKey("lesson_items.id"),
+                           index=True)          # qaysi element sifatida turadi
     title      = db.Column(db.String(200), default="Nazorat testi")
     pass_score = db.Column(db.Integer, default=70)   # o'tish uchun kerak, %
     lesson     = db.relationship("VideoLesson", backref=db.backref(
         "quiz", uselist=False, cascade="all, delete-orphan"))
+    item       = db.relationship("LessonItem", backref=db.backref(
+        "quiz", uselist=False))
     questions  = db.relationship("QuizQuestion", backref="quiz",
                                  order_by="QuizQuestion.sort",
                                  cascade="all, delete-orphan")
@@ -740,3 +750,42 @@ class TgMessage(db.Model):
     error       = db.Column(db.String(300), default="")
     sent_at     = db.Column(db.DateTime, default=datetime.utcnow)
     contract    = db.relationship("Contract")
+
+
+# ══════════════════════════════════════════════════════════════════
+#  DARS ELEMENTLARI
+# ══════════════════════════════════════════════════════════════════
+# Ilgari dars qat'iy edi: bitta video + bitta matn + bitta fayl + bitta
+# test, tartibi ham o'zgarmasdi. Jiddiy platformalarda (Coursera, Udemy,
+# Stepik) dars — ELEMENTLAR KETMA-KETLIGI: kurator xohlagan tartibda
+# video, matn, fayl va testni terib chiqadi.
+#
+# VideoLesson endi idish rolini o'ynaydi (nom, modul, tartib, ochilish
+# kuni). Ichidagi mazmun — shu jadvalda.
+
+ITEM_KINDS = {
+    "video": "Video",
+    "matn":  "Matn",
+    "fayl":  "Material",
+    "test":  "Test",
+}
+
+
+class LessonItem(db.Model):
+    __tablename__ = "lesson_items"
+    id        = db.Column(db.Integer, primary_key=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
+                          nullable=False, index=True)
+    kind      = db.Column(db.String(10), nullable=False, default="video")
+    sort      = db.Column(db.Integer, default=0)
+    title     = db.Column(db.String(200), default="")
+    url       = db.Column(db.String(500), default="")   # video yoki fayl
+    body      = db.Column(db.Text, default="")          # matn
+    minutes   = db.Column(db.Integer, default=0)        # video davomiyligi
+    lesson    = db.relationship("VideoLesson", backref=db.backref(
+        "items", order_by="LessonItem.sort, LessonItem.id",
+        cascade="all, delete-orphan"))
+
+    @property
+    def label(self):
+        return self.title or ITEM_KINDS.get(self.kind, self.kind)

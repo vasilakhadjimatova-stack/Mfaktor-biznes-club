@@ -38,7 +38,7 @@
 
   {% if cc.next %}
   <a class="btn wide" style="margin-top:16px"
-     href="/app/{{ token }}/dars/{{ cc.next.l.id }}">
+     href="{{ applink(token, '/dars/' ~ cc.next.l.id) }}">
     Davom etish — {{ cc.next.l.title[:34] }}{% if cc.next.l.title|length > 34 %}…{% endif %}</a>
   {% else %}
   <p class="done-note">Barcha ochiq darslar ko'rib bo'lindi</p>
@@ -62,7 +62,7 @@
   </div>
 
   {% if d.rank %}
-  <a class="rankcard" href="/app/{{ token }}/reyting">
+  <a class="rankcard" href="{{ applink(token, '/reyting') }}">
     <span class="fig fig-lg">{{ d.rank.place }}</span>
     <div class="grow"><b>Guruhdagi o'rningiz</b>
       <div class="meta">{{ d.rank.of }} ta o'quvchi orasida</div></div>
@@ -77,7 +77,7 @@
 <div class="card">
   <span class="kicker">Bajarilishi kerak</span>
   {% for t in open_tasks[:3] %}
-  <a class="row" href="/app/{{ token }}/vazifalar#v{{ t.a.id }}">
+  <a class="row" href="{{ applink(token, '/vazifalar') }}#v{{ t.a.id }}">
     <div class="grow"><b>{{ t.a.title }}</b>
       <div class="meta">
         {% if t.a.due_date %}Muddat: {{ t.a.due_date.strftime('%d.%m.%Y') }}

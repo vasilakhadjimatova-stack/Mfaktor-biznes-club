@@ -38,13 +38,13 @@
       <div class="meta">{{ r.open_at.strftime('%d.%m.%Y') }} dan ochiladi</div></div>
   </div>
   {% else %}
-  <a class="row" href="/app/{{ token }}/dars/{{ r.l.id }}">
+  <a class="row" href="{{ applink(token, '/dars/' ~ r.l.id) }}">
     <span class="idx {{ 'on' if r.done }}">{% if r.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
     <div class="grow">
       <b>{{ r.l.title }}</b>
       <div class="meta">
-        {% if r.l.minutes %}{{ r.l.minutes }} daqiqa{% else %}video dars{% endif %}
-        {% if r.quiz %} · test{% endif %}{% if r.l.file_url %} · material{% endif %}</div>
+        {% if r.minutes %}{{ r.minutes }} daqiqa{% else %}{{ r.n_items }} ta element{% endif %}
+        {% if r.has_quiz %} · test{% endif %}</div>
       {% if r.pct and not r.done %}
       <span class="seek"><i style="width:{{ r.pct }}%"></i></span>
       {% endif %}

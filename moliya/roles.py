@@ -68,9 +68,10 @@ _EDU_ROUTES = {
     "oquv_content", "oquv_module_add", "oquv_module_del", "oquv_module_edit",
     "oquv_module_move", "oquv_lesson_add", "oquv_lesson_del",
     "oquv_lesson_edit", "oquv_lesson_move",
+    "oquv_item_add", "oquv_item_edit", "oquv_item_move",
+    "oquv_item_del", "oquv_item_stats",
     # ko'rish analitikasi, testlar, xabarnoma
-    "oquv_lesson_stats",
-    "oquv_quiz_save", "oquv_quiz_del",
+        "oquv_quiz_save", "oquv_quiz_del",
     "oquv_quiz_question_add", "oquv_quiz_question_del",
     "oquv_notify", "oquv_notify_send", "oquv_tg_link",
 }
@@ -84,7 +85,7 @@ _EDU_PUBLIC = {
     "cert_verify", "kabinet", "kabinet_submit",
     "app_home", "app_lessons", "app_lesson", "app_lesson_done",
     "app_tasks", "app_rank", "app_manifest",
-    "app_lesson_beat", "app_quiz_submit", "tg_webhook",
+    "app_item_beat", "app_quiz_submit", "tg_webhook",
 }
 
 # Ikkalasiga ham kerak: o'quvchi ro'yxati va kim qarzdorligi

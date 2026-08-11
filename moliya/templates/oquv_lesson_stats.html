@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>{{ les.title }}</h1>
-<p class="sub">{{ les.module.course.name }} · {{ les.module.title }}
+<h1>{{ it.title or les.title }}</h1>
+<p class="sub">{{ les.module.course.name }} · {{ les.module.title }} · {{ les.title }}
   {% if st.duration %} · video {{ fmt(st.duration) }}{% endif %}</p>
 
 <div class="monthnav">

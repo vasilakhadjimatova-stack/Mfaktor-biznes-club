@@ -88,7 +88,10 @@ def clear_demo():
     db.session.flush()
     for sid in sids:
         s = db.session.get(Student, sid)
-        if s and MARK in (s.note or ""):
+        # O'quvchining boshqa (namunaviy bo'lmagan) shartnomasi qolgan
+        # bo'lsa uni o'chirmaymiz — aks holda o'sha shartnoma egasiz qoladi.
+        if (s and MARK in (s.note or "")
+                and not Contract.query.filter_by(student_id=s.id).count()):
             db.session.delete(s)
     removed_cohorts = 0
     for ch in cohorts:
