@@ -6,6 +6,7 @@ Ishga tushirish:
     python seed.py      # birinchi marta — demo ma'lumot
     python app.py       # http://localhost:5060
 """
+import hashlib
 import hmac
 import json
 import os
@@ -26,6 +27,7 @@ import kpi
 import matching
 import planner
 import praytimes
+import roles
 from database import db, init_db
 from models import (AppSetting, Budget, Cohort, Contract, Course, DdsRow, DDS_LOOKUP,
                     DDS_SPRAVOCHNIK, DDS_WALLET2, DDS_WALLETS, EXPENSE_CATS, KpiCard,
@@ -65,6 +67,22 @@ def _session_secret(app):
             return secrets.token_urlsafe(48)
 
 
+def _current_role():
+    """Sessiyadagi rol. Kod almashtirilgan bo'lsa sessiyani uzadi."""
+    if not session.get("auth"):
+        return None
+    role = session.get("role") or roles.DIREKTOR
+    stamp = session.get("rv")
+    if stamp is None:
+        # Rollar qo'shilishidan oldingi sessiya — o'shanda faqat bitta kod,
+        # ya'ni direktorniki bor edi.
+        return roles.DIREKTOR
+    if stamp != roles.role_stamp(role):
+        session.clear()                # kod almashtirilgan — qayta kirsin
+        return None
+    return role
+
+
 def create_app():
     app = Flask(__name__)
     app.permanent_session_lifetime = timedelta(days=30)
@@ -97,23 +115,30 @@ def create_app():
     # ── 6 xonali kirish kodi ─────────────────────────────────────
     # APP_PIN o'rnatilgan bo'lsa butun dastur qulflanadi (Railway'da shart).
     # O'rnatilmagan bo'lsa (lokal ishlab chiqish) — himoya o'chiq.
-    APP_PIN = os.environ.get("APP_PIN", "").strip()
+    APP_PIN = roles.app_pin()
     _pin_fails = {}                    # ip -> (soni, oxirgi urinish vaqti)
-    _PUBLIC = ("/login", "/static/", "/manifest.json", "/sw.js",
-               "/offline.html", "/healthz", "/cert/",
-               # o'quvchi ilovasi: shaxsiy kalit bilan, kodsiz ochiladi
-               "/kabinet/", "/app/")
+    # Endpoint'i yo'q fayl manzillari (marshrutga tushmaydi)
+    _PUBLIC_PATHS = ("/static/", "/manifest.json", "/offline.html")
 
     @app.before_request
     def _guard():
         if not APP_PIN:
             return None
         p = request.path
-        if any(p == x or p.startswith(x) for x in _PUBLIC):
+        if any(p.startswith(x) for x in _PUBLIC_PATHS):
             return None
-        if session.get("auth"):
+        ep = request.endpoint
+        if ep is None:
+            return None            # bunday manzil yo'q — Flask 404 bersin
+        if ep in roles.PUBLIC:
             return None
-        return redirect(url_for("login", next=request.path))
+        role = _current_role()
+        if role is None:
+            return redirect(url_for("login", next=request.path))
+        if not roles.can(role, ep):
+            return render_template("403.html", role=role,
+                                   home=roles.home_for(role)), 403
+        return None
 
     @app.route("/healthz")
     def healthz():
@@ -121,8 +146,10 @@ def create_app():
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
-        if not APP_PIN or session.get("auth"):
+        if not APP_PIN:
             return redirect("/")
+        if session.get("auth"):
+            return redirect(roles.home_for(_current_role()))
         err = wait = None
         ip = request.headers.get("X-Forwarded-For",
                                  request.remote_addr or "?").split(",")[0]
@@ -134,12 +161,24 @@ def create_app():
             else:
                 pin = "".join(ch for ch in request.form.get("pin", "")
                               if ch.isdigit())
-                if hmac.compare_digest(pin, APP_PIN):
+                role = roles.match_role(pin) if pin else None
+                if role:
                     _pin_fails.pop(ip, None)
                     session.permanent = True
                     session["auth"] = True
-                    nxt = request.args.get("next", "/")
-                    return redirect(nxt if nxt.startswith("/") else "/")
+                    session["role"] = role
+                    session["rv"] = roles.role_stamp(role)
+                    home = roles.home_for(role)
+                    nxt = request.args.get("next", "")
+                    # so'ralgan sahifa bu rolga yopiq bo'lsa — o'z uyiga
+                    if nxt.startswith("/") and not nxt.startswith("//"):
+                        adapter = app.url_map.bind("localhost")
+                        try:
+                            ep, _ = adapter.match(nxt.split("?")[0])
+                        except Exception:              # noqa: BLE001
+                            ep = None
+                        return redirect(nxt if roles.can(role, ep) else home)
+                    return redirect(home)
                 _pin_fails[ip] = (fails + 1, time.time())
                 err = "Kod noto'g'ri"
                 if fails + 1 >= 5:
@@ -183,10 +222,14 @@ def create_app():
 
     @app.context_processor
     def ctx():
+        # Qulf o'chiq bo'lsa (lokal ishlab chiqish) — hamma narsa ko'rinadi
+        role = _current_role() if APP_PIN else roles.DIREKTOR
         try:
             _, total_cash = core.wallet_balances()
         except Exception:
             total_cash = None
+        if not roles.sees_cash(role):
+            total_cash = None          # kurator kompaniya pulini ko'rmaydi
         try:
             inbox_open = matching.open_count()
         except Exception:
@@ -194,7 +237,9 @@ def create_app():
         return {"INCOME_CATS": INCOME_CATS, "EXPENSE_CATS": EXPENSE_CATS,
                 "CHANNELS": MARKETING_CHANNELS, "STATUSES": CONTRACT_STATUSES,
                 "today": date.today(), "total_cash": total_cash,
-                "inbox_open": inbox_open}
+                "inbox_open": inbox_open,
+                "role": role, "role_label": roles.ROLE_LABELS.get(role, ""),
+                "can": (lambda ep: roles.can(role, ep))}
 
     register_routes(app)
     return app
@@ -1180,12 +1225,62 @@ def register_routes(app):
     @app.route("/settings")
     def settings():
         import demo_data
+        pins = {r: bool(roles.stored_pin(r)) for r in roles.ROLES}
+        # O'quv bo'limi o'chiq nusxada kurator rolining ma'nosi qolmaydi
+        shown = [r for r in roles.ROLES
+                 if r != roles.KURATOR or roles.edu_enabled()]
         return render_template(
             "settings.html",
             wallets=Wallet.query.order_by(Wallet.sort).all(),
             demo=demo_data.count_demo(),
+            locked=bool(roles.app_pin()), pins=pins,
+            ROLES=shown, ROLE_LABELS=roles.ROLE_LABELS,
+            ROLE_HINTS=roles.ROLE_HINTS, edu=roles.edu_enabled(),
             recurring=RecurringPayment.query.order_by(
                 RecurringPayment.pay_day).all())
+
+    @app.route("/settings/kod", methods=["POST"])
+    def settings_pin():
+        """Rol uchun kirish kodini o'rnatish yoki bekor qilish (direktor)."""
+        role = request.form.get("role", "")
+        if role not in roles.ROLES:
+            flash("Noma'lum rol", "err")
+            return redirect(url_for("settings"))
+        if role == roles.DIREKTOR and roles.app_pin():
+            flash("Direktor kodi APP_PIN muhit o'zgaruvchisidan olinadi — "
+                  "uni Railway sozlamalaridan almashtiring.", "err")
+            return redirect(url_for("settings"))
+
+        key = f"pin_{role}"
+        if request.form.get("act") == "clear":
+            row = db.session.get(AppSetting, key)
+            if row:
+                db.session.delete(row)
+                db.session.commit()
+            flash(f"{roles.ROLE_LABELS[role]} kodi bekor qilindi — "
+                  f"bu rol endi tizimga kira olmaydi.", "ok")
+            return redirect(url_for("settings"))
+
+        pin = "".join(ch for ch in request.form.get("pin", "") if ch.isdigit())
+        if len(pin) < 6:
+            flash("Kod kamida 6 raqam bo'lishi kerak", "err")
+            return redirect(url_for("settings"))
+        # Ikki rolda bir xil kod bo'lsa, kim kirgani aniqlanmay qoladi
+        taken = roles.match_role(pin)
+        if taken and taken != role:
+            flash(f"Bu kod «{roles.ROLE_LABELS[taken]}» rolida ishlatilgan. "
+                  f"Boshqa kod tanlang.", "err")
+            return redirect(url_for("settings"))
+
+        row = db.session.get(AppSetting, key)
+        if row is None:
+            row = AppSetting(key=key)
+            db.session.add(row)
+        row.value = roles.hash_pin(pin)
+        db.session.commit()
+        flash(f"{roles.ROLE_LABELS[role]} kodi o'rnatildi. Kodni faqat shu "
+              f"odamga bering — u boshqa bo'limlarni ko'rmaydi.", "ok")
+        return redirect(url_for("settings"))
 
     @app.route("/settings/demo", methods=["POST"])
     def settings_demo():
@@ -1255,6 +1350,18 @@ def register_routes(app):
         flash("Qo'shildi", "ok")
         return redirect(url_for("settings"))
 
+    # O'quv bo'limi alohida yoqiladi. Railway'dagi ochiq nusxada u
+    # o'chiq turadi — marshrutlari umuman ro'yxatdan o'tmaydi.
+    if roles.edu_enabled():
+        register_edu_routes(app)
+
+
+def register_edu_routes(app):
+    """O'quv bo'limi, o'quvchi ilovasi va sertifikat marshrutlari.
+
+    Faqat OQUV_BOLIMI yoqilgan nusxada chaqiriladi (roles.edu_enabled).
+    Chaqirilmasa bu manzillar serverda umuman mavjud bo'lmaydi.
+    """
     # ══════════════════════════════════════════════════════════════
     #  O'QUV BO'LIMI — davomat, vazifalar, AI baholash, risk, sertifikat
     #  «O'quvchi oqimda» = Contract: moliya bilan bitta zanjir.
@@ -1594,6 +1701,80 @@ def register_routes(app):
         db.session.commit()
         flash("Modul va uning darslari o'chirildi", "ok")
         return redirect(url_for("oquv_content", cid=cid))
+
+    @app.route("/oquv/modul/<int:mid>/tahrir", methods=["POST"])
+    def oquv_module_edit(mid):
+        m = VideoModule.query.get_or_404(mid)
+        title = (request.form.get("title") or "").strip()
+        if not title:
+            flash("Modul nomi bo'sh bo'lmasligi kerak", "err")
+            return redirect(url_for("oquv_content", cid=m.course_id))
+        m.title = title[:200]
+        m.subtitle = (request.form.get("subtitle") or "").strip()[:300]
+        db.session.commit()
+        flash("Modul yangilandi", "ok")
+        return redirect(url_for("oquv_content", cid=m.course_id))
+
+    @app.route("/oquv/dars/<int:lid>/tahrir", methods=["POST"])
+    def oquv_lesson_edit(lid):
+        les = VideoLesson.query.get_or_404(lid)
+        cid = les.module.course_id
+        title = (request.form.get("title") or "").strip()
+        if not title:
+            flash("Dars nomi bo'sh bo'lmasligi kerak", "err")
+            return redirect(url_for("oquv_content", cid=cid))
+        # Boshqa modulga ko'chirish — faqat shu kurs ichida
+        tgt = request.form.get("module_id") or ""
+        if tgt.isdigit() and int(tgt) != les.module_id:
+            dst = db.session.get(VideoModule, int(tgt))
+            if dst and dst.course_id == cid:
+                les.module_id = dst.id
+                les.sort = (db.session.query(db.func.max(VideoLesson.sort))
+                            .filter_by(module_id=dst.id).scalar() or 0) + 1
+        try:
+            les.minutes = max(0, int(request.form.get("minutes") or 0))
+        except ValueError:
+            pass
+        les.title = title[:200]
+        les.video_url = (request.form.get("video_url") or "").strip()[:500]
+        les.file_url = (request.form.get("file_url") or "").strip()[:500]
+        les.body = (request.form.get("body") or "").strip()[:8000]
+        db.session.commit()
+        flash("Dars yangilandi — o'quvchilarning ko'rish tarixi saqlanib qoldi",
+              "ok")
+        return redirect(url_for("oquv_content", cid=cid))
+
+    def _swap_sort(rows, obj, direction):
+        """Ro'yxatdagi obyektni bir pog'ona yuqori/pastga suradi.
+
+        Avval tartib raqamlari 1..N qilib tekislanadi (eski yozuvlarda
+        hammasi 0 bo'lishi mumkin), keyin qo'shnisi bilan almashtiriladi.
+        """
+        rows = sorted(rows, key=lambda x: (x.sort or 0, x.id))
+        for i, r in enumerate(rows, 1):
+            r.sort = i
+        i = next((i for i, r in enumerate(rows) if r.id == obj.id), None)
+        j = i - 1 if direction == "up" else i + 1
+        if i is None or j < 0 or j >= len(rows):
+            return False
+        rows[i].sort, rows[j].sort = rows[j].sort, rows[i].sort
+        return True
+
+    @app.route("/oquv/dars/<int:lid>/kochirish", methods=["POST"])
+    def oquv_lesson_move(lid):
+        les = VideoLesson.query.get_or_404(lid)
+        _swap_sort(list(les.module.lessons), les,
+                   request.form.get("dir", "up"))
+        db.session.commit()
+        return redirect(url_for("oquv_content", cid=les.module.course_id))
+
+    @app.route("/oquv/modul/<int:mid>/kochirish", methods=["POST"])
+    def oquv_module_move(mid):
+        m = VideoModule.query.get_or_404(mid)
+        _swap_sort(VideoModule.query.filter_by(course_id=m.course_id).all(),
+                   m, request.form.get("dir", "up"))
+        db.session.commit()
+        return redirect(url_for("oquv_content", cid=m.course_id))
 
     # ── O'quvchi ilovasi (alohida PWA, /app/<kalit>) ─────────────
     def _student(token):

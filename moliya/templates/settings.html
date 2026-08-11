@@ -1,7 +1,72 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Sozlamalar</h1>
-<p class="sub">Hamyonlar va takrorlanuvchi to'lovlar</p>
+<p class="sub">Kirish kodlari, hamyonlar va takrorlanuvchi to'lovlar</p>
+
+{# ── Rollar va kirish kodlari ── #}
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Kirish kodlari</h2>
+  {% if not locked %}
+  <p class="hint">Bu nusxada qulf o'chiq (APP_PIN o'rnatilmagan) — kod
+    so'ralmaydi. Kodlar faqat serverda, APP_PIN bor bo'lganda ishlaydi.</p>
+  {% else %}
+  <p class="sub">Har rolga alohida kod. Kuratorga kod berganingizda u kassani,
+    ДДС ni va KPI ni ko'rmaydi — faqat o'quv bo'limi va o'quvchilarning
+    to'lov holati ochiq bo'ladi.</p>
+  {% endif %}
+
+  <div class="tablewrap" style="margin-top:12px">
+  <table>
+    <tr><th>Rol</th><th>Nima ko'radi</th><th>Holati</th><th>Kod</th></tr>
+    {% for r in ROLES %}
+    <tr>
+      <td><b>{{ ROLE_LABELS[r] }}</b></td>
+      <td class="sub" style="font-size:12.5px">{{ ROLE_HINTS[r] }}</td>
+      <td>
+        {% if r == 'direktor' and locked %}
+          <span class="badge b-green">APP_PIN</span>
+        {% elif pins[r] %}
+          <span class="badge b-green">O'rnatilgan</span>
+        {% else %}
+          <span class="badge b-gray">Yo'q</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if r == 'direktor' and locked %}
+          <span class="sub" style="font-size:12px">Railway sozlamalaridan</span>
+        {% else %}
+        <form class="inline" method="post" action="/settings/kod"
+              style="gap:6px;align-items:flex-end">
+          <input type="hidden" name="role" value="{{ r }}">
+          <div><input name="pin" inputmode="numeric" pattern="[0-9]*"
+                      minlength="6" maxlength="12" required
+                      placeholder="6 raqam" style="width:110px"></div>
+          <button class="chip">Saqlash</button>
+        </form>
+        {% if pins[r] %}
+        <form method="post" action="/settings/kod" style="margin-top:5px"
+              onsubmit="return confirm('{{ ROLE_LABELS[r] }} kodi bekor qilinsinmi? Bu rol tizimga kira olmay qoladi.')">
+          <input type="hidden" name="role" value="{{ r }}">
+          <input type="hidden" name="act" value="clear">
+          <button class="chip">Bekor qilish</button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p class="hint" style="margin-top:10px">Kod almashtirilsa yoki bekor
+    qilinsa, o'sha rolda ochiq turgan barcha sessiyalar darhol uziladi —
+    telefonida ochiq qolgan bo'lsa ham qaytadan kod so'raladi. Xodim ishdan
+    ketganda shu yetarli.</p>
+  {% if not edu %}
+  <p class="hint" style="margin-top:8px">Bu nusxada <b>faqat moliya</b>
+    ishlaydi. O'quv bo'limi va o'quvchi ilovasi o'chirilgan, shuning uchun
+    kurator roli ham ko'rsatilmayapti — bo'lim yoqilganda o'zi paydo bo'ladi.</p>
+  {% endif %}
+</div>
 
 {# ── Namunaviy shartnomalar (vaqtinchalik) ── #}
 <div class="card" style="margin-bottom:14px">
