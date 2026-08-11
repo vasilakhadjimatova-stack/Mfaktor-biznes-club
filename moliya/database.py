@@ -29,6 +29,9 @@ NEW_COLUMNS = [
     # O'quv bo'limi: dropout risk-skoring
     ("contracts", "risk_score", "INTEGER DEFAULT 0"),
     ("contracts", "risk_reasons", "VARCHAR(300) DEFAULT ''"),
+    # O'quvchi kabineti va dars materiallari
+    ("contracts", "portal_token", "VARCHAR(48)"),
+    ("assignments", "material_url", "VARCHAR(500) DEFAULT ''"),
 ]
 
 

@@ -290,3 +290,115 @@ def contact_message(contract):
                     .replace(",", " "))
     body.append("Javobingizni kutamiz. Mfaktor biznes maktabi")
     return "\n\n".join(body)
+
+
+# ──────────────────────────────────────────────────────────────────
+# O'QUVCHI KABINETI — parolsiz shaxsiy havola
+# ──────────────────────────────────────────────────────────────────
+def ensure_portal_token(contract):
+    """Shartnomaga kabinet kaliti beradi (bo'lmasa yaratadi)."""
+    import secrets as _s
+    if not contract.portal_token:
+        contract.portal_token = _s.token_urlsafe(24)
+        db.session.commit()
+    return contract.portal_token
+
+
+def portal_data(contract):
+    """O'quvchi o'z kabinetida ko'radigan hamma narsa.
+
+    Ataylab faqat SHU o'quvchining ma'lumoti: boshqa o'quvchilar, guruh
+    moliyasi yoki ichki izohlar ko'rinmaydi. Reytingda ham ismlar emas,
+    faqat o'rin ko'rsatiladi.
+    """
+    from models import (Assignment, LessonSession, LessonAttendance,
+                        Submission)
+    ch = contract.cohort
+    today = date.today()
+
+    sessions = (LessonSession.query.filter_by(cohort_id=ch.id)
+                .order_by(LessonSession.date).all())
+    marks = {a.session_id: a.status for a in LessonAttendance.query.filter(
+        LessonAttendance.contract_id == contract.id,
+        LessonAttendance.session_id.in_([s.id for s in sessions])).all()} \
+        if sessions else {}
+    lessons = [{"s": s, "status": marks.get(s.id) if s.held else None,
+                "past": s.date <= today} for s in sessions]
+
+    assigns = (Assignment.query.filter_by(cohort_id=ch.id)
+               .order_by(Assignment.created_at.desc()).all())
+    subs = {x.assignment_id: x for x in Submission.query.filter(
+        Submission.contract_id == contract.id,
+        Submission.assignment_id.in_([a.id for a in assigns])).all()} \
+        if assigns else {}
+    tasks = []
+    for a in assigns:
+        sub = subs.get(a.id)
+        overdue = bool(a.due_date and a.due_date < today and not sub)
+        tasks.append({"a": a, "sub": sub, "overdue": overdue,
+                      "done": sub is not None,
+                      "graded": bool(sub and sub.status == "graded")})
+
+    prog = student_progress(contract, sessions, {
+        (sid, contract.id): st for sid, st in marks.items()}, assigns)
+
+    # to'lov: faqat o'z shartnomasi bo'yicha
+    nxt, overdue_amt = None, 0.0
+    for ln in contract.lines:
+        rest = max(ln.amount - ln.paid, 0.0)
+        if rest <= 0.01:
+            continue
+        if ln.due_date < today:
+            overdue_amt += rest
+        elif nxt is None or ln.due_date < nxt["date"]:
+            nxt = {"date": ln.due_date, "amount": rest,
+                   "days": (ln.due_date - today).days}
+
+    return {"c": contract, "ch": ch, "lessons": lessons, "tasks": tasks,
+            "prog": prog, "next_pay": nxt, "overdue": overdue_amt,
+            "paid": contract.paid_total(), "due": contract.due_total(),
+            "rank": my_rank(contract)}
+
+
+def leaderboard(cohort_id, limit=None):
+    """Oqim reytingi: o'rtacha ball va davomat bo'yicha.
+
+    Ball = o'rtacha baho × 0.7 + davomat foizi × 0.3 — faqat o'qishga
+    tegishli ko'rsatkichlar, to'lov bu yerga umuman aralashmaydi.
+    """
+    from models import Assignment, Contract, LessonSession, LessonAttendance
+    rows = Contract.query.filter_by(cohort_id=cohort_id,
+                                    status="active").all()
+    if not rows:
+        return []
+    sessions = LessonSession.query.filter_by(cohort_id=cohort_id,
+                                             held=True).all()
+    att = {}
+    if sessions:
+        for a in LessonAttendance.query.filter(
+                LessonAttendance.session_id.in_([s.id for s in sessions])).all():
+            att[(a.session_id, a.contract_id)] = a.status
+    assigns = Assignment.query.filter_by(cohort_id=cohort_id).all()
+
+    out = []
+    for c in rows:
+        p = student_progress(c, sessions, att, assigns)
+        score = (p["avg_score"] or 0) * 0.7 + (p["att_pct"] or 0) * 0.3
+        out.append({"c": c, "name": c.student.name,
+                    "avg": p["avg_score"], "att": p["att_pct"],
+                    "done": p["assign_done"], "total": p["assign_total"],
+                    "score": round(score, 1)})
+    out.sort(key=lambda r: -r["score"])
+    for i, r in enumerate(out, 1):
+        r["place"] = i
+    return out[:limit] if limit else out
+
+
+def my_rank(contract):
+    """O'quvchining o'z oqimidagi o'rni: (o'rin, jami)."""
+    board = leaderboard(contract.cohort_id)
+    for r in board:
+        if r["c"].id == contract.id:
+            return {"place": r["place"], "of": len(board),
+                    "score": r["score"]}
+    return None

@@ -98,7 +98,9 @@ def create_app():
     APP_PIN = os.environ.get("APP_PIN", "").strip()
     _pin_fails = {}                    # ip -> (soni, oxirgi urinish vaqti)
     _PUBLIC = ("/login", "/static/", "/manifest.json", "/sw.js",
-               "/offline.html", "/healthz", "/cert/")
+               "/offline.html", "/healthz", "/cert/",
+               # o'quvchi kabineti: shaxsiy kalit bilan, kodsiz ochiladi
+               "/kabinet/")
 
     @app.before_request
     def _guard():
@@ -1305,6 +1307,7 @@ def register_routes(app):
         prog = {c.id: education.student_progress(c, sessions, att, assignments)
                 for c in contracts}
         return render_template("oquv_cohort.html", ch=ch,
+                               board=education.leaderboard(ch.id),
                                contracts=contracts, sessions=sessions,
                                assignments=assignments, att=att, prog=prog,
                                sub_stats=sub_stats, msg=education.contact_message,
@@ -1407,6 +1410,7 @@ def register_routes(app):
         db.session.add(Assignment(
             cohort_id=ch.id, title=title[:200],
             description=(request.form.get("description") or "")[:8000],
+            material_url=(request.form.get("material_url") or "").strip()[:500],
             due_date=_parse_date(request.form.get("due_date")),
             max_score=int(request.form.get("max_score") or 100)))
         db.session.commit()
@@ -1493,6 +1497,76 @@ def register_routes(app):
         return redirect(url_for("oquv_cohort", chid=c.cohort_id))
 
     # PUBLIC: sertifikat tekshiruvi (login'siz — QR uchun)
+    # ── O'quvchi kabineti (parolsiz shaxsiy havola) ──────────────
+    @app.route("/oquv/contract/<int:cid>/link", methods=["POST"])
+    def oquv_portal_link(cid):
+        """Kurator o'quvchiga kabinet havolasini beradi."""
+        c = Contract.query.get_or_404(cid)
+        education.ensure_portal_token(c)
+        flash(f"{c.student.name} uchun kabinet havolasi tayyor — "
+              f"ro'yxatdagi «Kabinet» tugmasidan nusxa oling.", "ok")
+        return redirect(request.referrer or url_for("oquv_cohort",
+                                                    chid=c.cohort_id))
+
+    @app.route("/oquv/cohort/<int:chid>/links", methods=["POST"])
+    def oquv_portal_links(chid):
+        """Butun oqimga bir marta havola tarqatish."""
+        ch = Cohort.query.get_or_404(chid)
+        n = 0
+        for c in Contract.query.filter_by(cohort_id=ch.id,
+                                          status="active").all():
+            if not c.portal_token:
+                education.ensure_portal_token(c)
+                n += 1
+        flash(f"{n} ta yangi kabinet havolasi yaratildi "
+              f"(oldin berilganlari o'zgarmadi).", "ok")
+        return redirect(url_for("oquv_cohort", chid=ch.id))
+
+    @app.route("/kabinet/<token>")
+    def kabinet(token):
+        c = Contract.query.filter_by(portal_token=token).first()
+        if not c:
+            return render_template("kabinet.html", d=None), 404
+        return render_template("kabinet.html", d=education.portal_data(c),
+                               token=token)
+
+    @app.route("/kabinet/<token>/topshirish/<int:aid>", methods=["POST"])
+    def kabinet_submit(token, aid):
+        """O'quvchi vazifasini o'zi topshiradi — AI birinchi bahoni beradi."""
+        c = Contract.query.filter_by(portal_token=token).first()
+        a = db.session.get(Assignment, aid)
+        if not c or not a or a.cohort_id != c.cohort_id:
+            return redirect(url_for("kabinet", token=token))
+        text = (request.form.get("content") or "").strip()
+        if not text:
+            flash("Javob bo'sh — matn yozing", "err")
+            return redirect(url_for("kabinet", token=token) + f"#v{aid}")
+        sub = Submission.query.filter_by(assignment_id=a.id,
+                                         contract_id=c.id).first()
+        if sub and sub.status == "graded":
+            flash("Bu vazifa allaqachon baholangan — o'zgartirib bo'lmaydi.",
+                  "err")
+            return redirect(url_for("kabinet", token=token) + f"#v{aid}")
+        if sub is None:
+            sub = Submission(assignment_id=a.id, contract_id=c.id)
+            db.session.add(sub)
+        sub.content = text[:8000]
+        sub.submitted_at = datetime.utcnow()
+        sub.status = "pending"
+        # AI birinchi qatlam bahosi (kalit bo'lmasa — jim o'tadi)
+        score, fb = education.ai_grade(a, sub.content, a.max_score or 100)
+        if score is not None:
+            sub.ai_score, sub.ai_feedback = score, fb
+        db.session.commit()
+        # topshirgani riskni pasaytiradi — darhol qayta hisoblaymiz
+        try:
+            education.refresh_cohort_risk(c.cohort_id)
+        except Exception:                              # noqa: BLE001
+            db.session.rollback()
+        flash("Javobingiz qabul qilindi. Kurator tekshirib, bahoni qo'yadi.",
+              "ok")
+        return redirect(url_for("kabinet", token=token) + f"#v{aid}")
+
     @app.route("/cert/<token>")
     def cert_verify(token):
         cert = EduCertificate.query.filter_by(token=token).first()

@@ -4,8 +4,14 @@
 <p class="sub"><a href="/oquv/cohort/{{ a.cohort_id }}">← {{ a.cohort.course.name }} · {{ a.cohort.name }}</a> ·
   muddat: {{ a.due_date|dmy if a.due_date else 'belgilanmagan' }} · maks {{ a.max_score }} ball</p>
 
-{% if a.description %}
-<div class="card"><div style="white-space:pre-wrap">{{ a.description }}</div></div>
+{% if a.description or a.material_url %}
+<div class="card">
+  {% if a.description %}<div style="white-space:pre-wrap">{{ a.description }}</div>{% endif %}
+  {% if a.material_url %}
+  <a class="chip" href="{{ a.material_url }}" target="_blank" rel="noopener"
+     style="margin-top:10px;display:inline-block">▶ Dars materiali</a>
+  {% endif %}
+</div>
 {% endif %}
 
 <div class="card" style="margin-top:14px">

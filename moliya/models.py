@@ -198,6 +198,9 @@ class Contract(db.Model):
     refund_amount = db.Column(db.Float, default=0.0)         # 1 haftalik kafolat bo'yicha
     note        = db.Column(db.Text, default="")
     # O'quv bo'limi: dropout risk (education.py hisoblaydi)
+    # O'quvchi kabineti uchun shaxsiy havola kaliti (parolsiz kirish).
+    # Faqat kerak bo'lganda yaratiladi — har shartnomada bo'lishi shart emas.
+    portal_token = db.Column(db.String(48), unique=True, index=True)
     risk_score   = db.Column(db.Integer, default=0)          # 0–100
     risk_reasons = db.Column(db.String(300), default="")
     student = db.relationship("Student", backref="contracts")
@@ -486,6 +489,8 @@ class Assignment(db.Model):
     description = db.Column(db.Text, default="")   # AI baholashda rubrika
     due_date    = db.Column(db.Date)
     max_score   = db.Column(db.Integer, default=100)
+    # dars materiali: video yoki fayl havolasi (o'quvchi kabinetida ko'rinadi)
+    material_url = db.Column(db.String(500), default="")
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
     cohort      = db.relationship("Cohort", backref="assignments")
 

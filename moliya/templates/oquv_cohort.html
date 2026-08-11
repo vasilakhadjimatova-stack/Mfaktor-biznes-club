@@ -7,7 +7,12 @@
 
 {# ── O'quvchilar ─────────────────────────────────────────────── #}
 <div class="card">
-  <h2 style="margin-top:0">O'quvchilar</h2>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+    <h2 style="margin:0;flex:1">O'quvchilar</h2>
+    <form method="post" action="/oquv/cohort/{{ ch.id }}/links">
+      <button class="chip" title="Havolasi yo'q o'quvchilarga kabinet havolasi yaratadi">
+        🔗 Hammaga kabinet havolasi</button></form>
+  </div>
   <div class="tablewrap edu-st">
   <table>
     <tr><th>O'quvchi</th><th class="r">Davomat</th><th class="r">Vazifa</th>
@@ -37,6 +42,16 @@
         <span class="badge {{ 'b-red' if c.risk_score >= 60 else ('b-gold' if c.risk_score >= 30 else 'b-green') }}">{{ c.risk_score or 0 }}</span>
         {% else %}<span class="badge b-gray">{{ STATUSES.get(c.status, c.status) }}</span>{% endif %}</td>
       <td style="white-space:nowrap">
+        {% if c.status == 'active' %}
+          {% if c.portal_token %}
+          <button type="button" class="chip" title="Kabinet havolasini nusxalash"
+                  onclick="copyLink(this,'{{ c.portal_token }}')">Kabinet</button>
+          {% else %}
+          <form method="post" action="/oquv/contract/{{ c.id }}/link" style="display:inline">
+            <button class="chip" title="O'quvchiga shaxsiy kabinet havolasini berish">+ Kabinet</button>
+          </form>
+          {% endif %}
+        {% endif %}
         {% if c.status == 'active' and c.risk_score >= 30 and c.student.phone %}
         <a class="chip" target="_blank" title="Tayyor xabar bilan yozish"
            href="https://t.me/share/url?url=&text={{ msg(c)|urlencode }}">Yozish</a>
@@ -135,6 +150,34 @@
     </details>
   </div>
 
+  {# ── Reyting ───────────────────────────────────────────────── #}
+  <div class="card" style="grid-column:1/-1">
+    <h2 style="margin-top:0">Reyting</h2>
+    {% if board %}
+    <div class="tablewrap">
+    <table>
+      <tr><th style="width:44px">O'rin</th><th>O'quvchi</th>
+          <th class="r">O'rt. ball</th><th class="r">Davomat</th>
+          <th class="r">Vazifa</th><th class="r">Umumiy</th></tr>
+      {% for r in board %}
+      <tr>
+        <td><span class="badge {{ 'b-gold' if r.place <= 3 else 'b-gray' }}">{{ r.place }}</span></td>
+        <td><a href="/contracts/{{ r.c.id }}">{{ r.name }}</a></td>
+        <td class="r">{{ r.avg|round|int if r.avg is not none else '—' }}</td>
+        <td class="r">{{ (r.att|round|int ~ '%') if r.att is not none else '—' }}</td>
+        <td class="r">{{ r.done }}/{{ r.total }}</td>
+        <td class="r"><b class="gold">{{ r.score }}</b></td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    <p class="hint" style="margin-top:10px">Umumiy ball = o'rtacha baho × 0,7 +
+      davomat × 0,3. To'lov holati reytingga umuman ta'sir qilmaydi.</p>
+    {% else %}
+    <div class="empty">Reyting uchun hali baho va davomat yo'q</div>
+    {% endif %}
+  </div>
+
   {# ── Uy vazifalari ─────────────────────────────────────────── #}
   <div class="card">
     <h2 style="margin-top:0">Uy vazifalari</h2>
@@ -160,6 +203,8 @@
         <div><label>Sarlavha</label><input name="title" placeholder="Sovuq qo'ng'iroq skripti" required></div>
         <div><label>Muddat</label><input type="date" name="due_date"></div>
         <div><label>Maks ball</label><input type="number" name="max_score" value="100"></div>
+        <div style="flex-basis:100%"><label>Material havolasi (video/fayl — o'quvchi kabinetida ko'rinadi)</label>
+          <input name="material_url" placeholder="https://youtu.be/... yoki Drive havolasi"></div>
         <div style="flex-basis:100%"><label>Shart/tavsif (AI baholashda rubrika sifatida ishlatiladi)</label>
           <textarea name="description" rows="2" style="width:100%"></textarea></div>
         <div><button>Berish</button></div>
@@ -170,6 +215,14 @@
 </div>
 
 <script>
+/* Kabinet havolasini nusxalash */
+function copyLink(btn, token){
+  var url = location.origin + "/kabinet/" + token;
+  var done = function(){ var t = btn.textContent; btn.textContent = "✓ Nusxalandi";
+    setTimeout(function(){ btn.textContent = t; }, 1600); };
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, function(){ prompt("Havola:", url); });
+  else prompt("Havola:", url);
+}
 /* Davomat: bir teginish — holat tanlanadi (tanlash ro'yxati o'rniga) */
 function attPick(btn, val){
   var row = btn.closest(".att-row");
