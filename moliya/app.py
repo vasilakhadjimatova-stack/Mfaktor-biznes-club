@@ -29,6 +29,7 @@ import notify
 import planner
 import praytimes
 import roles
+import transfers
 from database import db, init_db
 from models import (AppSetting, Budget, Cohort, Contract, Course, DdsRow, DDS_LOOKUP,
                     DDS_SPRAVOCHNIK, DDS_WALLET2, DDS_WALLETS, EXPENSE_CATS, KpiCard,
@@ -234,8 +235,13 @@ def create_app():
     def ctx():
         # Qulf o'chiq bo'lsa (lokal ishlab chiqish) — hamma narsa ko'rinadi
         role = _current_role() if APP_PIN else roles.DIREKTOR
+        bad_transfers = 0
         try:
-            _, total_cash = core.wallet_balances()
+            wrows, total_cash = core.wallet_balances()
+            # Manfiy qoldiq — deyarli har doim juftlanmagan o'tkazma belgisi.
+            # To'liq juftlashni bu yerda qilmaymiz: u qimmat, sahifasida
+            # hisoblanadi. Bu yerda faqat arzon signal.
+            bad_transfers = sum(1 for r in wrows if r["balance"] < 0)
         except Exception:
             total_cash = None
         if not roles.sees_cash(role):
@@ -247,7 +253,7 @@ def create_app():
         return {"INCOME_CATS": INCOME_CATS, "EXPENSE_CATS": EXPENSE_CATS,
                 "CHANNELS": MARKETING_CHANNELS, "STATUSES": CONTRACT_STATUSES,
                 "today": date.today(), "total_cash": total_cash,
-                "inbox_open": inbox_open,
+                "inbox_open": inbox_open, "bad_transfers": bad_transfers,
                 "role": role, "role_label": roles.ROLE_LABELS.get(role, ""),
                 "can": (lambda ep: roles.can(role, ep))}
 
@@ -765,6 +771,39 @@ def register_routes(app):
             return render_template("dds_excel.html", x=core.dds_excel(year),
                                    year=year)
         return render_template("dds.html", d=core.dds_matrix(year))
+
+    # ── Juftlanmagan o'tkazmalar ──────────────────────────────────
+    # Hamyon qoldig'i manfiy chiqsa deyarli har doim sababi shu: o'tkazmaning
+    # bir tomoni ДДС ga yozilgan, ikkinchisi yozilmagan.
+    @app.route("/transfers")
+    def transfers_page():
+        return render_template("transfers.html", d=transfers.report(),
+                               wallets=transfers.wallet_names())
+
+    @app.route("/transfers/<int:rid>/juft", methods=["POST"])
+    def transfer_fix(rid):
+        row = db.session.get(DdsRow, rid)
+        if row is None:
+            abort(404)
+        f = request.form
+        amt = (f.get("amount") or "").replace(" ", "").replace(" ", "")
+        try:
+            amt = float(amt.replace(",", ".")) if amt else None
+        except ValueError:
+            amt = None
+        try:
+            dd = date.fromisoformat(f.get("ddate")) if f.get("ddate") else None
+        except ValueError:
+            dd = None
+        new, err = transfers.add_counterpart(
+            row, f.get("wallet", "").strip(), amount=amt, ddate=dd,
+            purpose=(f.get("purpose") or "").strip() or None)
+        if err:
+            flash(err, "err")
+        else:
+            flash(f"Juft qator qo'shildi (#{new.rownum}) — "
+                  f"hamyon qoldig'i yangilandi", "ok")
+        return redirect(url_for("transfers_page"))
 
     # ── «ДДС данные» — Excel varag'ining 1:1 nusxasi ──────────────
     @app.route("/ddsdata")

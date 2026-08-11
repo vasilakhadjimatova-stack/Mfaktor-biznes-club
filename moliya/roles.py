@@ -54,6 +54,7 @@ _FINANCE = {
     "inbox_restore", "inbox_skip", "inbox_unlink",
     "ddsdata", "ddsdata_add", "ddsdata_delete", "ddsdata_edit",
     "ddsdata_export", "ddsdata_rebuild", "dds",
+    "transfers_page", "transfer_fix",
     "taqvim", "taqvim_set", "taqvim_fill", "taqvim_copy", "taqvim_clear",
     "reports", "launch_planner", "add_budget",
     "add_contract", "contract_pay",
