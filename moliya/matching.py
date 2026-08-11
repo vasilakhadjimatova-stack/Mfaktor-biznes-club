@@ -45,6 +45,9 @@ JARGON_STEMS = (
     "postup", "поступ", "depozit", "депозит", "ostatok", "остаток",
     "vozvrat", "возврат", "dogovor", "договор", "shartnoma", "avans", "аванс",
     "predoplat", "chastich", "summa", "сумма", "obmen", "обмен",
+    # to'lov kanali va ichki xarajat izohlari — bular ham ism emas
+    "edinn", "едины", "gonorar", "гонорар", "spiker", "спикер",
+    "qaytar", "kaytar", "chiqaril", "ortiqch",
 )
 # to'liq so'z sifatida uchrasa jargon (o'zak sifatida ismga tegib ketmasin)
 JARGON_WORDS = {
