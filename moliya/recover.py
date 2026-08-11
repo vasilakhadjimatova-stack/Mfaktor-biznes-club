@@ -38,13 +38,28 @@ SAME_PERSON = 0.88
 
 MARK = "[to'lovlardan tiklandi]"
 
-# ДДС maqolasidagi kurs belgisi → qidiriladigan kalit so'zlar
-COURSE_KEYS = {
-    "РОП": ("роп", "rop", "rahbar"),
-    "СМК": ("смк", "smk", "sotuv"),
+# Kurs belgisi → nomida qidiriladigan aniq nishonlar.
+#
+# DIQQAT: bu yerda «sotuv», «rahbar» kabi umumiy so'zlar ISHLATILMAYDI.
+# Ilgari СМК uchun «sotuv» kalit so'zi bor edi va u «Sotuv bo'limi rahbari
+# (РОП)» nomiga ham tushardi — natijada СМК o'quvchilariga РОП oqimi
+# taklif qilinardi. Faqat kursning o'z qisqartmasi asos qilinadi.
+COURSE_TAGS = {
+    "РОП": ("роп", "rop"),
+    "СМК": ("смк", "smk"),
     "ТББ": ("тбб", "tbb", "твв", "tvv"),
-    "TBB": ("тбб", "tbb", "твв", "tvv"),
 }
+# ДДС maqolasida lotincha «TBB» yoziladi — bir ko'rinishga keltiramiz
+TAG_ALIAS = {"TBB": "ТББ", "ТВВ": "ТББ", "ROP": "РОП", "SMK": "СМК"}
+
+
+def tag_of(course_name):
+    """Kurs nomidan uning qisqartmasini ajratadi (topilmasa None)."""
+    n = (course_name or "").lower()
+    for tag, marks in COURSE_TAGS.items():
+        if any(m in n for m in marks):
+            return tag
+    return None
 
 
 def _course_tag(article):
@@ -120,12 +135,16 @@ def _existing(name):
 
 
 def cohorts_for(tag):
-    """Shu kurs belgisiga mos oqimlar."""
-    keys = COURSE_KEYS.get(tag.upper(), ())
+    """Shu kurs belgisiga mos oqimlar.
+
+    Qisqartmasi aniqlanmagan kurs (masalan «Boshqa kurs») har qanday
+    belgiga taklif qilinadi — aks holda u hech qayerda ko'rinmay qolardi.
+    """
+    want = TAG_ALIAS.get((tag or "").upper(), (tag or "").upper())
     out = []
     for ch in Cohort.query.order_by(Cohort.start_date.desc()).all():
-        cname = (ch.course.name if ch.course else "").lower()
-        if not keys or any(k in cname for k in keys):
+        own = tag_of(ch.course.name if ch.course else "")
+        if own is None or own == want:
             out.append(ch)
     return out
 
