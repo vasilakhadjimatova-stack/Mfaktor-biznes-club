@@ -124,6 +124,27 @@
     qatorlar bo'lsa, avval CSV eksport qilib oling.</p>
 </div>
 
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Bazani ko'chirish (oflayn ↔ server)</h2>
+  <p class="sub" style="margin-top:-4px">Oflayn nusxada to'g'irlangan moliya
+    ma'lumotini serverga o'tkazish: oflaynda «Eksport» bosiladi, chiqqan fayl
+    serverdagi shu sahifada «Import» qilinadi. Faqat moliya jadvallari
+    ko'chadi (hamyon, ДДС, kassa, shartnoma) — o'quv bo'limi kirmaydi.</p>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+    <a class="btn ghost" href="/settings/eksport">⬇ Eksport (.dump.gz)</a>
+    <form class="inline" method="post" action="/settings/toliq-import"
+          enctype="multipart/form-data" style="flex:1;min-width:280px"
+          onsubmit="return confirm('DIQQAT: bu bazadagi hozirgi moliya ma\'lumoti fayl bilan TO\'LIQ almashtiriladi. Davom etamizmi?')">
+      <div style="flex:1;min-width:200px"><label>Eksport fayli</label>
+        <input type="file" name="dump" accept=".gz,.json" required></div>
+      <div><button>Import qilish</button></div>
+    </form>
+  </div>
+  <p class="hint warn" style="margin-top:10px">Import eskisini o'chirib,
+    fayldagini yozadi. Xato faylni ko'rsatsangiz — hech narsa o'zgarmaydi,
+    tekshiruv bor.</p>
+</div>
+
 <div class="grid g2">
   <div class="card">
     <h2 style="margin-top:0">Hamyonlar</h2>

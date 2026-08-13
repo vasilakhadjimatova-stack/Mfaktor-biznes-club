@@ -1417,6 +1417,32 @@ def register_routes(app):
                   f"tugatgach shu yerdan o'chirib tashlang.", "ok")
         return redirect(url_for("settings"))
 
+    # ── Moliya bazasini to'liq ko'chirish (oflayn nusxa <-> server) ──
+    @app.route("/settings/eksport")
+    def settings_export():
+        """Barcha moliya jadvallari bitta faylga — serverga ko'chirish uchun."""
+        import fulldump
+        blob = fulldump.dump_bytes()
+        name = f"mfaktor-moliya-{date.today().isoformat()}.dump.gz"
+        return Response(blob, mimetype="application/gzip", headers={
+            "Content-Disposition": f"attachment; filename={name}"})
+
+    @app.route("/settings/toliq-import", methods=["POST"])
+    def settings_full_import():
+        """Eksport faylini yuklab, moliya bazasini butunlay almashtirish."""
+        import fulldump
+        f = request.files.get("dump")
+        if not f or not f.filename:
+            flash("Fayl tanlanmagan", "err")
+            return redirect(url_for("settings"))
+        report, err = fulldump.load_bytes(f.read())
+        if err:
+            flash(err, "err")
+            return redirect(url_for("settings"))
+        parts = ", ".join(f"{k}: {v}" for k, v in report.items())
+        flash(f"Moliya bazasi almashtirildi — {parts}", "ok")
+        return redirect(url_for("settings"))
+
     @app.route("/settings/import", methods=["POST"])
     def settings_import():
         """Mbm_2026.xlsx ni sayt orqali yuklab, butun zanjirni ishga tushirish."""
