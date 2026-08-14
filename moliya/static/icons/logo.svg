@@ -10,10 +10,10 @@
     </filter>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <g transform="translate(32 84) scale(1.49)" filter="url(#soft)">
+  <g transform="translate(22 84) scale(1.46)" filter="url(#soft)">
     <path d="M46.9 162.0 L97.2 73.4 L119.6 111.2 L156.0 37.5 L214.7 126.0 L233.3 126.0 L154.0 6.5 L118.4 78.8 L96.8 42.6 L29.1 162.0 Z" fill="#e63022"/>
-    <text x="76" y="168" font-family="Arial, Helvetica, sans-serif"
-          font-weight="bold" font-size="50" letter-spacing="-1"
+    <text x="72" y="170" font-family="Arial, Helvetica, sans-serif"
+          font-weight="bold" font-size="60" letter-spacing="-1.5"
           fill="#f2f4fb">Faktor</text>
   </g>
 </svg>
