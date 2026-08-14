@@ -10,8 +10,8 @@
     </filter>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <g transform="translate(22 84) scale(1.46)" filter="url(#soft)">
-    <path d="M46.9 162.0 L97.2 73.4 L119.6 111.2 L156.0 37.5 L214.7 126.0 L233.3 126.0 L154.0 6.5 L118.4 78.8 L96.8 42.6 L29.1 162.0 Z" fill="#e63022"/>
+  <g transform="translate(22 106) scale(1.46)" filter="url(#soft)">
+    <path d="M47.3 162.0 L97.2 87.3 L119.6 119.4 L155.9 56.8 L214.2 131.4 L233.8 131.4 L154.1 29.2 L118.4 90.7 L96.8 59.9 L28.7 162.0 Z" fill="#e63022"/>
     <text x="72" y="170" font-family="Arial, Helvetica, sans-serif"
           font-weight="bold" font-size="60" letter-spacing="-1.5"
           fill="#f2f4fb">Faktor</text>
