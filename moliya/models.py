@@ -56,6 +56,15 @@ EXPENSE_CATS = [
 # faqat hamyon qoldig'iga ta'sir qiladi
 TRANSFER_CAT = "Перевод между счетами"
 
+class LaunchScenario(db.Model):
+    """Launch-hisob stsenariysi — tarkibi JSON (launch.py ga qarang)."""
+    __tablename__ = "launch_scenarios"
+    id   = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), default="")
+    sort = db.Column(db.Integer, default=0)
+    data = db.Column(db.Text, default="{}")
+
+
 # Kurs yo'nalishi → kirim statyasi (kurs nomidan aniqlanadi)
 DIRECTION_INCOME = {
     "РОП": "Поступление от клиента РОП",

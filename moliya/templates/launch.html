@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="lhead">
+  <div>
+    <h1>Launch-hisob</h1>
+    <p class="sub">Yangi oqim stsenariylari: narx va o'quvchi sonini o'zgartiring —
+      xarajatlar, yalpi daromad va taqsimot darhol qayta hisoblanadi.
+      Foizli qatorlar (KPI, target) tushumga avtomatik bog'langan.</p>
+  </div>
+  <div class="lacts">
+    <span id="savestate" class="savestate"></span>
+    <button class="btn ghost" onclick="addScenario()">+ Stsenariy</button>
+  </div>
+</div>
+
+<div class="lrow" id="lrow"></div>
+
+<script>
+var STATE = {{ scenarios|tojson }};
+
+/* ── formatlash ── */
+function grp(n){
+  n = Math.round(n);
+  var neg = n < 0; n = Math.abs(n);
+  var s = String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return (neg ? "−" : "") + s;
+}
+function num(v){
+  v = String(v == null ? "" : v).replace(/[^\d.,-]/g, "").replace(",", ".");
+  var f = parseFloat(v);
+  return isNaN(f) ? 0 : f;
+}
+
+/* ── hisob (varaqdagi formulalar birma-bir) ── */
+function calc(s){
+  var tushum = 0;
+  s.courses.forEach(function(k){ tushum += num(k.price) * num(k.qty); });
+  var blocks = s.blocks.map(function(b){
+    var t = 0;
+    var rows = b.rows.map(function(r){
+      var amt = r.m === "pct" ? tushum * num(r.v) / 100 : num(r.v);
+      t += amt;
+      return amt;
+    });
+    return {rows: rows, total: t};
+  });
+  var xarajat = blocks.reduce(function(a, b){ return a + b.total; }, 0);
+  var yalpi = tushum - xarajat;
+  var d = s.dist;
+  var hayriya = yalpi * num(d.hayriya) / 100;
+  var afterH = yalpi - hayriya;
+  var reinvest = afterH * num(d.reinvest) / 100;
+  var afterR = afterH - reinvest;
+  var soliq = afterR * num(d.soliq) / 100;
+  var dividend = afterR - soliq;
+  var tas = dividend * num(d.tasischilar) / 100;
+  var dir = dividend * num(d.direktor) / 100;
+  var oquv = dividend * num(d.oquv) / 100;
+  var bux = dividend * num(d.bux) / 100;
+  var final_ = dividend - tas - dir - oquv - bux;
+  return {tushum: tushum, blocks: blocks, xarajat: xarajat, yalpi: yalpi,
+          hayriya: hayriya, afterH: afterH, reinvest: reinvest,
+          afterR: afterR, soliq: soliq, dividend: dividend,
+          tas: tas, dir: dir, oquv: oquv, bux: bux, final: final_,
+          marja: tushum ? final_ / tushum * 100 : 0};
+}
+
+/* ── chizish ── */
+function esc(t){
+  return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
+function render(){
+  var host = document.getElementById("lrow");
+  host.innerHTML = STATE.map(function(s, i){ return column(s, i); }).join("");
+  STATE.forEach(function(_, i){ recalc(i); });
+}
+function column(s, i){
+  var h = '<div class="lcol card" data-i="' + i + '">';
+  h += '<div class="lc-top">' +
+    '<input class="lc-name" value="' + esc(s.name) + '" ' +
+      'oninput="STATE[' + i + '].name = this.value; dirty()">' +
+    '<div class="lc-btns">' +
+    '<button class="ic" title="Nusxa olish" onclick="dupScenario(' + i + ')">⧉</button>' +
+    '<button class="ic danger" title="O\'chirish" onclick="delScenario(' + i + ')">✕</button>' +
+    '</div></div>';
+
+  /* kurslar */
+  h += '<div class="lsec"><div class="lsec-t">Kurslar</div>';
+  h += '<div class="lgrid lg-head"><span>Kurs</span><span>Narx</span><span>Soni</span><span class="r">Tushum</span></div>';
+  s.courses.forEach(function(k, j){
+    h += '<div class="lgrid">' +
+      inp(i, "courses", j, "name", k.name, "t") +
+      inp(i, "courses", j, "price", k.price, "n") +
+      inp(i, "courses", j, "qty", k.qty, "n") +
+      '<span class="r amt" data-o="' + i + ':c' + j + '"></span>' +
+      '<button class="rowdel" onclick="delRow(' + i + ',\'courses\',' + j + ')">✕</button></div>';
+  });
+  h += '<button class="addrow" onclick="addCourse(' + i + ')">+ kurs</button>';
+  h += '<div class="ltotal"><span>TUSHUM</span><b class="amt" data-o="' + i + ':tushum"></b></div></div>';
+
+  /* xarajat bloklari */
+  s.blocks.forEach(function(b, bi){
+    h += '<div class="lsec"><div class="lsec-t">' + esc(b.title) + '</div>';
+    b.rows.forEach(function(r, ri){
+      h += '<div class="lgrid xr">' +
+        inp2(i, bi, ri, "n", r.n, "t") +
+        inp2(i, bi, ri, "v", r.v, "n") +
+        '<button class="mode ' + (r.m === "pct" ? "on" : "") + '" ' +
+          'title="So\'m yoki tushumdan foiz" ' +
+          'onclick="toggleMode(' + i + ',' + bi + ',' + ri + ')">' +
+          (r.m === "pct" ? "%" : "so’m") + '</button>' +
+        '<span class="r amt dim2" data-o="' + i + ':b' + bi + 'r' + ri + '"></span>' +
+        '<button class="rowdel" onclick="delXRow(' + i + ',' + bi + ',' + ri + ')">✕</button></div>';
+    });
+    h += '<button class="addrow" onclick="addXRow(' + i + ',' + bi + ')">+ xarajat</button>';
+    h += '<div class="ltotal sm"><span>Jami</span><b class="amt neg" data-o="' + i + ':bt' + bi + '"></b></div></div>';
+  });
+
+  /* yalpi + taqsimot */
+  h += '<div class="lsec yal"><div class="ltotal big"><span>YALPI DAROMAD</span>' +
+       '<b class="amt" data-o="' + i + ':yalpi"></b></div>' +
+       '<div class="tiny2">tushum − barcha xarajatlar</div></div>';
+
+  h += '<div class="lsec"><div class="lsec-t">Taqsimot</div>';
+  h += dist(i, "hayriya", "Hayriya fondi");
+  h += dist(i, "reinvest", "Re-investitsiya");
+  h += dist(i, "soliq", "Dividend solig'i");
+  h += '<div class="dsep">Dividend summasi <b class="amt" data-o="' + i + ':dividend"></b></div>';
+  h += dist(i, "tasischilar", "Ta'sischilar");
+  h += dist(i, "direktor", "Direktor");
+  h += dist(i, "oquv", "O'quv bo'limi");
+  h += dist(i, "bux", "Buxgalteriya");
+  h += '</div>';
+
+  h += '<div class="lfinal"><span>YAKUNIY QOLDIQ</span>' +
+       '<b class="amt" data-o="' + i + ':final"></b>' +
+       '<small>marja <b data-o="' + i + ':marja"></b>% (tushumdan)</small></div>';
+  return h + '</div>';
+}
+function inp(i, key, j, f, v, kind){
+  return '<input class="' + (kind === "n" ? "in-n" : "in-t") + '" value="' +
+    esc(kind === "n" ? grp(num(v)) : v) + '" ' +
+    'oninput="STATE[' + i + '].' + key + '[' + j + '].' + f +
+    ' = this.value; upd(' + i + ')">';
+}
+function inp2(i, bi, ri, f, v, kind){
+  return '<input class="' + (kind === "n" ? "in-n" : "in-t") + '" value="' +
+    esc(kind === "n" && STATE[i].blocks[bi].rows[ri].m !== "pct"
+        ? grp(num(v)) : v) + '" ' +
+    'oninput="STATE[' + i + '].blocks[' + bi + '].rows[' + ri + '].' + f +
+    ' = this.value; upd(' + i + ')">';
+}
+function dist(i, key, label){
+  return '<div class="lgrid dr"><span class="dl">' + label + '</span>' +
+    '<span class="dpct"><input class="in-n" value="' +
+    esc(STATE[i].dist[key]) + '" oninput="STATE[' + i + '].dist.' + key +
+    ' = this.value; upd(' + i + ')">%</span>' +
+    '<span class="r amt dim2" data-o="' + i + ':' + key + '"></span></div>';
+}
+
+/* ── qayta hisoblash (faqat natija kataklarini yangilaydi) ── */
+function recalc(i){
+  var s = STATE[i], c = calc(s);
+  var set = function(key, val, signed){
+    var el = document.querySelector('[data-o="' + i + ':' + key + '"]');
+    if (el) el.textContent = signed ? "− " + grp(val) : grp(val);
+  };
+  s.courses.forEach(function(k, j){ set("c" + j, num(k.price) * num(k.qty)); });
+  set("tushum", c.tushum);
+  s.blocks.forEach(function(b, bi){
+    b.rows.forEach(function(_, ri){ set("b" + bi + "r" + ri, c.blocks[bi].rows[ri]); });
+    set("bt" + bi, c.blocks[bi].total);
+  });
+  set("yalpi", c.yalpi);
+  set("hayriya", c.hayriya, true);
+  set("reinvest", c.reinvest, true);
+  set("soliq", c.soliq, true);
+  set("dividend", c.dividend);
+  set("tasischilar", c.tas, true);
+  set("direktor", c.dir, true);
+  set("oquv", c.oquv, true);
+  set("bux", c.bux, true);
+  set("final", c.final);
+  var m = document.querySelector('[data-o="' + i + ':marja"]');
+  if (m) m.textContent = c.marja.toFixed(1);
+  var fin = document.querySelectorAll(".lfinal")[i];
+  if (fin) fin.classList.toggle("bad", c.final < 0);
+}
+function upd(i){ recalc(i); dirty(); }
+
+/* ── tuzilma o'zgarishlari ── */
+function addScenario(){
+  var n = JSON.parse(JSON.stringify(STATE[STATE.length - 1] || {
+    name: "Yangi", courses: [{name: "РОП", price: 12000000, qty: 40}],
+    blocks: [], dist: {hayriya: 1, reinvest: 30, soliq: 5,
+                       tasischilar: 70, direktor: 10, oquv: 1, bux: 2}}));
+  n.name = "Yangi stsenariy";
+  STATE.push(n); render(); dirty();
+}
+function dupScenario(i){
+  var n = JSON.parse(JSON.stringify(STATE[i]));
+  n.name = STATE[i].name + " (nusxa)";
+  STATE.splice(i + 1, 0, n); render(); dirty();
+}
+function delScenario(i){
+  if (STATE.length <= 1) { alert("Kamida bitta stsenariy qolishi kerak"); return; }
+  if (!confirm("«" + STATE[i].name + "» o'chirilsinmi?")) return;
+  STATE.splice(i, 1); render(); dirty();
+}
+function addCourse(i){
+  STATE[i].courses.push({name: "", price: 0, qty: 0}); render(); dirty();
+}
+function delRow(i, key, j){
+  if (STATE[i][key].length <= 1) return;
+  STATE[i][key].splice(j, 1); render(); dirty();
+}
+function addXRow(i, bi){
+  STATE[i].blocks[bi].rows.push({n: "", m: "fix", v: 0}); render(); dirty();
+}
+function delXRow(i, bi, ri){
+  STATE[i].blocks[bi].rows.splice(ri, 1); render(); dirty();
+}
+function toggleMode(i, bi, ri){
+  var r = STATE[i].blocks[bi].rows[ri];
+  r.m = r.m === "pct" ? "fix" : "pct";
+  r.v = num(r.v) > 1000 && r.m === "pct" ? 3 : r.v;   // so'mdan %ga o'tsa
+  render(); dirty();
+}
+
+/* ── avtosaqlash ── */
+var saveTimer = null;
+function dirty(){
+  var el = document.getElementById("savestate");
+  el.textContent = "…"; el.className = "savestate";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 900);
+}
+function doSave(){
+  fetch("/launch/saqlash", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({scenarios: STATE})
+  }).then(function(r){ return r.json(); }).then(function(j){
+    var el = document.getElementById("savestate");
+    el.textContent = j.ok ? "Saqlandi ✓" : "Saqlanmadi!";
+    el.className = "savestate " + (j.ok ? "ok" : "err");
+  }).catch(function(){
+    var el = document.getElementById("savestate");
+    el.textContent = "Aloqa yo'q!"; el.className = "savestate err";
+  });
+}
+
+render();
+</script>
+
+<style>
+.lhead{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;
+  justify-content:space-between;margin-bottom:6px}
+.lhead .sub{max-width:640px}
+.lacts{display:flex;align-items:center;gap:12px;padding-top:8px}
+.savestate{font-size:12px;color:var(--dim);min-width:74px;text-align:right}
+.savestate.ok{color:var(--green)} .savestate.err{color:var(--red)}
+
+.lrow{display:flex;gap:16px;align-items:flex-start;overflow-x:auto;
+  padding:4px 2px 18px;scroll-snap-type:x proximity}
+.lcol{flex:0 0 372px;scroll-snap-align:start;padding:16px 16px 18px}
+@media(max-width:600px){.lcol{flex:0 0 92vw}}
+
+.lc-top{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.lc-name{flex:1;min-width:0;background:transparent;border:1px solid transparent;
+  border-radius:9px;padding:7px 9px;color:var(--txt);
+  font:600 15.5px var(--sans)}
+.lc-name:hover,.lc-name:focus{border-color:var(--line2);background:var(--ink3);outline:0}
+.lc-btns{display:flex;gap:5px}
+.ic{width:29px;height:29px;padding:0;border-radius:8px;background:transparent;
+  border:1px solid var(--line2);color:var(--mut);box-shadow:none;
+  font-size:13px;cursor:pointer}
+.ic:hover{color:var(--txt);border-color:var(--mut);transform:none;filter:none}
+.ic.danger:hover{color:var(--red);border-color:var(--red)}
+
+.lsec{border-top:1px solid var(--line);padding:11px 0 9px}
+.lsec-t{font:600 10.5px var(--sans);text-transform:uppercase;
+  letter-spacing:.09em;color:var(--gold);margin-bottom:8px}
+.lgrid{display:grid;grid-template-columns:1fr 76px 46px 92px 18px;
+  gap:5px;align-items:center;margin-bottom:4px;position:relative}
+.lgrid.lg-head{font-size:9.5px;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:5px}
+.lgrid.xr{grid-template-columns:1fr 84px 38px 88px 18px}
+.lgrid .r{text-align:right}
+.in-t,.in-n{width:100%;background:var(--ink3);border:1px solid var(--line);
+  border-radius:8px;padding:6px 7px;color:var(--txt);font:400 12.5px var(--sans)}
+.in-n{text-align:right;font-variant-numeric:tabular-nums}
+.in-t:focus,.in-n:focus{outline:0;border-color:var(--gold)}
+.amt{font-family:var(--sans);font-variant-numeric:tabular-nums;
+  font-size:12.5px;white-space:nowrap}
+.dim2{color:var(--mut)}
+.mode{padding:5px 0;font-size:10px;border-radius:7px;background:transparent;
+  border:1px solid var(--line2);color:var(--dim);box-shadow:none;cursor:pointer}
+.mode.on{color:var(--gold);border-color:var(--gold);background:var(--gold-dim)}
+.mode:hover{transform:none;filter:none}
+.rowdel{padding:0;width:18px;height:18px;font-size:10px;border-radius:6px;
+  background:transparent;border:0;color:var(--dim);box-shadow:none;
+  cursor:pointer;opacity:0}
+.lgrid:hover .rowdel{opacity:.8}
+.rowdel:hover{color:var(--red);transform:none;filter:none}
+.addrow{background:transparent;border:1px dashed var(--line2);color:var(--dim);
+  box-shadow:none;border-radius:8px;padding:4px 10px;font-size:11px;
+  cursor:pointer;margin:2px 0 6px}
+.addrow:hover{color:var(--gold);border-color:var(--gold);transform:none;filter:none}
+.ltotal{display:flex;justify-content:space-between;align-items:baseline;
+  padding-top:6px;font:600 11px var(--sans);text-transform:uppercase;
+  letter-spacing:.07em;color:var(--mut)}
+.ltotal b{font-size:14.5px;color:var(--txt)}
+.ltotal.sm b{font-size:13px}
+.ltotal.big b{font-size:18px}
+.ltotal .neg{color:var(--red)}
+.lsec.yal{background:var(--hint-bg);margin:0 -16px;padding:12px 16px}
+.tiny2{font-size:10.5px;color:var(--dim);margin-top:2px}
+.lgrid.dr{grid-template-columns:1fr 64px 110px;gap:6px}
+.dl{font-size:12px;color:var(--mut)}
+.dpct{display:flex;align-items:center;gap:3px;font-size:11px;color:var(--dim)}
+.dpct .in-n{padding:4px 6px;font-size:11.5px}
+.dsep{display:flex;justify-content:space-between;align-items:baseline;
+  border-top:1px dashed var(--line2);border-bottom:1px dashed var(--line2);
+  margin:7px 0;padding:6px 0;font:600 11px var(--sans);
+  text-transform:uppercase;letter-spacing:.06em;color:var(--txt)}
+.dsep b{font-size:13.5px}
+.lfinal{margin:6px -16px -18px;padding:14px 16px 16px;border-radius:0 0 18px 18px;
+  background:linear-gradient(180deg,var(--gold-dim),transparent);
+  display:flex;flex-direction:column;gap:2px}
+.lfinal span{font:600 10.5px var(--sans);text-transform:uppercase;
+  letter-spacing:.09em;color:var(--gold)}
+.lfinal b[data-o]{font-size:23px;font-family:var(--sans);
+  font-variant-numeric:tabular-nums;color:var(--txt)}
+.lfinal small{font-size:11px;color:var(--mut)}
+.lfinal.bad{background:linear-gradient(180deg,var(--red-dim),transparent)}
+.lfinal.bad span{color:var(--red)}
+.lfinal.bad b[data-o]{color:var(--red)}
+</style>
+{% endblock %}

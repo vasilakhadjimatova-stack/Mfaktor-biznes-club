@@ -17,15 +17,15 @@ from datetime import date, datetime
 
 from database import db
 from models import (Cohort, Contract, Course, DdsRow, InstallmentLine,
-                    Student, Transaction, Wallet)
+                    LaunchScenario, Student, Transaction, Wallet)
 
 FORMAT = "mfaktor-moliya-dump"
-VERSION = 2
+VERSION = 3
 
 # Tartib muhim: bog'lanishlar tufayli import shu tartibda, o'chirish
 # teskarisida bajariladi.
 TABLES = [Wallet, Course, Cohort, Student, Contract, InstallmentLine,
-          DdsRow, Transaction]
+          DdsRow, Transaction, LaunchScenario]
 
 
 def _val(v):

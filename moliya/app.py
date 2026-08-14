@@ -24,6 +24,7 @@ import core
 import ddsflow
 import education
 import kpi
+import launch
 import matching
 import notify
 import praytimes
@@ -723,6 +724,19 @@ def register_routes(app):
             return render_template("dds_excel.html", x=core.dds_excel(year),
                                    year=year)
         return render_template("dds.html", d=core.dds_matrix(year))
+
+    @app.route("/launch")
+    def launch_page():
+        return render_template("launch.html",
+                               scenarios=launch.all_scenarios())
+
+    @app.route("/launch/saqlash", methods=["POST"])
+    def launch_save():
+        ok = launch.save_scenarios((request.get_json(silent=True) or {})
+                                   .get("scenarios"))
+        if not ok:
+            return {"ok": False, "xato": "Ma'lumot tuzilishi noto'g'ri"}, 400
+        return {"ok": True}
 
     # ── Shartnomalarni to'lovlardan tiklash ───────────────────────
     @app.route("/contracts/tiklash")
