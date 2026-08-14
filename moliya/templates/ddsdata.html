@@ -152,12 +152,27 @@
       <select name="wallet2"><option value=""></option>{% for w in wallets2 %}<option>{{ w }}</option>{% endfor %}</select></div>
     <div style="flex:1;min-width:220px"><label>Назначение платежа</label><input name="purpose"></div>
     <div><label>Статья</label>
-      <select name="article">{% for a in articles %}<option>{{ a }}</option>{% endfor %}</select></div>
+      <select name="article" id="xl-art" onchange="pupilBox()">{% for a in articles %}<option>{{ a }}</option>{% endfor %}</select></div>
+    <div id="xl-pupil" style="display:none;min-width:230px"><label>O'quvchi (kim to'ladi?)</label>
+      <select name="contract_id">
+        <option value="">— tanlanmagan (navbatga tushadi) —</option>
+        {% for c in pupils %}
+        <option value="{{ c.id }}">{{ c.student.name }} — {{ c.cohort.name }}</option>
+        {% endfor %}
+      </select></div>
     <div><button id="xladd-btn">Сохранить</button></div>
   </form>
-  <p class="hint" style="margin-top:10px">Строка сразу попадает в кассу: кошелёк, статья и вид деятельности
-    подставятся автоматически. Если это платёж клиента — система сама найдёт договор
-    или положит его в «To'lovlar navbati».</p>
+  <p class="hint" style="margin-top:10px">Строка сразу попадает в кассу. Mijoz to'lovi bo'lsa —
+    <b>o'quvchini shu yerning o'zida tanlang</b>: shunda to'lov darhol shartnomaga bog'lanadi,
+    izohga ism yozilishiga hojat qolmaydi. Tanlanmasa, navbatga tushadi.</p>
+  <script>
+  function pupilBox(){
+    var art = document.getElementById("xl-art").value || "";
+    var box = document.getElementById("xl-pupil");
+    box.style.display = art.indexOf("Поступление от клиента") === 0 ? "" : "none";
+  }
+  document.addEventListener("DOMContentLoaded", pupilBox);
+  </script>
   </div>
 </details>
 

@@ -943,9 +943,13 @@ def register_routes(app):
         }
         sel = {"m": fm, "y": fy, "w": fw, "w2": fw2, "a": fa, "f": ff, "v": fv,
                "q": txt, "d1": d1, "d2": d2, "s1": s1, "s2": s2, "sort": sort}
+        # Mijoz to'lovi kiritilayotganda o'quvchini shu yerda tanlash uchun.
+        # Bu «manbada ushlash»: izohga ism yozilishiga umid qilinmaydi.
+        pupils = (Contract.query.filter_by(status="active")
+                  .join(Student).order_by(Student.name).all())
         return render_template("ddsdata.html", rows=rows, uniq=uniq, sel=sel,
                                total=len(rows), all_total=len(allr),
-                               inc=inc, exp=exp,
+                               inc=inc, exp=exp, pupils=pupils,
                                wallets=DDS_WALLETS, wallets2=DDS_WALLET2,
                                articles=[a for a, _, _ in DDS_SPRAVOCHNIK],
                                lookup=DDS_LOOKUP)
@@ -981,12 +985,21 @@ def register_routes(app):
         else:
             _, why = ddsflow.check_row(row)
             flash(f"Kassaga tushmadi: {why}", "err")
-        res = matching.auto_match(row)
-        if res == "auto":
-            steps.append(f"shartnomaga bog'landi ({row.contract.student.name})")
-            steps.append("to'lov grafigi yopildi")
-        elif res == "none":
-            steps.append("«Tanilmagan to'lovlar» navbatiga qo'yildi")
+        # Manbada ushlash: buxgalter o'quvchini shu yerda tanlagan bo'lsa,
+        # taxminlarga o'rin qolmaydi — to'g'ridan-to'g'ri bog'laymiz.
+        picked = db.session.get(Contract, int(f.get("contract_id") or 0))
+        if picked is not None and tx is not None:
+            matching.apply(row, picked, status="manual", score=1.0)
+            steps.append(f"o'quvchiga bog'landi ({picked.student.name})")
+            steps.append("to'lov grafigi yangilandi")
+        else:
+            res = matching.auto_match(row)
+            if res == "auto":
+                steps.append(f"shartnomaga bog'landi ({row.contract.student.name})")
+                steps.append("to'lov grafigi yopildi")
+            elif res == "none":
+                steps.append("DIQQAT: o'quvchi tanlanmadi — "
+                             "«To'lovlar navbati»ga tushdi")
         db.session.commit()
         if steps:
             flash("Qator qo'shildi — " + ", ".join(steps), "ok")
