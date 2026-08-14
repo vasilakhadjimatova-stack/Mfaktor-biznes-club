@@ -41,11 +41,50 @@
   </div></div>
 {% endif %}
 
+{# ── Oy va kurs bo'yicha filtrlar ── #}
+{% if months or art or month %}
+<div class="monthnav" style="margin-top:-6px">
+  <a class="chip {{ 'on' if not month }}"
+     href="?show={{ show }}{% if art %}&art={{ art }}{% endif %}">Hamma oy</a>
+  {% for m, n in months %}
+  <a class="chip {{ 'on' if month == m }}"
+     href="?show={{ show }}&oy={{ m }}{% if art %}&art={{ art }}{% endif %}">{{ m }} · {{ n }}</a>
+  {% endfor %}
+  <span style="margin-left:auto"></span>
+  {% for a, label in [('РОП','РОП'), ('СМК','СМК'), ('TBB','ТББ')] %}
+  <a class="chip {{ 'on' if art == a }}"
+     href="?show={{ show }}{% if month %}&oy={{ month }}{% endif %}{% if art != a %}&art={{ a }}{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── Ommaviy amallar ── #}
+{% if items and show in ('open', 'skipped') %}
+<form id="bulkform" method="post" action="/inbox/bulk"></form>
+<div class="card bulkbar">
+  <label class="bb-all"><input type="checkbox" onclick="tAll(this)"> Hammasini belgilash</label>
+  {% if show == 'open' %}
+  <input form="bulkform" name="reason" id="bulkreason" class="bb-reason"
+         placeholder="Chetlatish sababi (keyin ham ko'rinadi)">
+  <span class="chip-s" onclick="rq('Avvalgi guruhlar — reyestr kutilmoqda')">avvalgi guruh</span>
+  <span class="chip-s" onclick="rq('Guruh reyestri bo\'yicha hisoblangan (to\'plam to\'lov)')">reyestrda hisoblangan</span>
+  <button form="bulkform" class="btn sm">Belgilanganlarni chetlatish</button>
+  {% else %}
+  <input type="hidden" form="bulkform" name="act" value="restore">
+  <button form="bulkform" class="btn sm">Belgilanganlarni navbatga qaytarish</button>
+  {% endif %}
+</div>
+{% endif %}
+
 {% for it in items %}
 {% set r = it.row %}
 <div class="pay">
   {# ── Chap: ДДС qatori ── #}
   <div class="pay-src">
+    {% if show in ('open', 'skipped') %}
+    <label class="pk"><input type="checkbox" form="bulkform"
+           name="ids" value="{{ r.id }}"></label>
+    {% endif %}
     <div class="pay-amt">{{ r.amount|grp }} <small>so'm</small></div>
     <div class="pay-meta">
       <span class="tag dir">{{ it.direction }}</span>
@@ -77,6 +116,9 @@
         <button class="btn ghost sm">Bog'lanishni bekor qilish</button></form>
 
     {% elif show == 'skipped' %}
+      {% if r.skip_note %}
+      <div class="skipwhy">{{ r.skip_note }}</div>
+      {% endif %}
       <form method="post" action="/inbox/{{ r.id }}/restore">
         <button class="btn ghost sm">Navbatga qaytarish</button></form>
 
@@ -136,10 +178,44 @@
         </form>
       </details>
 
-      <form method="post" action="/inbox/{{ r.id }}/skip" class="skipf">
+      <form method="post" action="/inbox/{{ r.id }}/skip" class="skipf"
+            onsubmit="this.reason.value = prompt('Chetlatish sababi (ixtiyoriy):', '') || ''">
+        <input type="hidden" name="reason" value="">
         <button class="btn ghost sm">Bu shartnomaga tegishli emas</button></form>
     {% endif %}
   </div>
 </div>
 {% endfor %}
+
+<script>
+function tAll(box){
+  document.querySelectorAll('input[name="ids"][form="bulkform"]')
+    .forEach(function(c){ c.checked = box.checked; });
+}
+function rq(text){
+  var i = document.getElementById('bulkreason');
+  if (i) i.value = text;
+}
+</script>
+<style>
+.bulkbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+  padding:11px 15px;margin-bottom:14px;position:sticky;top:8px;z-index:5}
+.bb-all{display:flex;align-items:center;gap:8px;font-size:12.5px;
+  color:var(--mut);white-space:nowrap;cursor:pointer;text-transform:none;
+  letter-spacing:normal;margin:0}
+.bb-reason{flex:1;min-width:220px;padding:8px 11px;border-radius:10px;
+  border:1px solid var(--line2);background:var(--ink3);color:var(--txt);
+  font:400 13px var(--sans)}
+.chip-s{padding:4px 11px;border-radius:99px;font-size:11.5px;cursor:pointer;
+  background:var(--track);border:1px solid var(--line2);color:var(--mut);
+  white-space:nowrap;user-select:none}
+.chip-s:hover{color:var(--txt);border-color:var(--mut)}
+.btn.sm,button.sm{padding:7px 13px;font-size:12.5px}
+.pk{position:absolute;left:10px;top:12px;margin:0;cursor:pointer}
+.pk input{width:16px;height:16px;accent-color:var(--gold);cursor:pointer}
+.pay{position:relative}
+.pay .pay-src{padding-left:24px}
+.skipwhy{font-size:12px;color:var(--mut);background:var(--track);
+  border-radius:9px;padding:7px 11px;margin-bottom:8px;max-width:280px}
+</style>
 {% endblock %}

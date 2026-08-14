@@ -416,6 +416,9 @@ class DdsRow(db.Model):
     # shu yozilgan qism qaytarilishi kerak, aks holda boshqa to'lovning puli
     # ham yechilib ketardi.
     applied_amount = db.Column(db.Float, default=0.0)
+    # chetlatish sababi — «nega bu to'lov navbatda emas» degan savolga
+    # keyin ham javob topilsin (masalan: «avvalgi guruhlar, reyestr yo'q»)
+    skip_note = db.Column(db.String(200), default="")
 
     tx = db.relationship("Transaction", backref="dds_row", uselist=False,
                          foreign_keys="Transaction.dds_row_id")

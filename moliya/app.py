@@ -1108,11 +1108,30 @@ def register_routes(app):
     @app.route("/inbox")
     def payments_inbox():
         show = request.args.get("show", "open")
-        items = matching.inbox(show=show)
+        art = request.args.get("art", "")
+        month = request.args.get("oy", "")
+        items = matching.inbox(show=show, art=art, month=month)
         return render_template("inbox.html", items=items, show=show,
+                               art=art, month=month,
+                               months=matching.inbox_months(show),
                                st=matching.stats(),
                                cohorts=Cohort.query.order_by(
                                    Cohort.start_date.desc()).all())
+
+    @app.route("/inbox/bulk", methods=["POST"])
+    def inbox_bulk():
+        """Belgilangan qatorlarni birdan chetlatish yoki qaytarish."""
+        ids = [int(x) for x in request.form.getlist("ids") if x.isdigit()]
+        if not ids:
+            flash("Hech narsa belgilanmagan", "err")
+            return redirect(request.referrer or url_for("payments_inbox"))
+        if request.form.get("act") == "restore":
+            n = matching.bulk_restore(ids)
+            flash(f"{n} ta to'lov navbatga qaytarildi", "ok")
+        else:
+            n = matching.bulk_skip(ids, request.form.get("reason", ""))
+            flash(f"{n} ta to'lov chetlatildi", "ok")
+        return redirect(request.referrer or url_for("payments_inbox"))
 
     @app.route("/inbox/<int:rid>/link", methods=["POST"])
     def inbox_link(rid):
@@ -1151,6 +1170,7 @@ def register_routes(app):
         if row:
             matching.unapply(row)
             row.match_status = "skipped"
+            row.skip_note = (request.form.get("reason") or "").strip()[:200]
             db.session.commit()
             flash("Navbatdan olib tashlandi", "ok")
         return redirect(request.referrer or url_for("payments_inbox"))
@@ -1160,6 +1180,7 @@ def register_routes(app):
         row = db.session.get(DdsRow, rid)
         if row:
             row.match_status = "none"
+            row.skip_note = ""
             db.session.commit()
         return redirect(request.referrer or url_for("payments_inbox"))
 

@@ -295,8 +295,12 @@ def run_all(commit=True):
 # ══════════════════════════════════════════════════════════════════
 #  Navbat («Tanilmagan to'lovlar»)
 # ══════════════════════════════════════════════════════════════════
-def inbox(limit=200, show="open"):
-    """Navbatdagi qatorlar + har biriga tayyor takliflar."""
+def inbox(limit=300, show="open", art="", month=""):
+    """Navbatdagi qatorlar + har biriga tayyor takliflar.
+
+    art   — kurs belgisi bo'yicha filtr (РОП / СМК / ТББ)
+    month — oy bo'yicha filtr («2026-06» ko'rinishida)
+    """
     q = DdsRow.query.filter(DdsRow.article.in_(_client_article_names()))
     if show == "open":
         q = q.filter(db.or_(DdsRow.contract_id.is_(None),
@@ -306,14 +310,61 @@ def inbox(limit=200, show="open"):
         q = q.filter(DdsRow.match_status == "skipped")
     elif show == "matched":
         q = q.filter(DdsRow.contract_id.isnot(None))
-    rows = q.order_by(DdsRow.ddate.desc(), DdsRow.rownum.desc()).limit(limit).all()
+    if art:
+        q = q.filter(DdsRow.article.like(f"%{art}%"))
+    rows = q.order_by(DdsRow.ddate.desc(), DdsRow.rownum.desc()).all()
+    if month:
+        rows = [r for r in rows if r.ddate and r.ddate.strftime("%Y-%m") == month]
     out = []
-    for r in rows:
+    for r in rows[:limit]:
         out.append({"row": r,
                     "direction": ddsflow.direction_for(r.article),
                     "named": looks_like_name(r.purpose),
                     "cands": candidates(r, limit=3) if show != "matched" else []})
     return out
+
+
+def inbox_months(show="open"):
+    """Filtr chiplari uchun: qaysi oylarda nechta qator bor."""
+    from collections import Counter
+    q = DdsRow.query.filter(DdsRow.article.in_(_client_article_names()))
+    if show == "open":
+        q = q.filter(DdsRow.contract_id.is_(None),
+                     DdsRow.match_status.notin_(["skipped", "new"]))
+    elif show == "skipped":
+        q = q.filter(DdsRow.match_status == "skipped")
+    elif show == "matched":
+        q = q.filter(DdsRow.contract_id.isnot(None))
+    c = Counter(r.ddate.strftime("%Y-%m") for r in q.all() if r.ddate)
+    return sorted(c.items())
+
+
+def bulk_skip(ids, reason=""):
+    """Bir nechta qatorni birdan chetlatish (sabab bilan)."""
+    n = 0
+    for rid in ids:
+        row = db.session.get(DdsRow, rid)
+        if row is None:
+            continue
+        unapply(row)
+        row.match_status = "skipped"
+        row.skip_note = (reason or "").strip()[:200]
+        n += 1
+    db.session.commit()
+    return n
+
+
+def bulk_restore(ids):
+    """Chetlatilganlarni navbatga qaytarish."""
+    n = 0
+    for rid in ids:
+        row = db.session.get(DdsRow, rid)
+        if row is not None and row.match_status == "skipped":
+            row.match_status = "none"
+            row.skip_note = ""
+            n += 1
+    db.session.commit()
+    return n
 
 
 def _client_article_names():
