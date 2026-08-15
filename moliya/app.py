@@ -667,8 +667,11 @@ def register_routes(app):
             return render_template("taqvim.html", view="year", y=y, m=m,
                                    d=data, oy=oy)
         data = paycal.month_data(y, m)
-        return render_template("taqvim.html", view="month", y=y, m=m,
-                               d=data, oy=oy)
+        return render_template("taqvim.html",
+                               view=("table" if view == "table" else "month"),
+                               y=y, m=m, d=data, oy=oy,
+                               first_wd=date(y, m, 1).weekday(),
+                               today=date.today())
 
     @app.route("/taqvim/set", methods=["POST"])
     def taqvim_set():

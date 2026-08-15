@@ -4,22 +4,27 @@
 
 <div class="xl-top">
   <h1 style="margin:0">To'lov taqvimi</h1>
-  <span class="xl-badge">Ежедневный календарь расходов — Sheets ko'rinishi</span>
+  {% if view == 'table' %}
   <button type="button" class="xl-fs" style="margin-left:auto" onclick="xlFull()"
           title="Jadval butun ekranni oladi (Esc — chiqish)">⛶ Katta ekran</button>
+  {% endif %}
 </div>
-<p class="sub">Xarajatlar rejasi kun kesimida. <b>Reja</b> katagini bosib joyida
-  kiriting — jami va og'ishlar o'zi qayta hisoblanadi. <b>Fakt</b> kassadan
-  avtomatik tushadi, qo'lda ko'chirilmaydi.</p>
+<p class="sub">Xarajatlar rejasi kun kesimida. Kunni bosib o'sha kunning
+  rejasini kiriting — <b>fakt</b> kassadan avtomatik tushadi, qo'lda
+  ko'chirilmaydi.</p>
 
 <div class="monthnav" style="flex-wrap:wrap">
-  {% if view == 'month' %}
+  {% if view != 'year' %}
     {% set py, pm = (y-1, 12) if m == 1 else (y, m-1) %}
     {% set ny, nm = (y+1, 1) if m == 12 else (y, m+1) %}
-    <a class="chip" href="/taqvim?y={{py}}&m={{pm}}">← {{ oy[pm] }}</a>
+    <a class="chip" href="/taqvim?y={{py}}&m={{pm}}&view={{view}}">← {{ oy[pm] }}</a>
     <span class="chip on">{{ oy[m] }} {{ y }}</span>
-    <a class="chip" href="/taqvim?y={{ny}}&m={{nm}}">{{ oy[nm] }} →</a>
-    <a class="chip" href="/taqvim?view=year&y={{y}}">Yillik jadval</a>
+    <a class="chip" href="/taqvim?y={{ny}}&m={{nm}}&view={{view}}">{{ oy[nm] }} →</a>
+    <span class="vsw">
+      <a class="chip {{ 'on' if view == 'month' }}" href="/taqvim?y={{y}}&m={{m}}">Kalendar</a>
+      <a class="chip {{ 'on' if view == 'table' }}" href="/taqvim?y={{y}}&m={{m}}&view=table">Jadval</a>
+      <a class="chip" href="/taqvim?view=year&y={{y}}">Yillik</a>
+    </span>
     <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       <form method="post" action="/taqvim/fill?y={{y}}&m={{m}}">
         <button class="btn ghost" title="Sozlamalardagi takrorlanuvchi to'lovlar (ijara, oyliklar...) reja bo'lib tushadi">
@@ -35,12 +40,223 @@
     <a class="chip" href="/taqvim?view=year&y={{y-1}}">← {{ y-1 }}</a>
     <span class="chip on">{{ y }} yil</span>
     <a class="chip" href="/taqvim?view=year&y={{y+1}}">{{ y+1 }} →</a>
-    <a class="chip" href="/taqvim?y={{y}}&m={{m}}">Oylik taqvim</a>
+    <a class="chip" href="/taqvim?y={{y}}&m={{m}}">Oylik kalendar</a>
   {% endif %}
 </div>
 
 {% if view == 'month' %}
-{# ═══════════ OYLIK: statya × kun ═══════════ #}
+{# ═══════════ HAQIQIY KALENDAR: hafta × kun katakchalari ═══════════ #}
+<div class="card pcal-card">
+  <div class="pcal-head">
+    {% for w in ['Du','Se','Cho','Pa','Ju','Sha','Ya'] %}
+    <span class="{{ 'we' if loop.index0 >= 5 }}">{{ w }}</span>
+    {% endfor %}
+  </div>
+  <div class="pcal">
+    {% for _ in range(first_wd) %}<div class="pcal-cell empty"></div>{% endfor %}
+    {% for day in d.days %}
+    {% set i = loop.index0 %}
+    {% set p, f = d.day_p[i], d.day_f[i] %}
+    <div class="pcal-cell {{ 'we' if day.we }}
+                {{ 'today' if today.year == y and today.month == m and today.day == day.d }}"
+         data-d="{{ day.d }}" tabindex="0" role="button"
+         onclick="openDay({{ day.d }})"
+         onkeydown="if(event.key==='Enter')openDay({{ day.d }})">
+      <span class="pd">{{ day.d }}</span>
+      <span class="pp" data-pp="{{ day.d }}">{% if p %}R {{ p|grp }}{% endif %}</span>
+      <span class="pf {{ 'ov' if p and f > p }}">{% if f %}F {{ f|grp }}{% endif %}</span>
+      <i class="pbar" data-pb="{{ day.d }}">{% if p %}<b class="{{ 'ov' if f > p }}"
+        style="width:{{ [100, (f / p * 100)|round|int]|min }}%"></b>{% endif %}</i>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="pcal-sum">
+    <span>Oy rejasi: <b id="pcal-tp">{{ d.total_p|grp }}</b></span>
+    <span>Fakt: <b>{{ d.total_f|grp }}</b></span>
+    <span>Farq: <b class="{{ 'neg2' if d.total_diff > 0 }}">{{ d.total_diff|grp }}</b></span>
+  </div>
+</div>
+
+{# kun paneli: shu kunning statya kesimi + reja kiritish #}
+<div class="card pcal-panel" id="pcal-panel" hidden>
+  <div class="pcal-p-head">
+    <b id="pp-title"></b>
+    <button type="button" class="pclose" onclick="closeDay()">✕</button>
+  </div>
+  <div class="pp-grid pp-h"><span>Statya</span><span class="r">Reja</span><span class="r">Fakt</span></div>
+  <div id="pp-rows"></div>
+  <div class="pp-add">
+    <select id="pp-cat">
+      {% for g in d.groups %}<optgroup label="{{ g.name }}">
+        {% for r in g.rows %}<option>{{ r.cat }}</option>{% endfor %}
+      </optgroup>{% endfor %}
+    </select>
+    <input id="pp-sum" placeholder="reja summasi" inputmode="numeric" autocomplete="off">
+    <button type="button" class="btn" onclick="addPlan()">+ Reja</button>
+  </div>
+  <p class="hint" style="margin:8px 0 0">Reja kiritilsa shu kunga yoziladi; 0 — o'chiradi.
+    Fakt kassadan avtomatik keladi, bu yerda o'zgartirilmaydi.</p>
+</div>
+
+<script>
+var GROUPS = {{ d.groups|tojson }};
+var Y = {{ y }}, M = {{ m }}, OYNOMI = {{ oy[m]|tojson }};
+var curD = null;
+function pfmt(v){
+  v = Math.round(v);
+  return v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "";
+}
+/* katak ichida joy tor — ixcham ko'rinish (to'lig'i kun panelida) */
+function pshort(v){
+  v = Math.round(v);
+  var a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toFixed(1).replace(".0", "").replace(".", ",") + " mlrd";
+  if (a >= 1e6) return (v / 1e6).toFixed(1).replace(".0", "").replace(".", ",") + " mln";
+  if (a >= 1e4) return Math.round(v / 1e3) + " ming";
+  return String(v);
+}
+document.querySelectorAll(".pcal .pp, .pcal .pf").forEach(function(el){
+  var m = el.textContent.trim().match(/^([RF]) ([\d\s ]+)$/);
+  if (!m) return;
+  el.textContent = m[1] + " " + pshort(parseInt(m[2].replace(/[\s ]/g, ""), 10));
+});
+function dayRows(dd){
+  var out = [];
+  GROUPS.forEach(function(g){ g.rows.forEach(function(r){
+    if ((r.p[dd - 1] || 0) || (r.f[dd - 1] || 0))
+      out.push({cat: r.cat, p: r.p[dd - 1] || 0, f: r.f[dd - 1] || 0, ref: r});
+  }); });
+  return out;
+}
+function openDay(dd){
+  curD = dd;
+  var panel = document.getElementById("pcal-panel");
+  panel.hidden = false;
+  document.getElementById("pp-title").textContent = dd + "-" + OYNOMI + " " + Y;
+  var rows = dayRows(dd);
+  document.getElementById("pp-rows").innerHTML = rows.length ? rows.map(function(r){
+    return '<div class="pp-grid">' +
+      '<span class="pp-cat" title="' + r.cat.replace(/"/g, "&quot;") + '">' + r.cat + '</span>' +
+      '<input class="pp-in" inputmode="numeric" value="' + (r.p ? pfmt(r.p) : "") + '" ' +
+        'placeholder="—" onchange=\'savePlan(this, ' + JSON.stringify(r.cat) + ')\'>' +
+      '<span class="r ppf' + (r.p && r.f > r.p ? " ov" : "") + '">' + (pfmt(r.f) || "—") + '</span></div>';
+  }).join("") : '<div class="hint" style="margin:6px 0">Bu kunga hali reja ham, fakt ham yo\'q</div>';
+  document.querySelectorAll(".pcal-cell").forEach(function(c){
+    c.classList.toggle("sel", +c.dataset.d === dd);
+  });
+  panel.scrollIntoView({block: "nearest", behavior: "smooth"});
+}
+function closeDay(){
+  document.getElementById("pcal-panel").hidden = true;
+  document.querySelectorAll(".pcal-cell.sel").forEach(function(c){ c.classList.remove("sel"); });
+  curD = null;
+}
+function savePlan(inp, cat){
+  var raw = String(inp.value).replace(/[\s ]/g, "").replace(",", ".");
+  var val = parseFloat(raw) || 0;
+  var body = new URLSearchParams({y: Y, m: M, d: curD, cat: cat, amount: val});
+  fetch("/taqvim/set", {method: "POST", body: body})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (!j.ok) return;
+      GROUPS.forEach(function(g){ g.rows.forEach(function(r){
+        if (r.cat === cat) r.p[curD - 1] = val;
+      }); });
+      // katakni yangilash
+      var p = 0, f = 0;
+      GROUPS.forEach(function(g){ g.rows.forEach(function(r){
+        p += r.p[curD - 1] || 0; f += r.f[curD - 1] || 0;
+      }); });
+      var pp = document.querySelector('[data-pp="' + curD + '"]');
+      if (pp) pp.textContent = p ? "R " + pshort(p) : "";
+      var pb = document.querySelector('[data-pb="' + curD + '"]');
+      if (pb) pb.innerHTML = p ? '<b class="' + (f > p ? "ov" : "") +
+        '" style="width:' + Math.min(100, Math.round(f / p * 100)) + '%"></b>' : "";
+      var tp = document.getElementById("pcal-tp");
+      if (tp) tp.textContent = pfmt(j.total_p) || "0";
+      openDay(curD);
+    });
+}
+function addPlan(){
+  var cat = document.getElementById("pp-cat").value;
+  var inp = document.getElementById("pp-sum");
+  var raw = String(inp.value).replace(/[\s ]/g, "").replace(",", ".");
+  var val = parseFloat(raw) || 0;
+  if (!val || !curD) return;
+  var fake = {value: val};
+  savePlan(fake, cat);
+  inp.value = "";
+}
+</script>
+
+<style>
+.pcal-card{padding:14px 14px 12px}
+.pcal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+  margin-bottom:6px;font:600 10px var(--sans);text-transform:uppercase;
+  letter-spacing:.07em;color:var(--dim);text-align:center}
+.pcal-head .we{color:var(--gold)}
+.pcal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.pcal-cell{min-height:74px;min-width:0;overflow:hidden;
+  border:1px solid var(--line);border-radius:11px;
+  background:var(--ink3);padding:6px 7px;display:flex;flex-direction:column;
+  gap:1px;cursor:pointer;position:relative;transition:border-color .15s}
+.pcal-cell:hover{border-color:var(--gold)}
+.pcal-cell.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.pcal-cell.empty{background:transparent;border-color:transparent;cursor:default}
+.pcal-cell.we{background:var(--card-faint)}
+.pcal-cell.today .pd{background:var(--gold);color:#1b1405;border-radius:7px;
+  padding:0 6px}
+.pd{font:700 12px var(--sans);color:var(--mut);align-self:flex-start}
+.pp{font-size:9.5px;color:var(--gold);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.pf{font-size:9.5px;color:var(--green);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.pf.ov{color:var(--red)}
+.pbar{position:absolute;left:7px;right:7px;bottom:5px;height:3px;
+  border-radius:3px;background:var(--track);overflow:hidden}
+.pbar b{display:block;height:100%;background:var(--green);border-radius:3px}
+.pbar b.ov{background:var(--red)}
+.pcal-sum{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;
+  font-size:12px;color:var(--mut)}
+.pcal-sum b{color:var(--txt)}
+.pcal-sum .neg2{color:var(--red)}
+.pcal-panel{margin-top:14px;padding:14px 16px}
+.pcal-p-head{display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:9px}
+.pcal-p-head b{font-size:14.5px}
+.pclose{padding:2px 10px;background:transparent;border:1px solid var(--line2);
+  color:var(--mut);box-shadow:none;border-radius:8px}
+.pp-grid{display:grid;grid-template-columns:1fr 110px 96px;gap:8px;
+  align-items:center;padding:4px 0;border-bottom:1px dashed var(--line)}
+.pp-grid.pp-h{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--dim);border-bottom:1px solid var(--line2)}
+.pp-cat{font-size:12px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.pp-in{width:100%;background:var(--ink3);border:1px solid var(--line);
+  border-radius:8px;padding:6px 8px;color:var(--txt);font-size:12.5px;
+  text-align:right;font-variant-numeric:tabular-nums}
+.pp-in:focus{outline:0;border-color:var(--gold)}
+.ppf{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--green)}
+.ppf.ov{color:var(--red)}
+.pp-add{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pp-add select{flex:1;min-width:200px;background:var(--ink3);
+  border:1px solid var(--line);border-radius:9px;padding:8px;color:var(--txt)}
+.pp-add input{width:140px;background:var(--ink3);border:1px solid var(--line);
+  border-radius:9px;padding:8px;color:var(--txt);text-align:right}
+.vsw{display:flex;gap:6px}
+@media(max-width:700px){
+  .pcal{gap:4px}
+  .pcal-cell{min-height:62px;padding:4px 5px;border-radius:9px}
+  .pp,.pf{font-size:8.5px}
+  .pd{font-size:11px}
+  .pp-grid{grid-template-columns:1fr 92px 70px}
+  .pp-add input,.pp-add select{font-size:16px}
+  .pp-in{font-size:16px}
+}
+</style>
+
+{% elif view == 'table' %}
+{# ═══════════ JADVAL (Sheets ko'rinishi): statya × kun ═══════════ #}
 <div class="xl-wrap">
 <table class="xl x3">
   <thead>
