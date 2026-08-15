@@ -329,6 +329,20 @@ button.danger{background:transparent;color:var(--red);border:1px solid var(--red
 @keyframes toast{from{transform:translateY(-14px);opacity:0}}
 @keyframes fadeout{to{opacity:0;visibility:hidden}}
 
+/* PWA tasdiq xabari (confirm o'rnini bosuvchi) */
+#pwatoast{position:fixed;left:50%;transform:translateX(-50%) translateY(16px);
+  bottom:calc(96px + env(safe-area-inset-bottom));z-index:120;max-width:88vw;
+  padding:11px 16px;border-radius:12px;background:var(--ink3);
+  border:1px solid var(--gold);color:var(--txt);font-size:13px;font-weight:600;
+  box-shadow:var(--shadow);opacity:0;pointer-events:none;
+  transition:opacity .25s, transform .25s}
+#pwatoast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Teginishli ekranlar: tugma nishonlari yetarlicha katta bo'lsin */
+@media (pointer: coarse){
+  button,.btn{min-height:38px}
+}
+
 /* ── Misc ── */
 .bar{height:7px;background:var(--track);border-radius:6px;overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--btn-g2),var(--btn-g1));border-radius:6px}
@@ -1998,6 +2012,48 @@ function initCharts(){
   }
 }
 initCharts();
+
+/* ── PWA (o'rnatilgan ilova) rejimida confirm/prompt/alert tuzatmasi ──
+   iOS'da standalone rejimda bu oynalar ochilmay, jimgina false qaytarishi
+   mumkin — natijada confirm bilan himoyalangan tugmalar «bosilmayapti»
+   bo'lib ko'rinadi. O'rniga: birinchi bosishda pastda xabar chiqadi,
+   3.5 soniya ichida QAYTA bosilsa — tasdiq deb qabul qilinadi. */
+(function () {
+  var standalone = (window.matchMedia &&
+    matchMedia("(display-mode: standalone)").matches) ||
+    window.navigator.standalone === true;
+  if (!standalone) return;
+
+  function toast(msg) {
+    var t = document.getElementById("pwatoast");
+    if (!t) {
+      t = document.createElement("div");
+      t.id = "pwatoast";
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.className = "show";
+    clearTimeout(t._h);
+    t._h = setTimeout(function () { t.className = ""; }, 3400);
+  }
+
+  var armedMsg = null, armedTimer = null;
+  window.confirm = function (msg) {
+    msg = String(msg || "Tasdiqlaysizmi?");
+    if (armedMsg === msg) {
+      armedMsg = null;
+      clearTimeout(armedTimer);
+      return true;
+    }
+    armedMsg = msg;
+    clearTimeout(armedTimer);
+    armedTimer = setTimeout(function () { armedMsg = null; }, 3500);
+    toast("Tasdiqlash uchun tugmani YANA bir marta bosing");
+    return false;
+  };
+  window.alert = function (msg) { toast(String(msg || "")); };
+  window.prompt = function (msg, def) { return def == null ? "" : def; };
+})();
 </script>
 </body>
 </html>

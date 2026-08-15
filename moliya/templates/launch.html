@@ -795,5 +795,18 @@ render();
   margin-left:auto;min-width:3px;transition:width .3s}
 .bar2.dn{background:var(--red)}
 .bar2.gold{background:linear-gradient(90deg,var(--btn-g2),var(--btn-g1))}
+
+/* Teginishli ekranlar (telefon): hover yo'q — o'chirish tugmalari doim
+   ko'rinsin, nishonlar kattaroq, kirishda iOS zoom bo'lmasligi uchun 16px */
+@media (pointer: coarse){
+  .rowdel{opacity:.75;width:26px;height:26px;font-size:12px}
+  .lgrid{grid-template-columns:1fr 76px 46px 84px 26px}
+  .lgrid.xr{grid-template-columns:1fr 84px 44px 78px 26px}
+  .ic{width:38px;height:38px}
+  .mode{min-height:30px}
+  .kun{padding:7px 10px;font-size:11px;min-height:30px}
+  .in-t,.in-n,.ld,select.ld{font-size:16px}
+  .livesub .lq,.dpct .in-n,.persub .pd{font-size:14px}
+}
 </style>
 {% endblock %}
