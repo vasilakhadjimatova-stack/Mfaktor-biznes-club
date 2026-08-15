@@ -30,7 +30,7 @@
 })();
 function syncThemeColor(t){
   var m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.content = t === "light" ? "#efebe1" : "#0b0e13";
+  if (m) m.content = t === "light" ? "#faf8f2" : "#0b0e13";
 }
 </script>
 <style>
@@ -166,6 +166,23 @@ nav .sep{margin:14px 12px 6px;font-size:10px;letter-spacing:.2em;color:var(--sid
 .theme-btn svg{width:15px;height:15px}
 :root[data-theme="dark"] .tl-sun{display:none}
 :root[data-theme="light"] .tl-moon{display:none}
+
+/* ── Yorug' mavzuda korpus ham oq: chinni panel + shampan zar ──
+   Qora yuqori panel va tabbar faqat tungi mavzuga tegishli. */
+:root[data-theme="light"]{
+  --side-bg1:rgba(253,251,246,.9); --side-bg2:rgba(247,243,235,.96);
+  --side-line:rgba(146,118,60,.22);
+  --side-txt:#241f14; --side-mut:#6f6754; --side-dim:#a89f8b;
+  --side-hover:rgba(156,113,24,.07);
+}
+:root[data-theme="light"] aside::after{background:
+  radial-gradient(420px 210px at 18% 0%, rgba(201,150,47,.10), transparent 70%)}
+:root[data-theme="light"] aside nav a.on{color:#8a6414;
+  background:rgba(201,150,47,.13)}
+:root[data-theme="light"] aside nav a.on::before{
+  background:linear-gradient(180deg,#c9962f,#9c7118)}
+:root[data-theme="light"] .side-foot b{color:#8a6414}
+:root[data-theme="light"] .ml-fill{filter:drop-shadow(0 1px 4px rgba(236,28,36,.18))}
 
 main{padding:22px 34px 70px;max-width:1560px;width:100%;min-width:0}
 
@@ -1336,6 +1353,31 @@ body.xlfull .xl-fs-exit{display:block}
   .tabbar a:active svg,.tabbar button.tab:active svg{transform:scale(.86)}
   .tabbar button.tab:hover{filter:none;transform:none}
   main{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+
+  /* yorug' mavzu: tabbar fil suyagi oynasi, tepasida zar hairline */
+  :root[data-theme="light"] .tabbar{
+    background:linear-gradient(180deg,rgba(253,251,246,.94),rgba(247,243,235,.98));
+    border-top-color:transparent;
+    box-shadow:0 -10px 30px rgba(120,95,40,.13),
+               inset 0 1px 0 rgba(255,255,255,.9)}
+  :root[data-theme="light"] .tabbar::before{content:"";position:absolute;
+    left:0;right:0;top:-1px;height:1.5px;
+    background:linear-gradient(90deg,transparent 4%,rgba(201,160,60,.65),
+      rgba(238,204,126,.9),rgba(201,160,60,.65),transparent 96%)}
+  :root[data-theme="light"] .tabbar a.on{color:#8a6414}
+  :root[data-theme="light"] .tabbar a.on svg{
+    filter:drop-shadow(0 1px 5px rgba(156,113,24,.35))}
+  :root[data-theme="light"] .tabbar .tb-pill{
+    background:linear-gradient(180deg,rgba(201,150,47,.2),rgba(201,150,47,.05));
+    border-color:rgba(156,113,24,.3);
+    box-shadow:0 3px 10px -4px rgba(156,113,24,.4),
+               inset 0 1px 0 rgba(255,255,255,.75)}
+  /* yorug' mavzu: mobil yuqori panel osti ham zar hairline */
+  :root[data-theme="light"] aside{border-bottom-color:transparent}
+  :root[data-theme="light"] aside::before{content:"";position:absolute;
+    left:0;right:0;bottom:0;height:1.5px;z-index:2;
+    background:linear-gradient(90deg,transparent 4%,rgba(201,160,60,.65),
+      rgba(238,204,126,.9),rgba(201,160,60,.65),transparent 96%)}
 }
 
 /* ── Mobil menyu sheet ── */
