@@ -170,6 +170,40 @@ def fakt_sums(items):
     return out
 
 
+def dars_journal(queries, start, end):
+    """Dars kunlari kesimi: bog'langan xarajatlar sana bo'yicha yig'iladi.
+
+    Davr ichida qidiruv so'zlariga mos chiqim tushgan har bir sana = bitta
+    dars. Qaytadi: [{"d": sana, "s": jami, "n": nechta, "items": [...]}]
+    """
+    qs = [dds_norm(q) for q in queries if dds_norm(str(q or ""))]
+    if not qs:
+        return []
+    d1, d2 = _parse_d(start), _parse_d(end)
+    days = {}
+    for r in DdsRow.query.all():
+        if dds_activity(r.article) == "Техническая операция":
+            continue
+        if dds_group(r.article) != "Выбытие" or not r.ddate:
+            continue
+        text = dds_norm(r.article) + " " + dds_norm(r.purpose)
+        if not any(q in text for q in qs):
+            continue
+        if d1 and r.ddate < d1:
+            continue
+        if d2 and r.ddate > d2:
+            continue
+        day = days.setdefault(r.ddate.isoformat(),
+                              {"s": 0.0, "n": 0, "items": []})
+        amt = float(r.amount or 0)
+        day["s"] += amt
+        day["n"] += 1
+        day["items"].append({"p": (r.purpose or r.article or "").strip()[:60],
+                             "a": round(amt)})
+    return [{"d": k, "s": round(v["s"]), "n": v["n"], "items": v["items"]}
+            for k, v in sorted(days.items())]
+
+
 def save_scenarios(scenarios):
     """Hammasini butunlay almashtirib saqlaydi (sahifadagi holat = baza)."""
     if not isinstance(scenarios, list) or len(scenarios) > 12:

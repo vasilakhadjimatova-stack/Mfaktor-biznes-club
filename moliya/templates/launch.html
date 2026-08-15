@@ -15,10 +15,13 @@
 
 <div id="lcompare"></div>
 
+<div id="ldars"></div>
+
 <div class="lrow" id="lrow"></div>
 
 <script>
 var STATE = {{ scenarios|tojson }};
+var WALLETS = {{ wallets|tojson }};
 
 /* ── formatlash ── */
 function grp(n){
@@ -95,6 +98,7 @@ function render(){
   var host = document.getElementById("lrow");
   host.innerHTML = STATE.map(function(s, i){ return column(s, i); }).join("");
   STATE.forEach(function(_, i){ recalc(i); });
+  renderDarsAll();
 }
 function column(s, i){
   var live = s.live || {};
@@ -251,7 +255,7 @@ function recalc(i){
   if (ts) ts.textContent = c.tbu == null ? "—" : grp(c.tbu);
   var fin = document.querySelectorAll(".lfinal")[i];
   if (fin) fin.classList.toggle("bad", c.final < 0);
-  if (s.live && s.live.on) scheduleFakt(i);
+  if (s.live && s.live.on) { scheduleFakt(i); scheduleDars(i); }
   renderCompare();
 }
 
@@ -331,6 +335,141 @@ function fetchFakt(i){
          grp(xarajatF) + " = " + grp(tushumF - xarajatF) + " so'm",
          tushumF - xarajatF < 0);
   }).catch(function(){});
+}
+
+/* ── darslar jurnali: har dars kuni = bitta kartochka ──
+   Kiritish YO'Q — bog'langan «kishi» qatorlarning ДДС yozuvlari sana
+   bo'yicha darslarga taqsimlanadi. Tez kiritish oddiy ДДС qatori yaratadi. */
+var DARS = {}, darsTimers = {};
+var UZ_KUN = ["yak", "du", "se", "cho", "pa", "ju", "sha"];
+function perRows(s){
+  var out = [];
+  s.blocks.forEach(function(b){ b.rows.forEach(function(r){
+    if (r.m === "per") out.push(r);
+  }); });
+  return out;
+}
+function scheduleDars(i){
+  clearTimeout(darsTimers[i]);
+  darsTimers[i] = setTimeout(function(){ fetchDars(i); }, 600);
+}
+function fetchDars(i){
+  var s = STATE[i], live = s.live || {};
+  if (!live.on) return;
+  var qs = perRows(s).map(function(r){ return r.q || ""; })
+                     .filter(function(q){ return q; });
+  if (!qs.length) { DARS[i] = {days: []}; renderDarsAll(); return; }
+  fetch("/launch/darslar", {method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({qs: qs, start: live.start || "", end: live.end || ""})
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (!j.ok) return;
+    DARS[i] = {days: j.days || []};
+    renderDarsAll();
+  }).catch(function(){});
+}
+function renderDarsAll(){
+  var host = document.getElementById("ldars");
+  var h = "";
+  STATE.forEach(function(s, i){
+    if (s.live && s.live.on) h += darsSection(s, i);
+  });
+  host.innerHTML = h;
+}
+function darsSection(s, i){
+  var c = calc(s), pr = perRows(s);
+  var norm = 0, planTotal = 0, D = 0;
+  pr.forEach(function(r){
+    norm += num(r.v) * c.totalQty;
+    var d = num(r.d) || 1;
+    planTotal += num(r.v) * c.totalQty * d;
+    if (d > D) D = d;
+  });
+  var days = (DARS[i] || {}).days;
+  var h = '<div class="card dj"><div class="dj-head">' +
+    '<div class="dj-t">Darslar jurnali — ' + esc(s.name) + '</div>' +
+    '<button class="addrow" onclick="djToggle(' + i + ')">+ bugungi dars xarajati</button></div>';
+  h += '<div class="dj-form" id="djf' + i + '" hidden>' +
+    '<input type="date" class="ld" id="djd' + i + '" value="' + todayISO() + '">' +
+    '<input class="in-n djn" id="djs' + i + '" placeholder="summa">' +
+    '<select class="ld" id="djw' + i + '">' + WALLETS.map(function(w){
+      return '<option value="' + esc(w.v) + '">' + esc(w.t) + '</option>';
+    }).join("") + '</select>' +
+    '<input class="in-t djn2" id="dji' + i + '" placeholder="izoh: kofe break 5-dars">' +
+    '<button class="btn djb" onclick="djSave(' + i + ')">ДДСga yozish</button>' +
+    '<span class="djerr" id="dje' + i + '"></span></div>';
+  if (days == null) return h + '<div class="tiny2">Yuklanmoqda…</div></div>';
+  if (!pr.length || !days.length) {
+    return h + '<div class="tiny2">Hali dars xarajati topilmadi — «kishi» ' +
+      'rejimdagi qatorda ДДС qidiruv so\'zi bo\'lishi kerak (masalan «кофе») ' +
+      'va davr to\'g\'ri turishi kerak.</div></div>';
+  }
+  var total = 0;
+  days.forEach(function(d){ total += d.s; });
+  var avg = total / days.length;
+  h += '<div class="dj-stats">';
+  h += djTile("O'tgan darslar", days.length + (D ? " / " + D : ""), "", false);
+  h += djTile("Norma — 1 dars", grp(norm), "", false);
+  var avgD = norm ? Math.round((avg - norm) / norm * 100) : null;
+  h += djTile("O'rtacha — 1 dars", grp(avg),
+    avgD == null ? "" : (avgD >= 0 ? "+" : "") + avgD + "% normaga", avgD > 0);
+  h += djTile("Jami sarflandi", grp(total),
+    planTotal ? Math.round(total / planTotal * 100) + "% rejadan" : "", false);
+  if (D && days.length) {
+    var proj = avg * D, diff = proj - planTotal;
+    h += djTile("Prognoz — " + D + " dars", grp(proj),
+      (diff >= 0 ? "+" : "−") + grp(Math.abs(diff)) + " rejaga", diff > 0);
+  }
+  h += '</div><div class="dj-grid">';
+  days.forEach(function(d, k){
+    var dt = new Date(d.d + "T12:00:00");
+    var lbl = ("0" + dt.getDate()).slice(-2) + "." +
+              ("0" + (dt.getMonth() + 1)).slice(-2) + " · " + UZ_KUN[dt.getDay()];
+    var pct = norm ? Math.round((d.s - norm) / norm * 100) : null;
+    var items = d.items.slice(0, 2).map(function(it){
+      return esc(it.p || "—") + " · " + grp(it.a);
+    }).join("<br>");
+    if (d.items.length > 2) items += "<br>+" + (d.items.length - 2) + " ta yozuv";
+    h += '<div class="djc' + (pct != null && pct > 0 ? " over" : " ok") + '">' +
+      '<div class="djc-top"><span class="djc-n">' + (k + 1) + '-dars</span>' +
+      '<span class="djc-d">' + lbl + '</span></div>' +
+      '<div class="djc-s">' + grp(d.s) + '</div>' +
+      (pct == null ? "" : '<div class="djc-delta">norma ' +
+        (pct >= 0 ? "+" : "−") + Math.abs(pct) + '%</div>') +
+      '<div class="djc-items">' + items + '</div></div>';
+  });
+  return h + '</div></div>';
+}
+function djTile(t, v, sub, bad){
+  return '<div class="djt"><span>' + t + '</span><b>' + v + '</b>' +
+    (sub ? '<i class="' + (bad ? "bad" : "good") + '">' + sub + '</i>' : "") +
+    '</div>';
+}
+function todayISO(){
+  var d = new Date();
+  return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) +
+         "-" + ("0" + d.getDate()).slice(-2);
+}
+function djToggle(i){
+  var f = document.getElementById("djf" + i);
+  if (f) f.hidden = !f.hidden;
+}
+function djSave(i){
+  var err = document.getElementById("dje" + i);
+  err.textContent = "";
+  fetch("/launch/dars-xarajat", {method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      sana: document.getElementById("djd" + i).value,
+      summa: document.getElementById("djs" + i).value,
+      hamyon: document.getElementById("djw" + i).value,
+      izoh: document.getElementById("dji" + i).value})
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (!j.ok) { err.textContent = j.xato || "Xato"; return; }
+    document.getElementById("djs" + i).value = "";
+    document.getElementById("dji" + i).value = "";
+    scheduleFakt(i); scheduleDars(i);
+  }).catch(function(){ err.textContent = "Aloqa yo'q"; });
 }
 
 /* ── stsenariylarni yonma-yon solishtirish paneli ── */
@@ -522,6 +661,45 @@ render();
   font-variant-numeric:tabular-nums}
 .lfk2{color:var(--green)!important;font-variant-numeric:tabular-nums}
 .lfk2.over{color:var(--red)!important}
+
+/* darslar jurnali */
+.dj{margin-bottom:16px;padding:14px 16px}
+.dj-head{display:flex;justify-content:space-between;align-items:center;
+  gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.dj-t{font:600 10.5px var(--sans);text-transform:uppercase;
+  letter-spacing:.09em;color:var(--gold)}
+.dj-form{display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+  background:var(--hint-bg);border-radius:9px;padding:8px 10px;
+  margin-bottom:10px}
+.dj-form[hidden]{display:none}
+.dj-form .in-n.djn{width:110px}
+.dj-form .in-t.djn2{width:auto;flex:1;min-width:150px}
+.dj-form .ld{width:auto;max-width:180px}
+.djb{padding:6px 13px;font-size:12px}
+.djerr{color:var(--red);font-size:11px}
+.dj-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.djt{background:var(--ink3);border:1px solid var(--line);border-radius:11px;
+  padding:8px 13px;display:flex;flex-direction:column;gap:1px;min-width:118px}
+.djt span{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--dim)}
+.djt b{font-size:15px;font-variant-numeric:tabular-nums}
+.djt i{font-style:normal;font-size:10.5px}
+.djt i.bad{color:var(--red)}
+.djt i.good{color:var(--green)}
+.dj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+  gap:10px}
+.djc{background:var(--ink3);border:1px solid var(--line);border-radius:11px;
+  border-left:3px solid var(--green);padding:9px 11px}
+.djc.over{border-left-color:var(--red)}
+.djc-top{display:flex;justify-content:space-between;font-size:10px;
+  color:var(--dim);margin-bottom:3px}
+.djc-n{font-weight:600;color:var(--mut)}
+.djc-s{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.djc-delta{font-size:10.5px;margin-top:1px}
+.djc.over .djc-delta{color:var(--red)}
+.djc.ok .djc-delta{color:var(--green)}
+.djc-items{font-size:10px;color:var(--dim);margin-top:5px;line-height:1.5;
+  border-top:1px dashed var(--line);padding-top:5px}
 .mode.on{color:var(--gold);border-color:var(--gold);background:var(--gold-dim)}
 .mode:hover{transform:none;filter:none}
 .rowdel{padding:0;width:18px;height:18px;font-size:10px;border-radius:6px;

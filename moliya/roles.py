@@ -59,6 +59,7 @@ _FINANCE = {
     "taqvim", "taqvim_set", "taqvim_fill", "taqvim_copy", "taqvim_clear",
     "reports", "add_budget",
     "launch_page", "launch_save", "launch_fakt",
+    "launch_darslar", "launch_dars_add",
     "add_contract", "contract_pay",
 }
 

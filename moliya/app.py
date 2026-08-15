@@ -727,8 +727,16 @@ def register_routes(app):
 
     @app.route("/launch")
     def launch_page():
+        # tez kiritish uchun hamyonlar (ДДСdagi E ustuni nomlari)
+        wallets, seen = [], set()
+        for key, (code, name) in ddsflow.WALLET_MAP.items():
+            if code in seen:
+                continue
+            seen.add(code)
+            wallets.append({"v": key, "t": name})
         return render_template("launch.html",
-                               scenarios=launch.all_scenarios())
+                               scenarios=launch.all_scenarios(),
+                               wallets=wallets)
 
     @app.route("/launch/saqlash", methods=["POST"])
     def launch_save():
@@ -744,6 +752,48 @@ def register_routes(app):
         if not isinstance(items, list) or len(items) > 300:
             return {"ok": False}, 400
         return {"ok": True, "sums": launch.fakt_sums(items)}
+
+    @app.route("/launch/darslar", methods=["POST"])
+    def launch_darslar():
+        data = request.get_json(silent=True) or {}
+        qs = data.get("qs")
+        if not isinstance(qs, list) or len(qs) > 30:
+            return {"ok": False}, 400
+        return {"ok": True, "days": launch.dars_journal(
+            qs, data.get("start"), data.get("end"))}
+
+    @app.route("/launch/dars-xarajat", methods=["POST"])
+    def launch_dars_add():
+        """Darslar jurnalidan tez kiritish — oddiy ДДС qatori yaratadi.
+
+        Ma'lumot baribir bitta joyda (ДДС) turadi; bu faqat qulay yo'lak.
+        """
+        data = request.get_json(silent=True) or {}
+        try:
+            d = date.fromisoformat(str(data.get("sana"))[:10])
+        except (ValueError, TypeError):
+            return {"ok": False, "xato": "Sanani tekshiring"}, 400
+        try:
+            amt = float(str(data.get("summa", "0")).replace(" ", "")
+                        .replace(" ", "").replace(",", "."))
+        except ValueError:
+            amt = 0.0
+        if amt <= 0:
+            return {"ok": False, "xato": "Summa 0 dan katta bo'lsin"}, 400
+        last = db.session.query(db.func.max(DdsRow.rownum)).scalar() or 2
+        row = DdsRow(rownum=last + 1, ddate=d, amount=amt,
+                     wallet=str(data.get("hamyon", "")),
+                     purpose=str(data.get("izoh", "")).strip()[:300],
+                     article="Кофе брейк")
+        db.session.add(row)
+        db.session.flush()
+        tx = ddsflow.sync_row(row)
+        if not tx:
+            _, why = ddsflow.check_row(row)
+            db.session.rollback()
+            return {"ok": False, "xato": f"Kassaga tushmadi: {why}"}, 400
+        db.session.commit()
+        return {"ok": True}
 
     # ── Shartnomalarni to'lovlardan tiklash ───────────────────────
     @app.route("/contracts/tiklash")
