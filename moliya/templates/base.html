@@ -2011,7 +2011,471 @@ function initCharts(){
     }
   }
 }
-initCharts();
+  if (!initCharts._r){
+    initCharts._r = 1;
+    addEventListener("resize", function(){
+      document.querySelectorAll(".ech-gauge").forEach(function(el){
+        var i = echarts.getInstanceByDom(el); if (i) i.resize();
+      });
+      ["ech-main", "ech-wf", "an-pnl", "an-trend", "an-dirs", "an-mix",
+       "an-aging", "an-ref", "lp-curve", "lp-cost", "lp-heat",
+       "lp-tornado"].forEach(function(id){
+        var el = document.getElementById(id);
+        var i = el && echarts.getInstanceByDom(el);
+        if (i) i.resize();
+      });
+    });
+  }
+
+function countUp(){
+  document.querySelectorAll(".kpi .v").forEach(el => {
+    const node = el.childNodes[0];
+    if (!node || node.nodeType !== 3) return;
+    const raw = node.textContent.trim();
+    const num = parseFloat(raw.replace(/ /g, "").replace(",", "."));
+    if (isNaN(num) || Math.abs(num) < 10) return;
+    const dur = 650, t0 = performance.now();
+    const fmt = (v) => Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
+    function tick(t){
+      const p = Math.min((t - t0) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      node.textContent = fmt(num * ease);
+      if (p < 1) requestAnimationFrame(tick);
+      else node.textContent = raw;
+    }
+    requestAnimationFrame(tick);
+  });
+}
+addEventListener("DOMContentLoaded", () => {
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) countUp();
+});
+
+function initViz(){
+  document.querySelectorAll(".viz[data-viz]").forEach(function(box){
+    var svg = box.querySelector("svg"), tip = box.querySelector(".viz-tip"),
+        cross = box.querySelector(".viz-cross"),
+        dataEl = box.querySelector(".viz-data");
+    if (!svg || !dataEl) return;
+    var D = JSON.parse(dataEl.textContent);
+    var line = cross.querySelector(".viz-crossline");
+    var dots = cross.querySelectorAll(".viz-dot");
+    var slots = tip.querySelectorAll("[data-slot]");
+    var title = tip.querySelector(".tt-title");
+    function fmt(v){ return Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g," "); }
+    box.querySelectorAll(".viz-hit").forEach(function(hit){
+      function show(){
+        var i = +hit.dataset.i, x = D.cols[i];
+        line.setAttribute("x1", x); line.setAttribute("x2", x);
+        D.series.forEach(function(pts, k){
+          if (!pts[i] || !dots[k]) return;
+          dots[k].setAttribute("cx", pts[i].x);
+          dots[k].setAttribute("cy", pts[i].y);
+          if (slots[k]) slots[k].textContent = fmt(pts[i].v);
+        });
+        title.textContent = D.labels[i];
+        cross.style.opacity = 1;
+        tip.hidden = false;
+        var r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+        var px = (x / vb.width) * r.width;
+        var topY = Math.min.apply(null, D.series.map(function(p){
+          return p[i] ? p[i].y : 1e9; }));
+        tip.style.left = Math.max(78, Math.min(px, r.width - 78)) + "px";
+        tip.style.top = (topY / vb.height) * r.height + "px";
+      }
+      hit.addEventListener("mouseenter", show);
+      hit.addEventListener("touchstart", show, {passive:true});
+    });
+    box.addEventListener("mouseleave", function(){
+      cross.style.opacity = 0; tip.hidden = true;
+    });
+  });
+}
+addEventListener("DOMContentLoaded", initViz);
+
+
+function toggleWcat(force){
+  var h = document.getElementById("hero-bal"), c = document.getElementById("wcat");
+  if (!h || !c) return;
+  var open = force !== undefined ? force : !c.classList.contains("open");
+  c.classList.toggle("open", open);
+  h.classList.toggle("open", open);
+  var dim = document.getElementById("wcat-dim");
+  if (dim) dim.classList.toggle("open", open);
+  if (open && !c.dataset.init){ c.dataset.init = "1"; initDeck(); }
+}
+/* tashqarini bosganda yoki Escape'da yopiladi */
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape") toggleWcat(false);
+});
+function toggleEye(e){
+  if (e) e.stopPropagation();
+  var v = document.getElementById("hb-v");
+  if (!v) return;
+  if (v.dataset.hid === "1"){
+    v.innerHTML = v.dataset.raw; v.dataset.hid = "0";
+    try{ localStorage.setItem("balhide", "0"); }catch(_){}
+  } else {
+    v.dataset.raw = v.innerHTML; v.innerHTML = "•• ••• •••"; v.dataset.hid = "1";
+    try{ localStorage.setItem("balhide", "1"); }catch(_){}
+  }
+}
+function applyEye(){
+  try{
+    if (localStorage.getItem("balhide") === "1"){
+      var v = document.getElementById("hb-v");
+      if (v && v.dataset.hid !== "1") toggleEye();
+    }
+  }catch(_){}
+}
+function initDeck(){
+  var deck = document.querySelector(".wallet-deck");
+  if (!deck) return;
+  // yopiq katalog ichida bo'lsa — ochilganda toggleWcat o'zi chaqiradi
+  var cat = deck.closest(".wcat");
+  if (cat && !cat.classList.contains("open")) return;
+  var track = deck.querySelector(".wtrack");
+  var cards = [].slice.call(track.querySelectorAll(".wcard"));
+  var dots = [].slice.call(deck.parentElement.querySelectorAll(".wdots i"));
+  var histBox = document.getElementById("whist-list");
+  var histTitle = document.getElementById("whist-title");
+  var D = JSON.parse(document.getElementById("wcards-data").textContent);
+  function fmt(v){ return Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g," "); }
+  /* nuqta/halqa — darhol (arzon); tarix — alohida (qimmat) */
+  function setActive(i){
+    cards.forEach(function(c,k){ c.classList.toggle("active", k===i); });
+    dots.forEach(function(d,k){ d.classList.toggle("on", k===i); });
+  }
+  function renderHist(i){
+    var w = D[i];
+    if (histTitle) histTitle.textContent = w.name;
+    if (!histBox) return;
+    if (!w.hist.length){
+      histBox.innerHTML = '<div class="empty">Bu hisobda hali harakat yo\'q</div>';
+      return;
+    }
+    histBox.innerHTML = w.hist.map(function(h){
+      var dir = h["in"] ? "in" : "out";
+      var arrow = h["in"]
+        ? '<path d="M12 19V5M5 12l7 7 7-7"/>' : '<path d="M12 5v14M5 12l7-7 7 7"/>';
+      return '<div class="whist-row">'
+        + '<span class="whist-ic '+dir+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+arrow+'</svg></span>'
+        + '<span class="whist-mid"><b>'+h.t+'</b><span>'+h.d+' \u00b7 '+h.c+'</span></span>'
+        + '<span class="whist-amt '+dir+'">'+(h["in"]?"+":"\u2212")+fmt(h.a)+'</span>'
+        + '</div>';
+    }).join("");
+  }
+  /* karta markazlari keshda — scroll paytida layout o'qilmaydi */
+  var centers = [], halfW = 0;
+  function measure(){
+    halfW = track.clientWidth / 2;
+    centers = cards.map(function(c){ return c.offsetLeft + c.offsetWidth/2; });
+  }
+  measure();
+  addEventListener("resize", measure);
+
+  var cur = -1, ticking = false, settle = null;
+  function onScroll(){
+    ticking = false;
+    var center = track.scrollLeft + halfW;
+    var best = 0, bd = 1e9;
+    for (var k = 0; k < centers.length; k++){
+      var d = Math.abs(centers[k] - center);
+      if (d < bd){ bd = d; best = k; }
+    }
+    if (best !== cur){
+      cur = best;
+      setActive(best);
+      // tarix ro'yxati (qimmat innerHTML) — scroll tinishini kutadi
+      clearTimeout(settle);
+      settle = setTimeout(function(){ renderHist(cur); }, 130);
+    }
+  }
+  track.addEventListener("scroll", function(){
+    if (!ticking){ ticking = true; requestAnimationFrame(onScroll); }
+  }, {passive:true});
+
+  function centerOn(i){
+    track.scrollTo({left: centers[i] - halfW, behavior: "smooth"});
+  }
+  cards.forEach(function(c,k){
+    c.addEventListener("click", function(){ centerOn(k); });
+  });
+
+  /* g'ildirak: trek ustida vertikal aylantirish -> gorizontal yuradi */
+  track.addEventListener("wheel", function(e){
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){
+      track.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+  /* sichqoncha bilan sudrash (telefondagi svayp kabi) */
+  var drag = null;
+  track.addEventListener("pointerdown", function(e){
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    drag = {x: e.clientX, left: track.scrollLeft, moved: false};
+  });
+  addEventListener("pointermove", function(e){
+    if (!drag) return;
+    var dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) > 5){
+      drag.moved = true;
+      track.classList.add("dragging");
+    }
+    if (drag.moved) track.scrollLeft = drag.left - dx;
+  });
+  addEventListener("pointerup", function(){
+    if (!drag) return;
+    var moved = drag.moved;
+    drag = null;
+    track.classList.remove("dragging");
+    if (moved){
+      // qo'yib yuborilganda eng yaqin kartaga yumshoq o'tiradi
+      requestAnimationFrame(function(){
+        onScroll();
+        if (cur >= 0) centerOn(cur);
+      });
+    }
+  });
+
+  onScroll();
+  renderHist(cur < 0 ? 0 : cur);
+}
+function initPray(){
+  var el = document.querySelector(".pray");
+  if (!el) return;
+  var data = JSON.parse(document.getElementById("pray-data").textContent);
+  var canvas = el.querySelector(".sky-canvas");
+  var orb = el.querySelector(".sky-orb");
+  var prog = el.querySelector(".arc-prog");
+  var byKey = {};
+  data.times.forEach(function(t){ byKey[t.key] = t.minutes; });
+  // Toshkent vaqti — qurilma soat mintaqasidan mustaqil (UTC + tz)
+  function nowMin(){
+    var n = new Date();
+    return (n.getUTCHours()*60 + n.getUTCMinutes()
+            + Math.round((data.tz || 5) * 60)) % 1440;
+  }
+  // yoy ustidagi namoz nuqtalari
+  var dots = [];
+  if (canvas && !canvas.querySelector(".sky-dot")){
+    ["bomdod","peshin","asr","shom","xufton"].forEach(function(k){
+      var d = document.createElement("i");
+      d.className = "sky-dot"; d.dataset.m = byKey[k];
+      canvas.appendChild(d); dots.push(d);
+    });
+  } else if (canvas){
+    dots = [].slice.call(canvas.querySelectorAll(".sky-dot"));
+  }
+  // kvadratik Bezye: SVG'dagi M16,102 Q180,-34 344,102 yoyi bilan mos
+  function bez(t, W, H){
+    var x = (1-t)*(1-t)*16 + 2*(1-t)*t*180 + t*t*344;
+    var y = (1-t)*(1-t)*102 + 2*(1-t)*t*(-34) + t*t*102;
+    return [x*W/360, y*H/118];
+  }
+  function frac(m){
+    return Math.max(0, Math.min(1,
+      (m - byKey.bomdod) / (byKey.xufton - byKey.bomdod)));
+  }
+  function layout(cur){
+    if (!canvas) return;
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!W) return;
+    dots.forEach(function(d){
+      var p = bez(frac(+d.dataset.m), W, H);
+      d.style.left = p[0] + "px"; d.style.top = p[1] + "px";
+    });
+    var night = cur < byKey.bomdod || cur > byKey.xufton;
+    var f = night ? (cur > byKey.xufton ? 1 : 0) : frac(cur);
+    var p = bez(f, W, H);
+    if (orb){
+      // shar karvondan sal oldinda, tepada suzadi — karvonni to'sib qo'ymaydi
+      orb.style.left = (p[0] + 26) + "px"; orb.style.top = (p[1] - 34) + "px";
+      var day = cur >= byKey.quyosh && cur < byKey.shom;
+      orb.classList.toggle("sun", day);
+      orb.classList.toggle("moon", !day);
+    }
+    var car = el.querySelector(".sky-caravan");
+    if (car){
+      // yoy tangensi bo'yicha qiyalik — karvon yo'l bo'ylab "yuradi"
+      var dx = (2*(1-f)*(180-16) + 2*f*(344-180)) * W/360;
+      var dy = (2*(1-f)*(-34-102) + 2*f*(102+34)) * H/118;
+      var ang = Math.atan2(dy, dx) * 180 / Math.PI;
+      // sarban (old tomon) aynan joriy vaqt nuqtasida turadi
+      car.style.left = p[0] + "px"; car.style.top = (p[1] + 3) + "px";
+      car.style.transform = "translate(-88%,-94%) rotate(" + ang.toFixed(1) + "deg)";
+    }
+    // bosib o'tilgan yo'l: Bezyeni f nuqtada bo'lib, qism-egri chizamiz
+    if (prog){
+      if (f > 0.005){
+        var qx = 16 + f*(180-16), qy = 102 + f*(-34-102);   // de Casteljau
+        var bx = (1-f)*(1-f)*16 + 2*(1-f)*f*180 + f*f*344;
+        var by = (1-f)*(1-f)*102 + 2*(1-f)*f*(-34) + f*f*102;
+        prog.setAttribute("d", "M16,102 Q" + qx.toFixed(1) + "," + qy.toFixed(1)
+                               + " " + bx.toFixed(1) + "," + by.toFixed(1));
+      } else prog.setAttribute("d", "M16,102");
+    }
+    // izlar: har ~4.5% masofada oltin dog'
+    canvas.querySelectorAll(".sky-foot").forEach(function(x){ x.remove(); });
+    for (var u = 3; u < f*100 - 2; u += 4.5){
+      var fp = bez(u/100, W, H);
+      var dot = document.createElement("i");
+      dot.className = "sky-foot";
+      dot.style.left = fp[0] + "px"; dot.style.top = fp[1] + "px";
+      canvas.appendChild(dot);
+    }
+    var ph = night ? "ph-night"
+           : cur < byKey.quyosh ? "ph-dawn"
+           : cur >= byKey.shom ? "ph-dusk" : "ph-day";
+    el.classList.remove("ph-day","ph-night","ph-dawn","ph-dusk");
+    el.classList.add(ph);
+  }
+  function tick(){
+    var cur = nowMin();
+    var keys = {bomdod:1, peshin:1, asr:1, shom:1, xufton:1};
+    var nxt = null;
+    data.times.forEach(function(t){
+      if (keys[t.key] && t.minutes > cur && !nxt) nxt = t;
+    });
+    var left, name;
+    if (nxt){ left = nxt.minutes - cur; name = nxt.name; }
+    else { left = (24*60 - cur) + data.times[0].minutes; name = data.times[0].name; }
+    var h = Math.floor(left/60), m = left%60;
+    var lbl = el.querySelector(".pray-next div span");
+    var bl = el.querySelector(".pray-next div b");
+    if (bl) bl.textContent = name + " \u00b7 " + (nxt? nxt.time : data.times[0].time);
+    if (lbl) lbl.textContent = (h? h + " soat " : "") + m + " daqiqa qoldi";
+    function mark(node){
+      var mins = +node.dataset.m;
+      node.classList.toggle("passed", mins <= cur);
+      // hammasi o'tgan bo'lsa — keyingisi ertangi Bomdod
+      node.classList.toggle("next", nxt ? (mins === nxt.minutes) : mins === byKey.bomdod);
+    }
+    el.querySelectorAll(".pray-t").forEach(mark);
+    dots.forEach(mark);
+    layout(cur);
+  }
+  tick();
+  setInterval(tick, 30000);
+  addEventListener("resize", function(){ layout(nowMin()); });
+}
+addEventListener("DOMContentLoaded", function(){ initDeck(); initPray(); applyEye(); initCharts(); });
+
+/* ══ «ДДС данные» filtr menyulari ══ */
+/* Filtr panelini bitta tugma bilan ochib-yopish */
+function toggleFilt(btn){
+  var w = document.getElementById("fwrap");
+  if (!w) return;
+  var open = w.classList.toggle("open");
+  if (btn) btn.classList.toggle("opened", open);
+}
+
+/* «Katta ekran»: jadval butun ekranni oladi; Esc yoki tugma bilan chiqiladi */
+function xlFull(){
+  var on = document.body.classList.toggle("xlfull");
+  if (on && !document.querySelector(".xl-fs-exit")){
+    var b = document.createElement("button");
+    b.className = "xl-fs-exit";
+    b.type = "button";
+    b.textContent = "✕ Katta ekrandan chiqish (Esc)";
+    b.onclick = xlFull;
+    document.body.appendChild(b);
+  }
+}
+/* capture bosqichida: menyu yoki tahrir ochiq bo'lsa, Esc avval o'shani yopadi */
+document.addEventListener("keydown", function(e){
+  if (e.key !== "Escape") return;
+  if (!document.body.classList.contains("xlfull")) return;
+  if (document.querySelector(".xl-menu.open") ||
+      document.querySelector("tr.editing")) return;
+  xlFull();
+}, true);
+
+function xlClose(){
+  document.querySelectorAll(".xl-menu.open").forEach(function(x){
+    x.classList.remove("open");
+    // portal'dan o'z <th> iga qaytaramiz
+    if (x._home && x.parentNode !== x._home) x._home.appendChild(x);
+  });
+}
+function xlPlace(m, btn){
+  var b = btn.getBoundingClientRect();
+  m.style.left = "0px"; m.style.top = "0px";      // o'lchash uchun
+  var w = m.offsetWidth, h = m.offsetHeight, pad = 8;
+  var left = Math.min(Math.max(pad, b.left), innerWidth - w - pad);
+  var top = b.bottom + 4;
+  if (top + h > innerHeight - pad) top = Math.max(pad, b.top - h - 4);
+  m.style.left = left + "px"; m.style.top = top + "px";
+}
+function xlMenu(ev, key){
+  ev.stopPropagation();
+  var m = document.getElementById("fm-" + key);
+  if (!m) return;
+  var open = m.classList.contains("open");
+  xlClose();
+  if (open) return;
+  // ba'zi ota-elementlarda transform/filter bor — position:fixed ularga bog'lanib
+  // qolmasligi uchun menyuni vaqtincha <body> ga ko'chiramiz
+  if (!m._home) m._home = m.parentNode;
+  if (m.parentNode !== document.body) document.body.appendChild(m);
+  m.classList.add("open");
+  m._btn = ev.currentTarget;
+  xlPlace(m, ev.currentTarget);
+  var s = m.querySelector(".xl-menu-src input");
+  if (s) s.focus();
+}
+function xlAll(key, on){
+  document.querySelectorAll('#fm-' + key + ' .xl-menu-body label')
+    .forEach(function(l){
+      if (l.classList.contains("hid")) return;    // qidiruvdan yashiringanlarga tegmaydi
+      var c = l.querySelector("input[type=checkbox]");
+      if (c) c.checked = on;
+    });
+}
+/* menyu ichidagi qidiruv — Sheets'dagi «Поиск» kabi */
+function xlFind(inp, key){
+  var t = (inp.value || "").trim().toLowerCase();
+  document.querySelectorAll('#fm-' + key + ' .xl-menu-body label')
+    .forEach(function(l){
+      var v = (l.textContent || "").trim().toLowerCase();
+      l.classList.toggle("hid", t !== "" && v.indexOf(t) < 0);
+    });
+}
+document.addEventListener("click", function(e){
+  if (!e.target.closest(".xl-menu") && !e.target.closest(".xl-fbtn")) xlClose();
+});
+document.addEventListener("keydown", function(e){ if (e.key === "Escape") xlClose(); });
+addEventListener("resize", xlClose);
+/* jadval gorizontal siljiganda menyu tugma bilan birga yursin */
+addEventListener("scroll", function(){
+  var m = document.querySelector(".xl-menu.open");
+  if (m && m._btn) xlPlace(m, m._btn);
+}, true);
+
+function toggleSheet(open){
+  var w = document.getElementById("msheet");
+  if (!w) return;
+  var willOpen = open !== undefined ? open : !w.classList.contains("open");
+  w.classList.toggle("open", willOpen);
+}
+document.addEventListener("click", function(e){
+  var a = e.target.closest && e.target.closest(".msheet-grid a");
+  if (a) toggleSheet(false);
+});
+function toggleTheme(){
+  var el = document.documentElement;
+  var next = el.dataset.theme === "light" ? "dark" : "light";
+  el.dataset.theme = next;
+  localStorage.setItem("mf-theme", next);
+  syncThemeColor(next);
+  if (typeof initCharts === "function") setTimeout(initCharts, 60);
+}
+if ("serviceWorker" in navigator) {
+  addEventListener("load", function(){ navigator.serviceWorker.register("/sw.js"); });
+}
+</script>
+</body>
+</html>
 
 /* ── PWA (o'rnatilgan ilova) rejimida confirm/prompt/alert tuzatmasi ──
    iOS'da standalone rejimda bu oynalar ochilmay, jimgina false qaytarishi
