@@ -107,6 +107,38 @@
 </div>
 
 <div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">AI yordamchi
+    {% if ai_key %}<span class="badge b-gold">ulangan</span>{% endif %}
+  </h2>
+  <p class="sub" style="margin-top:-4px">«AI yordamchi» sahifasi moliya
+    ma'lumotlari bo'yicha savollarga javob beradi (hamyonlar, oy oqimi,
+    qarzdorlik, shartnomalar). Ishlashi uchun Anthropic API kaliti kerak —
+    <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
+    saytidan olinadi.</p>
+  {% if ai_env %}
+  <p class="hint" style="margin:12px 0">Kalit serverning
+    <b>ANTHROPIC_API_KEY</b> muhit o'zgaruvchisidan olinmoqda — quyidagi
+    maydon shart emas (muhit o'zgaruvchisi ustun turadi).</p>
+  {% endif %}
+  <form class="inline" method="post" action="/settings/ai-kalit">
+    <div style="flex:1;min-width:260px"><label>API kalit</label>
+      <input type="password" name="kalit" placeholder="sk-ant-…"
+             autocomplete="off" {% if not ai_key %}required{% endif %}></div>
+    <div><button>{{ 'Yangilash' if ai_key else 'Saqlash' }}</button></div>
+  </form>
+  {% if ai_key and not ai_env %}
+  <form method="post" action="/settings/ai-kalit" style="margin-top:10px"
+        onsubmit="return confirm('AI kalit o‘chiriladi — yordamchi ishlamay qoladi. Davom etamizmi?')">
+    <input type="hidden" name="act" value="clear">
+    <button class="ghost">Kalitni o'chirish</button>
+  </form>
+  {% endif %}
+  <p class="hint" style="margin-top:10px">Kalit bazada saqlanadi va faqat
+    server ichida ishlatiladi. Yordamchi ma'lumotni faqat o'qiydi —
+    kassaga hech narsa yozmaydi.</p>
+</div>
+
+<div class="card" style="margin-bottom:14px">
   <h2 style="margin-top:0">Excel'dan import (Mbm_2026.xlsx)</h2>
   <p class="sub" style="margin-top:-4px">Google Sheets'dagi faylni
     (Fayl → Yuklab olish → .xlsx) shu yerga yuklang. «ДДС данные» to'liq

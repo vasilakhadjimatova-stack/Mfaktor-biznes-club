@@ -60,6 +60,7 @@ _FINANCE = {
     "reports", "add_budget",
     "launch_page", "launch_save", "launch_fakt",
     "launch_darslar", "launch_dars_add",
+    "ai_page", "ai_chat",
     "add_contract", "contract_pay",
 }
 

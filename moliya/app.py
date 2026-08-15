@@ -19,6 +19,7 @@ from urllib.parse import urlencode
 from flask import (Flask, Response, abort, flash, redirect, render_template,
                    request, session, url_for)
 
+import ai
 import analytics
 import automation
 import core
@@ -803,6 +804,22 @@ def register_routes(app):
         db.session.commit()
         return {"ok": True}
 
+    # ── AI yordamchi ──────────────────────────────────────────────
+    @app.route("/ai")
+    def ai_page():
+        return render_template("ai.html", kalit=bool(ai.api_key()))
+
+    @app.route("/ai/chat", methods=["POST"])
+    def ai_chat():
+        data = request.get_json(silent=True) or {}
+        msgs = data.get("messages")
+        if not isinstance(msgs, list) or not msgs or len(msgs) > 40:
+            return {"ok": False, "xato": "So'rov noto'g'ri"}, 400
+        text, err = ai.chat(msgs)
+        if err:
+            return {"ok": False, "xato": err}
+        return {"ok": True, "javob": text}
+
     # ── Shartnomalarni to'lovlardan tiklash ───────────────────────
     @app.route("/contracts/tiklash")
     def recover_page():
@@ -1440,7 +1457,9 @@ def register_routes(app):
             ROLES=shown, ROLE_LABELS=roles.ROLE_LABELS,
             ROLE_HINTS=roles.ROLE_HINTS, edu=roles.edu_enabled(),
             recurring=RecurringPayment.query.order_by(
-                RecurringPayment.pay_day).all())
+                RecurringPayment.pay_day).all(),
+            ai_key=bool(ai.api_key()),
+            ai_env=bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()))
 
     @app.route("/settings/kod", methods=["POST"])
     def settings_pin():
@@ -1483,6 +1502,22 @@ def register_routes(app):
         db.session.commit()
         flash(f"{roles.ROLE_LABELS[role]} kodi o'rnatildi. Kodni faqat shu "
               f"odamga bering — u boshqa bo'limlarni ko'rmaydi.", "ok")
+        return redirect(url_for("settings"))
+
+    @app.route("/settings/ai-kalit", methods=["POST"])
+    def settings_ai_key():
+        """AI yordamchi uchun Anthropic API kalitini saqlash (direktor)."""
+        if request.form.get("act") == "clear":
+            ai.save_key("")
+            flash("AI kalit o'chirildi — yordamchi ishlamaydi.", "ok")
+            return redirect(url_for("settings"))
+        val = (request.form.get("kalit") or "").strip()
+        if not val.startswith("sk-ant-"):
+            flash("Kalit «sk-ant-» bilan boshlanishi kerak — "
+                  "console.anthropic.com dan oling.", "err")
+            return redirect(url_for("settings"))
+        ai.save_key(val)
+        flash("AI kalit saqlandi — yordamchi ishga tayyor.", "ok")
         return redirect(url_for("settings"))
 
     @app.route("/settings/demo", methods=["POST"])

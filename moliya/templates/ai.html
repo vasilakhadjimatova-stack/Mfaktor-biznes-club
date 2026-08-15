@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>AI yordamchi</h1>
+<p class="sub">Moliya ma'lumotlari bo'yicha savol bering — hamyonlar, oy
+  oqimi, qarzdorlik, shartnomalar holatini bilib javob beradi. Yordamchi
+  ma'lumotni faqat <b>o'qiydi</b>, kassaga hech narsa yozmaydi.</p>
+
+{% if not kalit %}
+<div class="card warn">
+  <div class="wtop">
+    <span class="wicon">!</span>
+    <div>
+      <b>API kalit kiritilmagan</b>
+      <p class="wnote">Yordamchi ishlashi uchun
+        <a href="/settings">Sozlamalar</a> sahifasidagi «AI yordamchi»
+        bo'limiga Anthropic API kalitini kiriting (direktor kiritadi).</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card aiwrap">
+  <div id="ailog" class="ailog">
+    <div class="aimsg bot">
+      <div class="aib">Assalomu alaykum! Men Mfaktor Moliya yordamchisiman.
+        Hamyonlar, oy kirim-chiqimi, qarzdorlar yoki oqimlar bo'yicha
+        savol bering.</div>
+    </div>
+  </div>
+
+  <div class="aisug" id="aisug">
+    <button type="button" class="aichip" {% if not kalit %}disabled{% endif %}>Hamyonlarda qancha pul bor?</button>
+    <button type="button" class="aichip" {% if not kalit %}disabled{% endif %}>Shu oy kirim-chiqim qanday?</button>
+    <button type="button" class="aichip" {% if not kalit %}disabled{% endif %}>Eng katta qarzdorlar kimlar?</button>
+    <button type="button" class="aichip" {% if not kalit %}disabled{% endif %}>Qaysi chiqim statyasi eng katta?</button>
+  </div>
+
+  <form id="aiform" class="aiform" autocomplete="off">
+    <textarea id="aiin" rows="1" placeholder="Savolingizni yozing…"
+              {% if not kalit %}disabled{% endif %}></textarea>
+    <button id="aisend" type="submit" {% if not kalit %}disabled{% endif %}
+            aria-label="Yuborish">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </button>
+  </form>
+  <div class="aifoot">
+    <span>Javoblar AI tomonidan — muhim qarorlar oldidan raqamlarni tekshiring.</span>
+    <button type="button" class="ghost aiclear" id="aiclear">Suhbatni tozalash</button>
+  </div>
+</div>
+
+<style>
+.aiwrap{max-width:860px;display:flex;flex-direction:column;padding:0;overflow:hidden}
+.ailog{display:flex;flex-direction:column;gap:12px;padding:18px;
+  min-height:300px;max-height:min(58vh,560px);overflow-y:auto}
+.aimsg{display:flex}
+.aimsg.me{justify-content:flex-end}
+.aib{max-width:82%;padding:10px 14px;border-radius:14px;line-height:1.55;
+  font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  border-top-left-radius:4px}
+.aimsg.me .aib{background:rgba(212,175,55,.13);
+  border-color:rgba(212,175,55,.28);
+  border-radius:14px;border-top-right-radius:4px}
+.aib b{color:var(--gold,#d4af37)}
+.aib table{border-collapse:collapse;margin:6px 0}
+.aib td,.aib th{border:1px solid rgba(140,140,140,.3);padding:3px 8px;font-size:13px}
+.aimsg.wait .aib{color:var(--muted);font-style:italic}
+.aimsg.err .aib{border-color:rgba(240,90,90,.45);color:#e88}
+:root[data-theme="light"] .aib{background:#fff;border-color:rgba(30,25,10,.1)}
+:root[data-theme="light"] .aimsg.me .aib{background:rgba(176,138,40,.1);
+  border-color:rgba(176,138,40,.3)}
+
+.aisug{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 12px}
+.aichip{background:transparent;border:1px solid rgba(212,175,55,.3);
+  color:var(--txt);border-radius:999px;padding:6px 12px;font-size:13px;
+  cursor:pointer}
+.aichip:hover{border-color:var(--gold,#d4af37)}
+.aichip:disabled{opacity:.45;cursor:default}
+
+.aiform{display:flex;gap:10px;align-items:flex-end;padding:12px 18px;
+  border-top:1px solid rgba(140,140,140,.15)}
+.aiform textarea{flex:1;resize:none;min-height:42px;max-height:140px;
+  font-size:16px;line-height:1.4;padding:10px 12px}
+.aiform button{width:46px;height:42px;flex:0 0 auto;display:flex;
+  align-items:center;justify-content:center;padding:0}
+.aiform button svg{width:19px;height:19px}
+.aiform button:disabled{opacity:.5;cursor:default}
+
+.aifoot{display:flex;justify-content:space-between;align-items:center;
+  gap:10px;flex-wrap:wrap;padding:0 18px 14px;font-size:12px;
+  color:var(--muted)}
+.aiclear{font-size:12px;padding:4px 10px}
+@media(max-width:700px){
+  .ailog{max-height:52vh;padding:14px}
+  .aib{max-width:90%}
+  .aisug,.aiform,.aifoot{padding-left:14px;padding-right:14px}
+}
+</style>
+
+<script>
+(function(){
+  var log = document.getElementById('ailog'),
+      form = document.getElementById('aiform'),
+      inp = document.getElementById('aiin'),
+      send = document.getElementById('aisend'),
+      sug = document.getElementById('aisug'),
+      KEY = 'mf_ai_chat', hist = [];
+
+  try { hist = JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch(e){}
+  hist.forEach(function(m){ bubble(m.role === 'user' ? 'me' : 'bot', m.content); });
+  if (hist.length) scrollEnd();
+
+  function esc(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  // oddiy formatlash: **qalin**, qatorlar saqlanadi
+  function fmt(s){
+    return esc(s).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+  }
+  function bubble(kind, text, asHtml){
+    var w = document.createElement('div');
+    w.className = 'aimsg ' + kind;
+    var b = document.createElement('div');
+    b.className = 'aib';
+    if (asHtml === false) b.textContent = text;
+    else b.innerHTML = fmt(text);
+    w.appendChild(b); log.appendChild(w);
+    return w;
+  }
+  function scrollEnd(){ log.scrollTop = log.scrollHeight; }
+  function saveHist(){
+    try { sessionStorage.setItem(KEY, JSON.stringify(hist.slice(-24))); }
+    catch(e){}
+  }
+
+  function ask(q){
+    q = (q || '').trim();
+    if (!q || send.disabled) return;
+    bubble('me', q, false);
+    hist.push({role:'user', content:q}); saveHist();
+    inp.value = ''; autoGrow();
+    if (sug) sug.style.display = 'none';
+    send.disabled = true; inp.disabled = true;
+    var wait = bubble('wait', 'Yordamchi o\'ylayapti…', false);
+    scrollEnd();
+    fetch('/ai/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({messages: hist.slice(-16)})
+    }).then(function(r){ return r.json(); })
+      .then(function(d){
+        wait.remove();
+        if (d.ok) {
+          bubble('bot', d.javob);
+          hist.push({role:'assistant', content:d.javob}); saveHist();
+        } else {
+          bubble('err', d.xato || 'Xatolik yuz berdi', false);
+        }
+      })
+      .catch(function(){
+        wait.remove();
+        bubble('err', 'Tarmoq xatosi — qayta urinib ko\'ring', false);
+      })
+      .finally(function(){
+        send.disabled = false; inp.disabled = false;
+        inp.focus(); scrollEnd();
+      });
+  }
+
+  form.addEventListener('submit', function(e){ e.preventDefault(); ask(inp.value); });
+  inp.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(inp.value); }
+  });
+  function autoGrow(){
+    inp.style.height = 'auto';
+    inp.style.height = Math.min(inp.scrollHeight, 140) + 'px';
+  }
+  inp.addEventListener('input', autoGrow);
+
+  document.querySelectorAll('.aichip').forEach(function(c){
+    c.addEventListener('click', function(){ ask(c.textContent); });
+  });
+  document.getElementById('aiclear').addEventListener('click', function(){
+    hist = []; saveHist();
+    log.querySelectorAll('.aimsg').forEach(function(m, i){ if (i) m.remove(); });
+    if (sug) sug.style.display = '';
+    inp.focus();
+  });
+})();
+</script>
+{% endblock %}
