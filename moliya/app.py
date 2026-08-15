@@ -757,10 +757,14 @@ def register_routes(app):
     def launch_darslar():
         data = request.get_json(silent=True) or {}
         qs = data.get("qs")
-        if not isinstance(qs, list) or len(qs) > 30:
+        kunlar = data.get("kunlar")
+        if not isinstance(qs, list) or len(qs) > 30 \
+                or not isinstance(kunlar, (list, type(None))):
             return {"ok": False}, 400
-        return {"ok": True, "days": launch.dars_journal(
-            qs, data.get("start"), data.get("end"))}
+        j = launch.dars_journal(qs, data.get("start"), data.get("end"),
+                                kunlar=kunlar)
+        return {"ok": True, "days": j["days"], "total": j["total"],
+                "past": j["past"]}
 
     @app.route("/launch/dars-xarajat", methods=["POST"])
     def launch_dars_add():

@@ -114,11 +114,17 @@ function column(s, i){
     '<button class="ic danger" title="O\'chirish" onclick="delScenario(' + i + ')">✕</button>' +
     '</div></div>';
   if (live.on) {
+    var kun = live.kunlar || [5, 6];
     h += '<div class="livebar">JONLI FAKT — davr: ' +
       '<input type="date" class="ld" value="' + esc(live.start || "") + '" ' +
         'onchange="STATE[' + i + '].live.start = this.value; upd(' + i + ')"> — ' +
       '<input type="date" class="ld" value="' + esc(live.end || "") + '" ' +
-        'onchange="STATE[' + i + '].live.end = this.value; upd(' + i + ')"></div>';
+        'onchange="STATE[' + i + '].live.end = this.value; upd(' + i + ')">' +
+      '<span class="kunlar">dars kunlari: ' +
+      ["du", "se", "cho", "pa", "ju", "sha", "yak"].map(function(t, k){
+        return '<button class="kun' + (kun.indexOf(k) > -1 ? " on" : "") +
+          '" onclick="kunToggle(' + i + ',' + k + ')">' + t + '</button>';
+      }).join("") + '</span></div>';
   }
 
   /* kurslar */
@@ -266,9 +272,16 @@ var LIVE_GUESS = [["kofe", "кофе"], ["target", "таргет"],
                   ["internet", "интернет"]];
 var COURSE_GUESS = [["роп", "клиента роп"], ["смк", "клиента смк"],
                     ["тбб", "клиента тбб"], ["tbb", "клиента тбб"]];
+function kunToggle(i, k){
+  var live = STATE[i].live;
+  live.kunlar = live.kunlar || [5, 6];
+  var at = live.kunlar.indexOf(k);
+  if (at > -1) live.kunlar.splice(at, 1); else live.kunlar.push(k);
+  render(); dirty();
+}
 function toggleLive(i){
   var s = STATE[i];
-  s.live = s.live || {on: false, start: "", end: ""};
+  s.live = s.live || {on: false, start: "", end: "", kunlar: [5, 6]};
   s.live.on = !s.live.on;
   if (s.live.on) {
     // birinchi yoqishda aniq bog'lanishlarni taxmin qilamiz (bo'shlarini)
@@ -361,10 +374,11 @@ function fetchDars(i){
   if (!qs.length) { DARS[i] = {days: []}; renderDarsAll(); return; }
   fetch("/launch/darslar", {method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({qs: qs, start: live.start || "", end: live.end || ""})
+    body: JSON.stringify({qs: qs, start: live.start || "", end: live.end || "",
+                          kunlar: live.kunlar || [5, 6]})
   }).then(function(r){ return r.json(); }).then(function(j){
     if (!j.ok) return;
-    DARS[i] = {days: j.days || []};
+    DARS[i] = {days: j.days || [], total: j.total || 0, past: j.past || 0};
     renderDarsAll();
   }).catch(function(){});
 }
@@ -385,7 +399,8 @@ function darsSection(s, i){
     planTotal += num(r.v) * c.totalQty * d;
     if (d > D) D = d;
   });
-  var days = (DARS[i] || {}).days;
+  var dj = DARS[i] || {};
+  var days = dj.days;
   var h = '<div class="card dj"><div class="dj-head">' +
     '<div class="dj-t">Darslar jurnali — ' + esc(s.name) + '</div>' +
     '<button class="addrow" onclick="djToggle(' + i + ')">+ bugungi dars xarajati</button></div>';
@@ -404,18 +419,24 @@ function darsSection(s, i){
       'rejimdagi qatorda ДДС qidiruv so\'zi bo\'lishi kerak (masalan «кофе») ' +
       'va davr to\'g\'ri turishi kerak.</div></div>';
   }
+  if (dj.total) {                          // jadval davr oxirigacha aniq
+    D = dj.total;
+    planTotal = norm * D;                  // reja ham jadvaldagi dars soniga
+  }
+  var held = days.filter(function(d){ return d.n > 0; });
   var total = 0;
-  days.forEach(function(d){ total += d.s; });
-  var avg = total / days.length;
+  held.forEach(function(d){ total += d.s; });
+  var avg = held.length ? total / held.length : 0;
+  var past = dj.past || days.length;
   h += '<div class="dj-stats">';
-  h += djTile("O'tgan darslar", days.length + (D ? " / " + D : ""), "", false);
+  h += djTile("O'tgan darslar", past + (D ? " / " + D : ""), "", false);
   h += djTile("Norma — 1 dars", grp(norm), "", false);
-  var avgD = norm ? Math.round((avg - norm) / norm * 100) : null;
+  var avgD = norm && held.length ? Math.round((avg - norm) / norm * 100) : null;
   h += djTile("O'rtacha — 1 dars", grp(avg),
     avgD == null ? "" : (avgD >= 0 ? "+" : "") + avgD + "% normaga", avgD > 0);
   h += djTile("Jami sarflandi", grp(total),
     planTotal ? Math.round(total / planTotal * 100) + "% rejadan" : "", false);
-  if (D && days.length) {
+  if (D && held.length) {
     var proj = avg * D, diff = proj - planTotal;
     h += djTile("Prognoz — " + D + " dars", grp(proj),
       (diff >= 0 ? "+" : "−") + grp(Math.abs(diff)) + " rejaga", diff > 0);
@@ -425,13 +446,23 @@ function darsSection(s, i){
     var dt = new Date(d.d + "T12:00:00");
     var lbl = ("0" + dt.getDate()).slice(-2) + "." +
               ("0" + (dt.getMonth() + 1)).slice(-2) + " · " + UZ_KUN[dt.getDay()];
+    var nomer = (d.i || (k + 1)) + "-dars";
+    if (!d.n) {                            // jadvaldagi dars, xarajat yozilmagan
+      h += '<div class="djc empty">' +
+        '<div class="djc-top"><span class="djc-n">' + nomer + '</span>' +
+        '<span class="djc-d">' + lbl + '</span></div>' +
+        '<div class="djc-s dim2">—</div>' +
+        '<div class="djc-items">xarajat yozilmagan</div></div>';
+      return;
+    }
     var pct = norm ? Math.round((d.s - norm) / norm * 100) : null;
     var items = d.items.slice(0, 2).map(function(it){
-      return esc(it.p || "—") + " · " + grp(it.a);
+      return (it.dd ? '<b class="ddx">' + it.dd + '</b> ' : "") +
+             esc(it.p || "—") + " · " + grp(it.a);
     }).join("<br>");
     if (d.items.length > 2) items += "<br>+" + (d.items.length - 2) + " ta yozuv";
     h += '<div class="djc' + (pct != null && pct > 0 ? " over" : " ok") + '">' +
-      '<div class="djc-top"><span class="djc-n">' + (k + 1) + '-dars</span>' +
+      '<div class="djc-top"><span class="djc-n">' + nomer + '</span>' +
       '<span class="djc-d">' + lbl + '</span></div>' +
       '<div class="djc-s">' + grp(d.s) + '</div>' +
       (pct == null ? "" : '<div class="djc-delta">norma ' +
@@ -700,6 +731,14 @@ render();
 .djc.ok .djc-delta{color:var(--green)}
 .djc-items{font-size:10px;color:var(--dim);margin-top:5px;line-height:1.5;
   border-top:1px dashed var(--line);padding-top:5px}
+.djc.empty{border-left-color:var(--line2);opacity:.62}
+.ddx{color:var(--gold);font-weight:600}
+.kunlar{display:flex;gap:3px;align-items:center;margin-left:6px}
+.kun{padding:3px 7px;font-size:9.5px;border-radius:7px;background:transparent;
+  border:1px solid var(--line2);color:var(--dim);box-shadow:none;cursor:pointer;
+  text-transform:none;letter-spacing:0}
+.kun.on{color:var(--green);border-color:var(--green)}
+.kun:hover{transform:none;filter:none}
 .mode.on{color:var(--gold);border-color:var(--gold);background:var(--gold-dim)}
 .mode:hover{transform:none;filter:none}
 .rowdel{padding:0;width:18px;height:18px;font-size:10px;border-radius:6px;

@@ -20,7 +20,8 @@ Hisob brauzerda jonli bajariladi; bu modul faqat saqlash va boshlang'ich
 namunani beradi.
 """
 import json
-from datetime import date
+import re
+from datetime import date, timedelta
 
 from database import db
 from models import (DdsRow, LaunchScenario, dds_activity, dds_group,
@@ -170,17 +171,15 @@ def fakt_sums(items):
     return out
 
 
-def dars_journal(queries, start, end):
-    """Dars kunlari kesimi: bog'langan xarajatlar sana bo'yicha yig'iladi.
+_DARS_RE = re.compile(r"(\d{1,2})\s*[-–]?\s*dars", re.IGNORECASE)
 
-    Davr ichida qidiruv so'zlariga mos chiqim tushgan har bir sana = bitta
-    dars. Qaytadi: [{"d": sana, "s": jami, "n": nechta, "items": [...]}]
-    """
+
+def _matched_rows(queries, d1, d2):
+    """Qidiruv so'zlariga mos chiqim qatorlari (davr ichida)."""
     qs = [dds_norm(q) for q in queries if dds_norm(str(q or ""))]
     if not qs:
         return []
-    d1, d2 = _parse_d(start), _parse_d(end)
-    days = {}
+    out = []
     for r in DdsRow.query.all():
         if dds_activity(r.article) == "Техническая операция":
             continue
@@ -193,6 +192,74 @@ def dars_journal(queries, start, end):
             continue
         if d2 and r.ddate > d2:
             continue
+        out.append(r)
+    return out
+
+
+def dars_journal(queries, start, end, kunlar=None):
+    """Dars kunlari kesimi: xarajatlar darslarga biriktiriladi.
+
+    kunlar — hafta kunlari (0=du .. 6=yak). Berilsa dars jadvali quriladi:
+    davr boshidan (oxirigacha yoki bugungacha) o'sha kunlar = darslar.
+    Xarajat darsga uch qoida bilan biriktiriladi:
+      1) izohda «5-dars» bo'lsa — aynan o'sha darsga;
+      2) aks holda sanasi bo'yicha ENG YAQIN dars kuniga (juma kofesi
+         shanba darsiga, dushanba yozuvi yakshanba darsiga);
+      3) jadval berilmasa — eski usul: har sana o'zi bir dars.
+
+    Qaytadi: {"days": [{"d","i","s","n","items"}], "total": jadvaldagi
+    jami dars soni (davr oxiri berilgan bo'lsa), "past": o'tgan darslar}
+    """
+    d1, d2 = _parse_d(start), _parse_d(end)
+    rows = _matched_rows(queries, d1, d2)
+    today = date.today()
+
+    wd = set()
+    for k in kunlar or []:
+        try:
+            k = int(k)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= k <= 6:
+            wd.add(k)
+    if wd and d1:
+        horizon = d2 or today
+        sched, d = [], d1
+        while d <= horizon and len(sched) < 400:
+            if d.weekday() in wd:
+                sched.append(d)
+            d += timedelta(days=1)
+        if not sched:
+            return {"days": [], "total": 0, "past": 0}
+        lessons = {i: {"d": ld.isoformat(), "i": i + 1, "s": 0.0, "n": 0,
+                       "items": []} for i, ld in enumerate(sched)}
+        for r in rows:
+            m = _DARS_RE.search(r.purpose or "")
+            if m and 1 <= int(m.group(1)) <= len(sched):
+                idx = int(m.group(1)) - 1
+            else:
+                idx = min(range(len(sched)),
+                          key=lambda k: (abs((sched[k] - r.ddate).days), k))
+            amt = float(r.amount or 0)
+            L = lessons[idx]
+            L["s"] += amt
+            L["n"] += 1
+            item = {"p": (r.purpose or r.article or "").strip()[:60],
+                    "a": round(amt)}
+            if r.ddate != sched[idx]:
+                item["dd"] = r.ddate.strftime("%d.%m")
+            L["items"].append(item)
+        past = sum(1 for ld in sched if ld <= today)
+        # ko'rsatiladiganlar: o'tgan darslar + xarajati bor kelgusilar
+        days = [L for i, L in sorted(lessons.items())
+                if sched[i] <= today or L["n"]]
+        for L in days:
+            L["s"] = round(L["s"])
+        return {"days": days, "total": len(sched) if d2 else 0, "past": past}
+
+    # jadvalsiz eski usul: har sana = bitta dars
+    days = {}
+    for r in rows:
         day = days.setdefault(r.ddate.isoformat(),
                               {"s": 0.0, "n": 0, "items": []})
         amt = float(r.amount or 0)
@@ -200,8 +267,10 @@ def dars_journal(queries, start, end):
         day["n"] += 1
         day["items"].append({"p": (r.purpose or r.article or "").strip()[:60],
                              "a": round(amt)})
-    return [{"d": k, "s": round(v["s"]), "n": v["n"], "items": v["items"]}
-            for k, v in sorted(days.items())]
+    out = [{"d": k, "i": i + 1, "s": round(v["s"]), "n": v["n"],
+            "items": v["items"]}
+           for i, (k, v) in enumerate(sorted(days.items()))]
+    return {"days": out, "total": 0, "past": len(out)}
 
 
 def save_scenarios(scenarios):
