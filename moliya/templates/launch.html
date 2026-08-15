@@ -97,14 +97,25 @@ function render(){
   STATE.forEach(function(_, i){ recalc(i); });
 }
 function column(s, i){
+  var live = s.live || {};
   var h = '<div class="lcol card" data-i="' + i + '">';
   h += '<div class="lc-top">' +
     '<input class="lc-name" value="' + esc(s.name) + '" ' +
       'oninput="STATE[' + i + '].name = this.value; dirty()">' +
     '<div class="lc-btns">' +
+    '<button class="ic live' + (live.on ? " on" : "") + '" ' +
+      'title="Jonli fakt: reja qatorlarini ДДСdagi haqiqiy yozuvlarga bog\'lash" ' +
+      'onclick="toggleLive(' + i + ')">⦿</button>' +
     '<button class="ic" title="Nusxa olish" onclick="dupScenario(' + i + ')">⧉</button>' +
     '<button class="ic danger" title="O\'chirish" onclick="delScenario(' + i + ')">✕</button>' +
     '</div></div>';
+  if (live.on) {
+    h += '<div class="livebar">JONLI FAKT — davr: ' +
+      '<input type="date" class="ld" value="' + esc(live.start || "") + '" ' +
+        'onchange="STATE[' + i + '].live.start = this.value; upd(' + i + ')"> — ' +
+      '<input type="date" class="ld" value="' + esc(live.end || "") + '" ' +
+        'onchange="STATE[' + i + '].live.end = this.value; upd(' + i + ')"></div>';
+  }
 
   /* kurslar */
   h += '<div class="lsec"><div class="lsec-t">Kurslar</div>';
@@ -116,9 +127,13 @@ function column(s, i){
       inp(i, "courses", j, "qty", k.qty, "n") +
       '<span class="r amt" data-o="' + i + ':c' + j + '"></span>' +
       '<button class="rowdel" onclick="delRow(' + i + ',\'courses\',' + j + ')">✕</button></div>';
+    if (live.on) h += liveSub(i, "c" + j,
+      "STATE[" + i + "].courses[" + j + "]", k.q);
   });
   h += '<button class="addrow" onclick="addCourse(' + i + ')">+ kurs</button>';
-  h += '<div class="ltotal"><span>TUSHUM</span><b class="amt" data-o="' + i + ':tushum"></b></div></div>';
+  h += '<div class="ltotal"><span>TUSHUM' +
+       (live.on ? ' <i class="lfk" data-f="' + i + ':tushum"></i>' : '') +
+       '</span><b class="amt" data-o="' + i + ':tushum"></b></div></div>';
 
   /* xarajat bloklari */
   s.blocks.forEach(function(b, bi){
@@ -140,9 +155,13 @@ function column(s, i){
           '].d = this.value; upd(' + i + ')"> dars × ' +
           '<b data-o="' + i + ':pq' + bi + 'r' + ri + '"></b> o\'quvchi</div>';
       }
+      if (live.on) h += liveSub(i, "b" + bi + "r" + ri,
+        "STATE[" + i + "].blocks[" + bi + "].rows[" + ri + "]", r.q);
     });
     h += '<button class="addrow" onclick="addXRow(' + i + ',' + bi + ')">+ xarajat</button>';
-    h += '<div class="ltotal sm"><span>Jami</span><b class="amt neg" data-o="' + i + ':bt' + bi + '"></b></div></div>';
+    h += '<div class="ltotal sm"><span>Jami' +
+         (live.on ? ' <i class="lfk" data-f="' + i + ':bt' + bi + '"></i>' : '') +
+         '</span><b class="amt neg" data-o="' + i + ':bt' + bi + '"></b></div></div>';
   });
 
   /* yalpi + taqsimot */
@@ -165,8 +184,17 @@ function column(s, i){
        '<b class="amt" data-o="' + i + ':final"></b>' +
        '<small>marja <b data-o="' + i + ':marja"></b>% (tushumdan)</small>' +
        '<small class="tbu">zararsizlik: <b data-o="' + i + ':tbuq"></b> o\'quvchi ' +
-       '(<span data-o="' + i + ':tbus"></span> so\'m)</small></div>';
+       '(<span data-o="' + i + ':tbus"></span> so\'m)</small>' +
+       (live.on ? '<small class="lfk2" data-f="' + i + ':live"></small>' : '') +
+       '</div>';
   return h + '</div>';
+}
+function liveSub(i, key, path, q){
+  return '<div class="livesub">' +
+    '<input class="in-t lq" placeholder="ДДС qidiruv: кофе, таргет…" value="' +
+      esc(q || "") + '" oninput="' + path + '.q = this.value; upd(' + i + ')">' +
+    '<span class="r lf" data-f="' + i + ':' + key + '">' +
+    (q ? "…" : "—") + '</span></div>';
 }
 function inp(i, key, j, f, v, kind){
   return '<input class="' + (kind === "n" ? "in-n" : "in-t") + '" value="' +
@@ -223,7 +251,86 @@ function recalc(i){
   if (ts) ts.textContent = c.tbu == null ? "—" : grp(c.tbu);
   var fin = document.querySelectorAll(".lfinal")[i];
   if (fin) fin.classList.toggle("bad", c.final < 0);
+  if (s.live && s.live.on) scheduleFakt(i);
   renderCompare();
+}
+
+/* ── jonli fakt: reja qatorlari ↔ ДДСdagi haqiqiy yozuvlar ── */
+/* faqat bitta statyaga aniq mos tushadigan taxminlar — «telefon» kabi
+   ikki statyaga tegib ketadiganlar ataylab yo'q, ularni qo'lda kiritiladi */
+var LIVE_GUESS = [["kofe", "кофе"], ["target", "таргет"],
+                  ["internet", "интернет"]];
+var COURSE_GUESS = [["роп", "клиента роп"], ["смк", "клиента смк"],
+                    ["тбб", "клиента тбб"], ["tbb", "клиента тбб"]];
+function toggleLive(i){
+  var s = STATE[i];
+  s.live = s.live || {on: false, start: "", end: ""};
+  s.live.on = !s.live.on;
+  if (s.live.on) {
+    // birinchi yoqishda aniq bog'lanishlarni taxmin qilamiz (bo'shlarini)
+    s.blocks.forEach(function(b){ b.rows.forEach(function(r){
+      if (r.q) return;
+      var n = String(r.n || "").toLowerCase();
+      LIVE_GUESS.forEach(function(g){ if (n.indexOf(g[0]) > -1) r.q = g[1]; });
+    }); });
+    s.courses.forEach(function(k){
+      if (k.q) return;
+      var n = String(k.name || "").toLowerCase();
+      COURSE_GUESS.forEach(function(g){ if (n.indexOf(g[0]) > -1) k.q = g[1]; });
+    });
+  }
+  render(); dirty();
+}
+var faktTimers = {};
+function scheduleFakt(i){
+  clearTimeout(faktTimers[i]);
+  faktTimers[i] = setTimeout(function(){ fetchFakt(i); }, 500);
+}
+function fetchFakt(i){
+  var s = STATE[i], live = s.live || {};
+  if (!live.on) return;
+  var c = calc(s), items = [], keys = [], plans = [];
+  s.courses.forEach(function(k, j){
+    items.push({q: k.q || "", dir: "in", start: live.start || "", end: live.end || ""});
+    keys.push("c" + j); plans.push(num(k.price) * num(k.qty));
+  });
+  s.blocks.forEach(function(b, bi){ b.rows.forEach(function(r, ri){
+    items.push({q: r.q || "", dir: "out", start: live.start || "", end: live.end || ""});
+    keys.push("b" + bi + "r" + ri); plans.push(c.blocks[bi].rows[ri]);
+  }); });
+  fetch("/launch/fakt", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({items: items})
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (!j.ok || !j.sums) return;
+    var setF = function(key, txt, over){
+      var el = document.querySelector('[data-f="' + i + ':' + key + '"]');
+      if (!el) return;
+      el.textContent = txt;
+      el.classList.toggle("over", !!over);
+    };
+    var tushumF = 0, xarajatF = 0, btF = {};
+    j.sums.forEach(function(f, k){
+      var key = keys[k], plan = plans[k], bound = !!items[k].q;
+      if (!bound) { setF(key, "—"); return; }
+      var pct = plan ? Math.round(f.s / plan * 100) : 0;
+      setF(key, "fakt " + grp(f.s) + " · " + pct + "% · " + f.n + " ta",
+           key[0] !== "c" && f.s > plan && plan > 0);
+      if (key[0] === "c") tushumF += f.s;
+      else {
+        xarajatF += f.s;
+        var bi = key.slice(1).split("r")[0];
+        btF[bi] = (btF[bi] || 0) + f.s;
+      }
+    });
+    setF("tushum", "fakt " + grp(tushumF));
+    Object.keys(btF).forEach(function(bi){
+      setF("bt" + bi, "fakt " + grp(btF[bi]));
+    });
+    setF("live", "FAKT: tushum " + grp(tushumF) + " − xarajat " +
+         grp(xarajatF) + " = " + grp(tushumF - xarajatF) + " so'm",
+         tushumF - xarajatF < 0);
+  }).catch(function(){});
 }
 
 /* ── stsenariylarni yonma-yon solishtirish paneli ── */
@@ -396,6 +503,25 @@ render();
   font-size:10.5px;color:var(--dim);margin:-2px 18px 6px 0}
 .persub b{color:var(--mut);font-variant-numeric:tabular-nums}
 .persub .pd{width:44px;padding:3px 5px;font-size:11px}
+.ic.live.on{color:var(--green);border-color:var(--green)}
+.livebar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  font:600 9.5px var(--sans);letter-spacing:.07em;color:var(--green);
+  background:var(--hint-bg);border-radius:9px;padding:7px 9px;margin-bottom:10px}
+.ld{background:var(--ink3);border:1px solid var(--line);border-radius:7px;
+  padding:3px 6px;color:var(--txt);font:400 11px var(--sans)}
+.livesub{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;
+  margin:-2px 18px 6px 0;padding-left:10px}
+.livesub .lq{padding:3px 6px;font-size:10.5px;border-style:dashed;
+  color:var(--mut)}
+.livesub .lq:focus{border-style:solid}
+.lf{font-size:10.5px;color:var(--green);font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.lf.over{color:var(--red)}
+.lfk{font-style:normal;font-size:9.5px;color:var(--green);
+  letter-spacing:0;text-transform:none;margin-left:6px;
+  font-variant-numeric:tabular-nums}
+.lfk2{color:var(--green)!important;font-variant-numeric:tabular-nums}
+.lfk2.over{color:var(--red)!important}
 .mode.on{color:var(--gold);border-color:var(--gold);background:var(--gold-dim)}
 .mode:hover{transform:none;filter:none}
 .rowdel{padding:0;width:18px;height:18px;font-size:10px;border-radius:6px;

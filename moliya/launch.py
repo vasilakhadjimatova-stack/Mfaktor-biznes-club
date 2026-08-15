@@ -20,9 +20,11 @@ Hisob brauzerda jonli bajariladi; bu modul faqat saqlash va boshlang'ich
 namunani beradi.
 """
 import json
+from datetime import date
 
 from database import db
-from models import LaunchScenario
+from models import (DdsRow, LaunchScenario, dds_activity, dds_group,
+                    dds_norm)
 
 
 def _blocks(kpi, target, vozvrat):
@@ -118,6 +120,54 @@ def _upgrade(s):
             if (r.get("n") == "Kofe-break" and r.get("m") == "fix"
                     and r.get("v") == 36_000_000):
                 r.update({"m": "per", "v": 40_000, "d": 18})
+
+
+def _parse_d(v):
+    try:
+        return date.fromisoformat(str(v)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def fakt_sums(items):
+    """Jonli rejim: reja qatorlarini ДДСdagi haqiqiy yozuvlarga bog'lash.
+
+    items = [{"q": "кофе", "dir": "out", "start": "2026-08-01", "end": ""}]
+    Har element uchun {s: yig'indi, n: nechta yozuv} qaytadi.
+
+    q — statya yoki naznacheniye ichida qidiriladigan so'z (registrsiz,
+    dds_norm bilan). Yo'nalish statyaning spravochnikdagi guruhidan olinadi
+    (Поступление/Выбытие) — hamyonlar orasidagi o'tkazmalar (texnik
+    operatsiyalar) hisobga kirmaydi.
+    """
+    rows = []
+    for r in DdsRow.query.all():
+        if dds_activity(r.article) == "Техническая операция":
+            continue
+        rows.append((r.ddate, dds_group(r.article),
+                     dds_norm(r.article) + " " + dds_norm(r.purpose),
+                     float(r.amount or 0)))
+    out = []
+    for it in items:
+        it = it if isinstance(it, dict) else {}
+        q = dds_norm(it.get("q") or "")
+        if not q:
+            out.append({"s": 0, "n": 0})
+            continue
+        want = "Поступление" if it.get("dir") == "in" else "Выбытие"
+        d1, d2 = _parse_d(it.get("start")), _parse_d(it.get("end"))
+        total, n = 0.0, 0
+        for ddate, grp, text, amt in rows:
+            if grp != want or q not in text:
+                continue
+            if d1 and (not ddate or ddate < d1):
+                continue
+            if d2 and (not ddate or ddate > d2):
+                continue
+            total += amt
+            n += 1
+        out.append({"s": round(total), "n": n})
+    return out
 
 
 def save_scenarios(scenarios):

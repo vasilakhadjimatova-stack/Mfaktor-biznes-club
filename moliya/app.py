@@ -738,6 +738,13 @@ def register_routes(app):
             return {"ok": False, "xato": "Ma'lumot tuzilishi noto'g'ri"}, 400
         return {"ok": True}
 
+    @app.route("/launch/fakt", methods=["POST"])
+    def launch_fakt():
+        items = (request.get_json(silent=True) or {}).get("items")
+        if not isinstance(items, list) or len(items) > 300:
+            return {"ok": False}, 400
+        return {"ok": True, "sums": launch.fakt_sums(items)}
+
     # ── Shartnomalarni to'lovlardan tiklash ───────────────────────
     @app.route("/contracts/tiklash")
     def recover_page():
