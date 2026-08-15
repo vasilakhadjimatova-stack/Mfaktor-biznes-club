@@ -35,12 +35,17 @@ function num(v){
 
 /* ── hisob (varaqdagi formulalar birma-bir) ── */
 function calc(s){
-  var tushum = 0;
-  s.courses.forEach(function(k){ tushum += num(k.price) * num(k.qty); });
+  var tushum = 0, totalQty = 0;
+  s.courses.forEach(function(k){
+    tushum += num(k.price) * num(k.qty);
+    totalQty += num(k.qty);
+  });
   var blocks = s.blocks.map(function(b){
     var t = 0;
     var rows = b.rows.map(function(r){
-      var amt = r.m === "pct" ? tushum * num(r.v) / 100 : num(r.v);
+      var amt = r.m === "pct" ? tushum * num(r.v) / 100
+              : r.m === "per" ? num(r.v) * totalQty * (num(r.d) || 1)
+              : num(r.v);
       t += amt;
       return amt;
     });
@@ -60,17 +65,19 @@ function calc(s){
   var oquv = dividend * num(d.oquv) / 100;
   var bux = dividend * num(d.bux) / 100;
   var final_ = dividend - tas - dir - oquv - bux;
-  /* zararsizlik (varaqdagi ТБУ formulasi): foizli qatorlar tushum bilan
-     o'sadi (o'zgaruvchan), qolgani o'zgarmas */
-  var pctShare = 0, fixSum = 0, totalQty = 0;
+  /* zararsizlik (varaqdagi ТБУ formulasi): foizli qatorlar tushum bilan,
+     «kishi» qatorlar o'quvchi soni bilan o'sadi, qolgani o'zgarmas.
+     Har o'quvchining hissasi = narx×(1−foizlar) − kishi-boshi xarajat */
+  var pctShare = 0, fixSum = 0, perStudent = 0;
   s.blocks.forEach(function(b){ b.rows.forEach(function(r){
     if (r.m === "pct") pctShare += num(r.v) / 100;
+    else if (r.m === "per") perStudent += num(r.v) * (num(r.d) || 1);
     else fixSum += num(r.v);
   }); });
-  s.courses.forEach(function(k){ totalQty += num(k.qty); });
   var avgPrice = totalQty ? tushum / totalQty : 0;
-  var tbu = pctShare < 1 ? fixSum / (1 - pctShare) : null;
-  var tbuQty = (tbu != null && avgPrice) ? tbu / avgPrice : null;
+  var contrib = avgPrice * (1 - pctShare) - perStudent;
+  var tbuQty = contrib > 0 ? fixSum / contrib : null;
+  var tbu = tbuQty != null ? tbuQty * avgPrice : null;
   return {tushum: tushum, blocks: blocks, xarajat: xarajat, yalpi: yalpi,
           hayriya: hayriya, afterH: afterH, reinvest: reinvest,
           afterR: afterR, soliq: soliq, dividend: dividend,
@@ -120,12 +127,19 @@ function column(s, i){
       h += '<div class="lgrid xr">' +
         inp2(i, bi, ri, "n", r.n, "t") +
         inp2(i, bi, ri, "v", r.v, "n") +
-        '<button class="mode ' + (r.m === "pct" ? "on" : "") + '" ' +
-          'title="So\'m yoki tushumdan foiz" ' +
+        '<button class="mode ' + (r.m === "pct" || r.m === "per" ? "on" : "") + '" ' +
+          'title="So\'m / tushumdan foiz / kishi boshiga (narx × o\'quvchi × dars)" ' +
           'onclick="toggleMode(' + i + ',' + bi + ',' + ri + ')">' +
-          (r.m === "pct" ? "%" : "so’m") + '</button>' +
+          (r.m === "pct" ? "%" : r.m === "per" ? "kishi" : "so’m") + '</button>' +
         '<span class="r amt dim2" data-o="' + i + ':b' + bi + 'r' + ri + '"></span>' +
         '<button class="rowdel" onclick="delXRow(' + i + ',' + bi + ',' + ri + ')">✕</button></div>';
+      if (r.m === "per") {
+        h += '<div class="persub">× <input class="in-n pd" value="' +
+          esc(num(r.d) || 1) + '" ' +
+          'oninput="STATE[' + i + '].blocks[' + bi + '].rows[' + ri +
+          '].d = this.value; upd(' + i + ')"> dars × ' +
+          '<b data-o="' + i + ':pq' + bi + 'r' + ri + '"></b> o\'quvchi</div>';
+      }
     });
     h += '<button class="addrow" onclick="addXRow(' + i + ',' + bi + ')">+ xarajat</button>';
     h += '<div class="ltotal sm"><span>Jami</span><b class="amt neg" data-o="' + i + ':bt' + bi + '"></b></div></div>';
@@ -185,7 +199,10 @@ function recalc(i){
   s.courses.forEach(function(k, j){ set("c" + j, num(k.price) * num(k.qty)); });
   set("tushum", c.tushum);
   s.blocks.forEach(function(b, bi){
-    b.rows.forEach(function(_, ri){ set("b" + bi + "r" + ri, c.blocks[bi].rows[ri]); });
+    b.rows.forEach(function(r, ri){
+      set("b" + bi + "r" + ri, c.blocks[bi].rows[ri]);
+      if (r.m === "per") set("pq" + bi + "r" + ri, c.totalQty);
+    });
     set("bt" + bi, c.blocks[bi].total);
   });
   set("yalpi", c.yalpi);
@@ -291,8 +308,12 @@ function delXRow(i, bi, ri){
 }
 function toggleMode(i, bi, ri){
   var r = STATE[i].blocks[bi].rows[ri];
-  r.m = r.m === "pct" ? "fix" : "pct";
-  r.v = num(r.v) > 1000 && r.m === "pct" ? 3 : r.v;   // so'mdan %ga o'tsa
+  r.m = r.m === "fix" ? "pct" : r.m === "pct" ? "per" : "fix";
+  if (r.m === "pct" && num(r.v) > 1000) r.v = 3;      // so'mdan %ga o'tsa
+  if (r.m === "per") {
+    if (num(r.v) > 1_000_000) r.v = 40000;            // mln emas, kishi narxi
+    if (!num(r.d)) r.d = 1;
+  }
   render(); dirty();
 }
 
@@ -371,6 +392,10 @@ render();
 .dim2{color:var(--mut)}
 .mode{padding:5px 0;font-size:10px;border-radius:7px;background:transparent;
   border:1px solid var(--line2);color:var(--dim);box-shadow:none;cursor:pointer}
+.persub{display:flex;align-items:center;gap:5px;justify-content:flex-end;
+  font-size:10.5px;color:var(--dim);margin:-2px 18px 6px 0}
+.persub b{color:var(--mut);font-variant-numeric:tabular-nums}
+.persub .pd{width:44px;padding:3px 5px;font-size:11px}
 .mode.on{color:var(--gold);border-color:var(--gold);background:var(--gold-dim)}
 .mode:hover{transform:none;filter:none}
 .rowdel{padding:0;width:18px;height:18px;font-size:10px;border-radius:6px;

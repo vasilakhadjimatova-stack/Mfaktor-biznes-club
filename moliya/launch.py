@@ -5,7 +5,9 @@ mantiq birma-bir ko'chirildi:
 
   Tushum = Σ (kurs narxi × o'quvchi soni)
   Xarajat bloklari (Boshqaruv / Marketing / Sotuv / Servis):
-     har qator yo qat'iy summa («fix»), yo tushumdan foiz («pct»)
+     har qator yo qat'iy summa («fix»), yo tushumdan foiz («pct»),
+     yo kishi boshiga («per»: narx × o'quvchi soni × dars soni —
+     kofe-break kabi o'quvchi bilan o'sadigan xarajatlar uchun)
   Yalpi daromad = tushum − barcha bloklar
   Taqsimot sharsharasi:
      − hayriya (1–2.5%)  → − re-investitsiya (30%)  → − dividend solig'i (5%)
@@ -53,7 +55,8 @@ def _blocks(kpi, target, vozvrat):
         {"title": "Xizmat ko'rsatish (servis)", "rows": [
             {"n": "Fiksa servis", "m": "fix", "v": 13_000_000},
             {"n": "O'quv bo'limi va HR KPI", "m": "fix", "v": 1_000_000},
-            {"n": "Kofe-break", "m": "fix", "v": 36_000_000},
+            # 40 000 so'm × har o'quvchi × 18 dars (varaqda 50 kishiga 36 mln)
+            {"n": "Kofe-break", "m": "per", "v": 40_000, "d": 18},
             {"n": "O'qituvchilar gonorari (18 dars)", "m": "fix", "v": 24_000_000},
             {"n": "Xo'jalik tovarlari", "m": "fix", "v": 8_000_000},
             {"n": "Kanstovar", "m": "fix", "v": 3_000_000},
@@ -97,8 +100,24 @@ def all_scenarios():
         except ValueError:
             continue
         d["name"] = r.name
+        _upgrade(d)
         out.append(d)
     return out
+
+
+def _upgrade(s):
+    """Eski saqlangan stsenariylarda kofe-break qat'iy 36 mln bo'lib qolgan.
+
+    Bu aynan namunadan kelgan qiymat (40 000 × 50 kishi × 18 dars), shuning
+    uchun uni xavfsiz «per» rejimga o'tkazamiz — o'quvchi soni o'zgarsa
+    xarajat ham o'zgaradigan bo'ladi. Qo'lda o'zgartirilgan boshqa
+    summalarga tegilmaydi.
+    """
+    for b in s.get("blocks", []):
+        for r in b.get("rows", []):
+            if (r.get("n") == "Kofe-break" and r.get("m") == "fix"
+                    and r.get("v") == 36_000_000):
+                r.update({"m": "per", "v": 40_000, "d": 18})
 
 
 def save_scenarios(scenarios):
