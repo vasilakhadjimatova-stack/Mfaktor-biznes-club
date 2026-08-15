@@ -124,11 +124,14 @@ aside::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(400px 200px at 20% 0%, rgba(224,60,48,.07), transparent 70%)}
 aside > *{position:relative;z-index:1}
 .brand{padding:0 6px 18px;display:flex;flex-direction:column;gap:4px}
-.mlogo{width:158px;height:auto;display:block;overflow:visible}
+.mlogo{width:198px;height:auto;display:block;overflow:visible}
 .ml-fill{fill:#ec1c24;
   filter:drop-shadow(0 0 8px rgba(236,28,36,.22))}
 .ml-word{font-family:var(--sans);font-weight:700;font-size:60px;
   letter-spacing:-1.5px;fill:var(--side-txt)}
+.ml-biz{font-family:var(--sans);font-weight:700;font-size:62px;fill:#ec1c24}
+.ml-mak{font-family:var(--sans);font-weight:700;font-size:62px;
+  fill:var(--side-txt)}
 /* grafik bo'ylab yugurib o'tadigan yorug'lik — chiziq har safar
    qaytadan «chizilayotganday» ko'rinadi (Impulse pulsidan ilhom) */
 .ml-scan{fill:none;stroke:#ff7a5c;stroke-width:5;stroke-linecap:round;
@@ -1416,7 +1419,7 @@ body.xlfull .xl-fs-exit{display:block}
   .brand .dot{width:26px;height:26px;border-radius:8px}
   .brand{padding:0 10px 0 4px;font-size:16px}
   .brand small,.msub,.cash-line{display:none}
-  .mlogo{width:92px}
+  .mlogo{width:164px}
   aside nav{display:none!important}
   .side-foot{margin:0 0 0 auto;padding:0;border:0;flex:none}
   .theme-btn{margin:0;padding:7px 9px;width:auto}
@@ -1613,10 +1616,14 @@ button.chip:hover{border-color:var(--line2);color:var(--txt)}
   {# Brend: asl logo — «M» bu o'sish grafigi (ko'tarilish, pasayish,
      yana balandroq ko'tarilish). Matn chiziq ostiga kirib turadi. #}
   <div class="brand">
-    <svg class="mlogo" viewBox="30 44 246 136" aria-label="MFaktor">
+    <svg class="mlogo" viewBox="30 44 600 136" aria-label="MFaktor Biznes maktabi">
       <path class="ml-fill" d="M51.7 158.0 L92.2 95.7 L110.5 122.1 L141.1 69.1 L187.4 122.0 L204.6 122.0 L138.9 46.9 L109.5 97.9 L91.8 72.3 L36.3 158.0 Z"/>
       <path class="ml-scan" d="M44 158 L92 84 L110 110 L140 58 L196 122"/>
       <text class="ml-word" x="72" y="170">Faktor</text>
+      <text class="ml-biz" x="296" y="106" textLength="296"
+            lengthAdjust="spacingAndGlyphs">BIZNES</text>
+      <text class="ml-mak" x="296" y="172" textLength="296"
+            lengthAdjust="spacingAndGlyphs">MAKTABI</text>
     </svg>
     <small class="msub">Moliya markazi</small>
   </div>
