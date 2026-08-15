@@ -9,6 +9,7 @@ Ishga tushirish:
 import hashlib
 import hmac
 import json
+from collections import Counter
 import os
 import secrets
 import time
@@ -41,7 +42,7 @@ from models import (AppSetting, Budget, Cohort, Contract, Course, DdsRow, DDS_LO
                     Assignment, Submission, EduCertificate,
                     VideoModule, VideoLesson, LessonView, LessonWatch,
                     LessonItem, ITEM_KINDS,
-                    Quiz, QuizQuestion, QuizOption, QuizAttempt)
+                    Quiz, QuizQuestion, QuizOption, QuizAttempt, dds_norm)
 
 
 def _session_secret(app):
@@ -1008,12 +1009,38 @@ def register_routes(app):
         # Bu «manbada ushlash»: izohga ism yozilishiga umid qilinmaydi.
         pupils = (Contract.query.filter_by(status="active")
                   .join(Student).order_by(Student.name).all())
+        # ── Tez kiritish yordamlari (buxgalter uchun) ──
+        # oxirgi yozuvlardan eng ko'p ishlatilgan statyalar (chiplar) va
+        # har statyaning odatiy izohlari (autocomplete). Nomlar spravochnik
+        # ko'rinishiga keltiriladi — select qiymatiga aynan mos bo'lsin.
+        canon = {dds_norm(art): art for art, _, _ in DDS_SPRAVOCHNIK}
+        recent = DdsRow.query.order_by(DdsRow.id.desc()).limit(600).all()
+        art_freq = Counter()
+        purp_freq = {}
+        for r in recent:
+            ca = canon.get(dds_norm(r.article))
+            if not ca:
+                continue
+            art_freq[ca] += 1
+            p = (r.purpose or "").strip()
+            if p:
+                purp_freq.setdefault(ca, Counter())[p] += 1
+        top_arts = [art for art, _ in art_freq.most_common(9)]
+        purp_top = {art: [p for p, _ in c.most_common(6)]
+                    for art, c in purp_freq.items()}
+        add_pref = {"open": a.get("add") == "1",
+                    "d": a.get("ad") or date.today().isoformat(),
+                    "w": a.get("aw", ""), "art": a.get("aa", "")}
+
         return render_template("ddsdata.html", rows=rows, uniq=uniq, sel=sel,
                                total=len(rows), all_total=len(allr),
                                inc=inc, exp=exp, pupils=pupils,
                                wallets=DDS_WALLETS, wallets2=DDS_WALLET2,
                                articles=[a for a, _, _ in DDS_SPRAVOCHNIK],
-                               lookup=DDS_LOOKUP)
+                               lookup=DDS_LOOKUP,
+                               top_arts=top_arts, purp_top=purp_top,
+                               add_pref=add_pref,
+                               flows={art: g for art, g, _ in DDS_SPRAVOCHNIK})
 
     @app.route("/ddsdata/add", methods=["POST"])
     def ddsdata_add():
@@ -1064,7 +1091,9 @@ def register_routes(app):
         db.session.commit()
         if steps:
             flash("Qator qo'shildi — " + ", ".join(steps), "ok")
-        return redirect(url_for("ddsdata"))
+        # ketma-ket kiritish: forma ochiq qaytadi, sana/hamyon/statya saqlanadi
+        return redirect(url_for("ddsdata", add=1, ad=row.ddate.isoformat(),
+                                aw=row.wallet, aa=row.article) + "#xladd")
 
     @app.route("/ddsdata/<int:rid>/delete", methods=["POST"])
     def ddsdata_delete(rid):

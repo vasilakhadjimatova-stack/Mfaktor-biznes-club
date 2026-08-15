@@ -139,20 +139,39 @@
   </table>
 </div>
 
-{# ── Yangi qator / tahrirlash ── #}
-<details class="adder" style="margin-top:14px" id="xladd">
-  <summary id="xladd-title">Добавить строку</summary>
+{# ── Yangi qator — buxgalterning tez kiritish paneli ── #}
+<details class="adder" style="margin-top:14px" id="xladd" {{ 'open' if add_pref.open }}>
+  <summary id="xladd-title">Kassaga kiritish</summary>
   <div class="body">
-  <form class="inline" method="post" action="/ddsdata/add" id="xladd-form">
-    <div><label>Дата</label><input type="date" name="ddate" value="{{ today.isoformat() }}" required></div>
-    <div><label>Сумма</label><input name="amount" required placeholder="0,00"></div>
+  {% if top_arts %}
+  <div class="qart">
+    <span class="qart-l">Tez-tez:</span>
+    {% for t in top_arts %}
+    <button type="button" class="qchip {{ 'in' if flows.get(t) == 'Поступление' else 'out' }}"
+            onclick='qArt({{ t|tojson }})'>{{ t }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <form class="inline addf" method="post" action="/ddsdata/add" id="xladd-form">
+    <div><label>Дата</label>
+      <input type="date" name="ddate" value="{{ add_pref.d }}" required></div>
     <div><label>Кошелек</label>
-      <select name="wallet">{% for w in wallets %}<option>{{ w }}</option>{% endfor %}</select></div>
+      <select name="wallet" id="xl-wal">{% for w in wallets %}
+        <option {{ 'selected' if w == add_pref.w }}>{{ w }}</option>
+      {% endfor %}</select></div>
+    <div class="artbox"><label>Статья <span id="xl-dir" class="dirb"></span></label>
+      <select name="article" id="xl-art" onchange="artChange()">{% for a in articles %}
+        <option {{ 'selected' if a == add_pref.art }}>{{ a }}</option>
+      {% endfor %}</select></div>
+    <div><label>Сумма</label>
+      <input name="amount" id="xl-sum" required placeholder="0"
+             inputmode="decimal" autocomplete="off"></div>
+    <div style="flex:1;min-width:220px"><label>Назначение платежа</label>
+      <input name="purpose" id="xl-purp" list="purp-list" autocomplete="off"
+             placeholder="izoh — pastdan tanlasa ham bo'ladi">
+      <datalist id="purp-list"></datalist></div>
     <div><label>Кошелек (2)</label>
       <select name="wallet2"><option value=""></option>{% for w in wallets2 %}<option>{{ w }}</option>{% endfor %}</select></div>
-    <div style="flex:1;min-width:220px"><label>Назначение платежа</label><input name="purpose"></div>
-    <div><label>Статья</label>
-      <select name="article" id="xl-art" onchange="pupilBox()">{% for a in articles %}<option>{{ a }}</option>{% endfor %}</select></div>
     <div id="xl-pupil" style="display:none;min-width:230px"><label>O'quvchi (kim to'ladi?)</label>
       <select name="contract_id">
         <option value="">— tanlanmagan (navbatga tushadi) —</option>
@@ -160,21 +179,80 @@
         <option value="{{ c.id }}">{{ c.student.name }} — {{ c.cohort.name }}</option>
         {% endfor %}
       </select></div>
-    <div><button id="xladd-btn">Сохранить</button></div>
+    <div><button id="xladd-btn">Saqlash → davom</button></div>
   </form>
-  <p class="hint" style="margin-top:10px">Строка сразу попадает в кассу. Mijoz to'lovi bo'lsa —
-    <b>o'quvchini shu yerning o'zida tanlang</b>: shunda to'lov darhol shartnomaga bog'lanadi,
-    izohga ism yozilishiga hojat qolmaydi. Tanlanmasa, navbatga tushadi.</p>
+  <p class="hint" style="margin-top:10px">Qator darhol kassaga tushadi. Saqlagandan keyin forma
+    <b>ochiq qoladi</b> — sana, hamyon va statya saqlanadi, faqat summa va izoh kiritasiz
+    (kun bo'yi ketma-ket yozish uchun). Mijoz to'lovi bo'lsa — <b>o'quvchini shu yerda
+    tanlang</b>: to'lov darhol shartnomaga bog'lanadi. Tanlanmasa, navbatga tushadi.</p>
   <script>
+  var PURP = {{ purp_top|tojson }};
+  var FLOW = {{ flows|tojson }};
   function pupilBox(){
     var art = document.getElementById("xl-art").value || "";
     var box = document.getElementById("xl-pupil");
     box.style.display = art.indexOf("Поступление от клиента") === 0 ? "" : "none";
   }
-  document.addEventListener("DOMContentLoaded", pupilBox);
+  function dirBadge(){
+    var g = FLOW[document.getElementById("xl-art").value] || "";
+    var el = document.getElementById("xl-dir");
+    el.textContent = g === "Поступление" ? "KIRIM" : g === "Выбытие" ? "CHIQIM" : "";
+    el.className = "dirb " + (g === "Поступление" ? "in" : g === "Выбытие" ? "out" : "");
+  }
+  function purpList(){
+    var arr = PURP[document.getElementById("xl-art").value] || [];
+    document.getElementById("purp-list").innerHTML = arr.map(function(p){
+      return '<option value="' + p.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '">';
+    }).join("");
+  }
+  function artChange(){ pupilBox(); dirBadge(); purpList(); }
+  function qArt(a){
+    document.getElementById("xladd").open = true;
+    document.getElementById("xl-art").value = a;
+    artChange();
+    var s = document.getElementById("xl-sum");
+    s.focus();
+  }
+  /* summa: yozayotganda raqam klaviaturasi, chiqishda 1 200 000 ko'rinishi */
+  document.getElementById("xl-sum").addEventListener("blur", function(){
+    var v = parseFloat(this.value.replace(/[^\d.,-]/g, "").replace(/\s/g, "").replace(",", "."));
+    if (!isNaN(v) && Math.abs(v) >= 1000)
+      this.value = String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  });
+  document.addEventListener("DOMContentLoaded", function(){
+    artChange();
+    {% if add_pref.open %}
+    var el = document.getElementById("xladd");
+    el.scrollIntoView({block: "center"});
+    document.getElementById("xl-sum").focus();
+    {% endif %}
+  });
   </script>
   </div>
 </details>
+
+<style>
+.qart{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:11px}
+.qart-l{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
+.qchip{padding:6px 11px;font-size:12px;border-radius:9px;background:var(--ink3);
+  border:1px solid var(--line2);color:var(--mut);box-shadow:none;cursor:pointer;
+  max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qchip:hover{transform:none;filter:none;color:var(--txt)}
+.qchip.in{border-left:3px solid var(--green)}
+.qchip.out{border-left:3px solid var(--red)}
+.dirb{font-size:9.5px;font-weight:700;letter-spacing:.06em;border-radius:6px;
+  padding:2px 6px;margin-left:6px;vertical-align:1px}
+.dirb.in{background:var(--green-dim);color:var(--green)}
+.dirb.out{background:var(--red-dim);color:var(--red)}
+.addf .artbox{min-width:250px}
+@media(max-width:700px){
+  .addf{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .addf > div{min-width:0!important}
+  .addf .artbox,.addf > div[style*="flex:1"],.addf #xl-pupil{grid-column:1/-1}
+  .addf input,.addf select{font-size:16px;min-height:40px}
+  .qchip{font-size:13px;padding:8px 12px}
+}
+</style>
 
 <script type="application/json" id="xl-lists">{{ {"wallets": wallets,
   "wallets2": wallets2, "articles": articles}|tojson }}</script>
