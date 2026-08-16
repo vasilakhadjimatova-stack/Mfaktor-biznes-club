@@ -15,6 +15,19 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Moliya">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+{# iOS ochilish ekrani rasmlari — oq miltillash o'rniga to'q brend fon.
+   O'lcham qurilmaga aniq mos kelishi shart, shuning uchun ro'yxat uzun #}
+<link rel="apple-touch-startup-image" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1320x2868.png">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1284x2778.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1242x2688.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2)" href="/static/icons/splash/splash-828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1242x2208.png">
+<link rel="apple-touch-startup-image" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1206x2622.png">
+<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3)" href="/static/icons/splash/splash-1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2)" href="/static/icons/splash/splash-750x1334.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1334,24 +1347,37 @@ body.xlfull .xl-fs-exit{display:block}
    marta ko'rinadi — tab almashtirishlarda chiqmaydi */
 #boot{position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:18px;
-  background:var(--ink);transition:opacity .5s ease}
+  background:#05070e;transition:opacity .5s ease}
 #boot.bye{opacity:0;pointer-events:none}
-#boot .bt-logo{width:216px;overflow:visible;
-  animation:bt-pop .6s cubic-bezier(.2,.9,.3,1.35) both}
-#boot .bt-m{fill:#ec1c24;filter:drop-shadow(0 0 14px rgba(236,28,36,.35))}
+#boot .bt-logo{width:216px;overflow:visible}
+/* 1-bosqich: «M» qalam bilan chizilganday chiziq bo'ylab yoziladi */
+#boot .bt-draw{fill:none;stroke:#ec1c24;stroke-width:13;stroke-linecap:round;
+  stroke-linejoin:round;stroke-dasharray:270;stroke-dashoffset:270;
+  filter:drop-shadow(0 0 10px rgba(236,28,36,.45));
+  animation:bt-run 1.15s cubic-bezier(.45,0,.25,1) .15s forwards,
+            bt-hide .35s ease 1.3s forwards}
+/* 2-bosqich: chiziq to'liq shaklga aylanadi */
+#boot .bt-m{fill:#ec1c24;opacity:0;
+  filter:drop-shadow(0 0 14px rgba(236,28,36,.35));
+  animation:bt-show .45s ease 1.05s both}
+/* 3-bosqich: «Faktor» harflari birma-bir yoziladi */
 #boot .bt-word{font-family:var(--sans);font-weight:700;font-size:60px;
-  letter-spacing:-1.5px;fill:var(--txt);opacity:0;
-  animation:bt-fade .5s ease .35s both}
-#boot .bt-scan{fill:none;stroke:#ff7a5c;stroke-width:5;stroke-linecap:round;
-  stroke-linejoin:miter;stroke-dasharray:70 460;stroke-dashoffset:530;
-  filter:drop-shadow(0 0 8px rgba(255,122,92,.9));
-  animation:bt-run 1.3s cubic-bezier(.4,0,.3,1) .2s infinite}
+  letter-spacing:-1.5px;fill:#f2f4fb}
+#boot .bt-word tspan{opacity:0;animation:bt-fade .28s ease both}
+#boot .bt-word tspan:nth-child(1){animation-delay:1.2s}
+#boot .bt-word tspan:nth-child(2){animation-delay:1.29s}
+#boot .bt-word tspan:nth-child(3){animation-delay:1.38s}
+#boot .bt-word tspan:nth-child(4){animation-delay:1.47s}
+#boot .bt-word tspan:nth-child(5){animation-delay:1.56s}
+#boot .bt-word tspan:nth-child(6){animation-delay:1.65s}
+/* 4-bosqich: BIZNES MAKTABI */
 #boot .bt-sub{font:700 13px var(--sans);letter-spacing:6px;
-  color:var(--txt);opacity:0;animation:bt-fade .5s ease .55s both}
+  color:#cfd4e3;opacity:0;animation:bt-fade .5s ease 1.85s both}
 #boot .bt-sub b{color:#ec1c24;font-weight:700}
-@keyframes bt-pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
 @keyframes bt-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes bt-run{to{stroke-dashoffset:0}}
+@keyframes bt-show{to{opacity:1}}
+@keyframes bt-hide{to{opacity:0}}
 
 /* Sekin yuklanishda yuqorida oltin progress chizig'i — faqat sahifa
    kechiksa ko'rinadi (tez o'tishlarda umuman chiqmaydi) */
@@ -1657,8 +1683,8 @@ button.chip:hover{border-color:var(--line2);color:var(--txt)}
 <div id="boot" hidden aria-hidden="true">
   <svg class="bt-logo" viewBox="30 40 236 148">
     <path class="bt-m" d="M51.7 158.0 L92.2 95.7 L110.5 122.1 L141.1 69.1 L187.4 122.0 L204.6 122.0 L138.9 46.9 L109.5 97.9 L91.8 72.3 L36.3 158.0 Z"/>
-    <path class="bt-scan" d="M44 158 L92 84 L110 110 L140 58 L196 122"/>
-    <text class="bt-word" x="72" y="170">Faktor</text>
+    <path class="bt-draw" d="M44 158 L92 84 L110 110 L140 58 L196 122"/>
+    <text class="bt-word" x="72" y="170"><tspan>F</tspan><tspan>a</tspan><tspan>k</tspan><tspan>t</tspan><tspan>o</tspan><tspan>r</tspan></text>
   </svg>
   <div class="bt-sub"><b>BIZNES</b> MAKTABI</div>
 </div>
@@ -1668,17 +1694,19 @@ button.chip:hover{border-color:var(--line2);color:var(--txt)}
                    navigator.standalone === true;
   if (!standalone || sessionStorage.getItem('mf_boot')) return;
   try { sessionStorage.setItem('mf_boot', '1'); } catch(e){}
-  var b = document.getElementById('boot');
+  var b = document.getElementById('boot'), t0 = Date.now();
   b.hidden = false;
   function bye(){
     if (!b.parentNode || b.classList.contains('bye')) return;
     b.classList.add('bye');
     setTimeout(function(){ b.remove(); }, 550);
   }
-  // sahifa tayyor bo'lgach ~0.8s ko'rsatib turib yo'qotamiz;
-  // nima bo'lganda ham 2.5s dan oshirmaymiz
-  addEventListener('load', function(){ setTimeout(bye, 800); });
-  setTimeout(bye, 2500);
+  // animatsiya to'liq o'ynashi uchun kamida 2.4s turadi; sahifa undan
+  // kech kelsa ham 3.8s dan oshirmaymiz
+  addEventListener('load', function(){
+    setTimeout(bye, Math.max(0, 2400 - (Date.now() - t0)));
+  });
+  setTimeout(bye, 3800);
 })();
 </script>
 <div class="shell">
