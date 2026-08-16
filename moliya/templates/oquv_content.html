@@ -49,7 +49,7 @@
       <div><button>Saqlash</button></div>
     </form>
     <form method="post" action="/oquv/modul/{{ m.id }}/ochirish" style="margin-top:10px"
-          onsubmit="return confirm('«{{ m.title }}» moduli va uning barcha darslari o‘chirilsinmi? O‘quvchilarning ko‘rish tarixi ham yo‘qoladi.')">
+          onsubmit='return confirm({{ ("«" ~ m.title ~ "» moduli va uning barcha darslari oʻchirilsinmi? Oʻquvchilarning koʻrish tarixi ham yoʻqoladi.")|tojson }})'>
       <button class="chip">Modulni o'chirish</button></form>
     </div>
   </details>
@@ -100,7 +100,7 @@
         <div><button>Saqlash</button></div>
       </form>
       <form method="post" action="/oquv/dars/{{ l.id }}/ochirish" style="margin-top:10px"
-            onsubmit="return confirm('«{{ l.title }}» darsi va uning barcha elementlari o‘chirilsinmi? O‘quvchilarning ko‘rish tarixi ham yo‘qoladi.')">
+            onsubmit='return confirm({{ ("«" ~ l.title ~ "» darsi va uning barcha elementlari oʻchirilsinmi? Oʻquvchilarning koʻrish tarixi ham yoʻqoladi.")|tojson }})'>
         <button class="chip">Darsni o'chirish</button></form>
       </div>
     </details>

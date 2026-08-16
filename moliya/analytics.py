@@ -102,7 +102,13 @@ def trend(year, month, back=12, ahead=3):
         yo'nalish = oxirgi 3 oy / avvalgi 3 oy, so'nuvchi sur'at bilan.
         Oddiy murakkab foiz 6 oyga cho'zilsa, bitta g'ayrioddiy oy butun
         prognozni buzadi — shuning uchun sur'at har oy so'nib boradi."""
-        vals = [h[key] for h in base_hist if h[key]]
+        # Nol oyni butunlay tashlab yuborsak, o'rtacha sun'iy ko'tarilib,
+        # prognoz doim optimistik chiqardi. Faqat YETAKCHI nollarni (ma'lumot
+        # boshlanishidan oldin — «hali kiritilmagan») olib tashlaymiz; oradagi
+        # va keyingi haqiqiy nol oylar o'rtachaga to'liq kiradi.
+        vals = [h[key] for h in base_hist]
+        while vals and not vals[0]:
+            vals.pop(0)
         if len(vals) < 3:
             return [round(vals[-1]) if vals else 0] * ahead
         level = sum(vals[-6:]) / len(vals[-6:])

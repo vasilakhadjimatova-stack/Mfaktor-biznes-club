@@ -97,7 +97,7 @@
         {% endif %}
         {% if not c.certificate and c.status == 'active' %}
         <form method="post" action="/oquv/contract/{{ c.id }}/certificate" style="display:inline"
-              onsubmit="return confirm('{{ c.student.name }} — bitirdi deb belgilab, sertifikat berilsinmi?')">
+              onsubmit='return confirm({{ (c.student.name ~ " — bitirdi deb belgilab, sertifikat berilsinmi?")|tojson }})'>
           <button class="chip" title="Bitirdi deb belgilab, sertifikat berish">🎓 Sertifikat</button>
         </form>
         {% elif c.certificate %}

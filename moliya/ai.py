@@ -79,6 +79,7 @@ def snapshot():
 
     today = date.today()
     lines = [f"Bugun: {today.isoformat()}"]
+    skipped = []       # ma'lumot olinmagan bo'limlar — modelга ochiq aytamiz
 
     try:
         balances, total = core.wallet_balances()
@@ -87,6 +88,7 @@ def snapshot():
             lines.append(f"  {r['wallet'].name}: {_grp(r['balance'])}")
     except Exception:                                       # noqa: BLE001
         db.session.rollback()
+        skipped.append("hamyonlar")
 
     try:
         cf = core.month_cashflow(today.year, today.month)
@@ -100,6 +102,7 @@ def snapshot():
             f"{k} {_grp(v)}" for k, v in list(cf["expense"].items())[:10]))
     except Exception:                                       # noqa: BLE001
         db.session.rollback()
+        skipped.append("oy oqimi")
 
     try:
         overdue = core.overdue_lines()
@@ -113,6 +116,7 @@ def snapshot():
                          f"muddat {r['line'].due_date.isoformat()}")
     except Exception:                                       # noqa: BLE001
         db.session.rollback()
+        skipped.append("kechikkan to'lovlar")
 
     try:
         active = Contract.query.filter_by(status="active").count()
@@ -127,13 +131,24 @@ def snapshot():
                          f"to'langan {_grp(paid)}")
     except Exception:                                       # noqa: BLE001
         db.session.rollback()
+        skipped.append("shartnomalar")
 
     try:
-        open_q = DdsRow.query.filter_by(match_status="none").count()
-        lines.append(f"\nTo'lovlar navbatida tanilmagan: {open_q} ta")
+        # AYNAN mijoz to'lovi navbati — hamma «none» qatorni sanamaymiz
+        # (xarajat, o'tkazma, Б2Б ham «none» edi → son o'nlab barobar oshardi)
+        import matching
+        open_q = matching.open_count()
+        lines.append(f"\nTo'lovlar navbatida tanilmagan mijoz to'lovi: "
+                     f"{open_q} ta")
     except Exception:                                       # noqa: BLE001
         db.session.rollback()
+        skipped.append("to'lovlar navbati")
 
+    if skipped:
+        lines.append("\nDIQQAT: quyidagi bo'limlar ma'lumoti shu so'rovda "
+                     "olinmadi (vaqtinchalik xatolik): " + ", ".join(skipped) +
+                     ". Bu bo'limlar bo'yicha savolga «hozir ma'lumot "
+                     "olinmadi, birozdan keyin urinib ko'ring» deb javob ber.")
     return "\n".join(lines)
 
 
