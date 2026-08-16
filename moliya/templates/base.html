@@ -1325,25 +1325,12 @@ body.xlfull .xl-fs-exit{display:block}
    chiqadi; pastki tab-bar va yuqori panel qimirlamay joyida turadi.
    Qo'llamaganlarda oddiy yuklash — zarar yo'q. */
 @view-transition{navigation:auto}
-@media (prefers-reduced-motion:no-preference){
-  ::view-transition-old(root){animation:vt-out .14s ease both}
-  /* yangi sahifa animatsiyasini main o'zi bajaradi (pastda) — ikki marta
-     xiralashmasin */
-  ::view-transition-new(root){animation:none}
-}
-@keyframes vt-out{to{opacity:0}}
 @media(max-width:900px){
   .tabbar{view-transition-name:mf-tabbar}
   aside{view-transition-name:mf-head}
 }
-/* Har sahifa kontenti ochilishda ohista ko'tarilib chiqadi — bu View
-   Transitions'ga bog'liq emas, har qanday telefonda ishlaydi */
-@media(max-width:900px) and (prefers-reduced-motion:no-preference){
-  main{animation:pg-in .32s cubic-bezier(.2,.8,.3,1) both}
-}
-@keyframes pg-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-/* Sekin yuklanishda yuqorida oltin progress chizig'i — bosilgani darhol
-   ko'rinadi, sahifa kelgach o'zi yo'qoladi */
+/* Sekin yuklanishda yuqorida oltin progress chizig'i — faqat sahifa
+   kechiksa ko'rinadi (tez o'tishlarda umuman chiqmaydi) */
 #navprog{position:fixed;top:0;left:0;height:2.5px;width:0;z-index:99;
   pointer-events:none;border-radius:0 2px 2px 0;opacity:0;
   background:linear-gradient(90deg,#c9a03c,#eecc7e);
@@ -1764,8 +1751,12 @@ button.chip:hover{border-color:var(--line2);color:var(--txt)}
     var h = a.getAttribute('href');
     if (!h || h[0] !== '/' || a.target || a.hasAttribute('download') ||
         e.metaKey || e.ctrlKey) return;
-    prog.style.opacity = '1';
-    requestAnimationFrame(function(){ prog.style.width = '80%'; });
+    // chiziq faqat sahifa 300ms dan ko'p kechiksa chiqadi — tez
+    // o'tishlarda ekran tinch qoladi
+    setTimeout(function(){
+      prog.style.opacity = '1';
+      requestAnimationFrame(function(){ prog.style.width = '80%'; });
+    }, 300);
   });
   // sahifa qaytib ko'rsatilganda (orqaga qaytish ham) chiziq tozalanadi
   window.addEventListener('pageshow', function(){
