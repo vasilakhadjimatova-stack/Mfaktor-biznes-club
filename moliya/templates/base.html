@@ -83,7 +83,7 @@ function syncThemeColor(t){
 a,button,summary,.chip{touch-action:manipulation}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:6px}
 summary{cursor:pointer}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;background:var(--ink)}
 body{background:var(--ink);color:var(--txt);font:14px/1.55 var(--sans);min-height:100vh;
   transition:background .25s,color .25s}
 body::before{content:"";position:fixed;inset:-20%;pointer-events:none;z-index:0;
@@ -1320,6 +1320,22 @@ body.xlfull .xl-fs-exit{display:block}
   main{padding:0;max-width:none}
 }
 
+/* ── Sahifalararo yumshoq o'tish (View Transitions) ──
+   Qo'llagan brauzerlarda eski sahifa tez so'nib, yangisi ohista ko'tarilib
+   chiqadi; pastki tab-bar va yuqori panel qimirlamay joyida turadi.
+   Qo'llamaganlarda oddiy yuklash — zarar yo'q. */
+@view-transition{navigation:auto}
+@media (prefers-reduced-motion:no-preference){
+  ::view-transition-old(root){animation:vt-out .14s ease both}
+  ::view-transition-new(root){animation:vt-in .22s ease both}
+}
+@keyframes vt-out{to{opacity:0}}
+@keyframes vt-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(max-width:900px){
+  .tabbar{view-transition-name:mf-tabbar}
+  aside{view-transition-name:mf-head}
+}
+
 /* ── Pastki tab-bar (mobil, PWA) ── */
 .tabbar{display:none}
 @media(max-width:900px){
@@ -1715,6 +1731,27 @@ button.chip:hover{border-color:var(--line2);color:var(--txt)}
     <svg viewBox="0 0 256 256" fill="currentColor"><path d="M156,128a28,28,0,1,1-28-28A28,28,0,0,1,156,128ZM48,100a28,28,0,1,0,28,28A28,28,0,0,0,48,100Zm160,0a28,28,0,1,0,28,28A28,28,0,0,0,208,100Z"/></svg>
     Menyu</button>
 </nav>
+{# Tab bosilgan zahoti belgini ko'chirish — sahifa yuklanguncha kutmasdan
+   barmoqqa darhol javob beriladi #}
+<script>
+(function(){
+  var bar = document.querySelector('.tabbar');
+  if (!bar) return;
+  bar.addEventListener('click', function(e){
+    var a = e.target.closest('a');
+    if (!a || a.classList.contains('on')) return;
+    bar.querySelectorAll('a.on').forEach(function(x){ x.classList.remove('on'); });
+    a.classList.add('on');
+  });
+})();
+</script>
+{# Android/Chrome: tab va menyu havolalarini barmoq tekkanda oldindan
+   yuklab qo'yish — o'tish sezilarli tezlashadi (iOS bunga e'tibor bermaydi) #}
+<script type="speculationrules">
+{"prefetch":[{"source":"document",
+  "where":{"selector_matches":".tabbar a, .msheet-grid a"},
+  "eagerness":"moderate"}]}
+</script>
 
 <div class="msheet-wrap" id="msheet">
   <div class="msheet-ovl" onclick="toggleSheet(false)"></div>
