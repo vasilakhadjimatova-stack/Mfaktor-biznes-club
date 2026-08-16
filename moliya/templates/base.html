@@ -1347,22 +1347,22 @@ body.xlfull .xl-fs-exit{display:block}
    marta ko'rinadi — tab almashtirishlarda chiqmaydi */
 #boot{position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:18px;
-  background:#05070e;transition:opacity .5s ease}
+  background:#faf7f0;transition:opacity .5s ease}
 #boot.bye{opacity:0;pointer-events:none}
 #boot .bt-logo{width:216px;overflow:visible}
 /* 1-bosqich: «M» qalam bilan chizilganday chiziq bo'ylab yoziladi */
 #boot .bt-draw{fill:none;stroke:#ec1c24;stroke-width:13;stroke-linecap:round;
   stroke-linejoin:round;stroke-dasharray:270;stroke-dashoffset:270;
-  filter:drop-shadow(0 0 10px rgba(236,28,36,.45));
+  filter:drop-shadow(0 2px 8px rgba(236,28,36,.28));
   animation:bt-run 1.15s cubic-bezier(.45,0,.25,1) .15s forwards,
             bt-hide .35s ease 1.3s forwards}
 /* 2-bosqich: chiziq to'liq shaklga aylanadi */
 #boot .bt-m{fill:#ec1c24;opacity:0;
-  filter:drop-shadow(0 0 14px rgba(236,28,36,.35));
+  filter:drop-shadow(0 2px 10px rgba(236,28,36,.22));
   animation:bt-show .45s ease 1.05s both}
 /* 3-bosqich: «Faktor» harflari birma-bir yoziladi */
 #boot .bt-word{font-family:var(--sans);font-weight:700;font-size:60px;
-  letter-spacing:-1.5px;fill:#f2f4fb}
+  letter-spacing:-1.5px;fill:#241f14}
 #boot .bt-word tspan{opacity:0;animation:bt-fade .28s ease both}
 #boot .bt-word tspan:nth-child(1){animation-delay:1.2s}
 #boot .bt-word tspan:nth-child(2){animation-delay:1.29s}
@@ -1372,7 +1372,7 @@ body.xlfull .xl-fs-exit{display:block}
 #boot .bt-word tspan:nth-child(6){animation-delay:1.65s}
 /* 4-bosqich: BIZNES MAKTABI */
 #boot .bt-sub{font:700 13px var(--sans);letter-spacing:6px;
-  color:#cfd4e3;opacity:0;animation:bt-fade .5s ease 1.85s both}
+  color:#241f14;opacity:0;animation:bt-fade .5s ease 1.85s both}
 #boot .bt-sub b{color:#ec1c24;font-weight:700}
 @keyframes bt-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes bt-run{to{stroke-dashoffset:0}}
