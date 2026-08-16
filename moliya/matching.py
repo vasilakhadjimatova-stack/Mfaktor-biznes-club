@@ -93,6 +93,24 @@ def norm_name(s):
     return " ".join(sorted(parts))
 
 
+def strong_name_match(a, b):
+    """Avtomat bog'lash uchun — ismlar chinakam bir xilmi.
+
+    Fuzzy o'xshashlik yetarli emas: «Karimov»/«Karimova» (erkak/ayol) bir
+    harf bilan farq qiladi-yu, boshqa odam — SequenceMatcher ularni 0.92+
+    baholaydi. Shu sabab avtomatga normallashtirilgan so'z to'plamlari
+    mos kelishini talab qilamiz: biri ikkinchisini qamrasin va ortiqcha
+    so'z ko'pi bilan bitta bo'lsin (otasining ismi qo'shilishi mumkin).
+    Aks holda to'lov navbatga tushadi — odam tasdiqlaydi.
+    """
+    sa = set(norm_name(a).split())
+    sb = set(norm_name(b).split())
+    if not sa or not sb:
+        return False
+    small, big = (sa, sb) if len(sa) <= len(sb) else (sb, sa)
+    return small <= big and (len(big) - len(small)) <= 1
+
+
 def looks_like_name(purpose):
     """Izohda haqiqiy ism bormi?"""
     n = norm_name(purpose)
@@ -261,8 +279,10 @@ def auto_match(row):
         return "none"
     top = cands[0]
     second = cands[1]["score"] if len(cands) > 1 else 0
-    # yagona va ishonchli bo'lsagina avtomat
-    if top["score"] >= AUTO_THRESHOLD and top["score"] - second >= 0.08:
+    # yagona, ishonchli VA ismi chinakam mos bo'lsagina avtomat — aks holda
+    # o'xshash familiya (erkak/ayol) boshqa odamga bog'lanib ketardi
+    if (top["score"] >= AUTO_THRESHOLD and top["score"] - second >= 0.08
+            and strong_name_match(row.purpose, top["contract"].student.name)):
         apply(row, top["contract"], status="auto", score=top["score"])
         return "auto"
     row.match_status = "none"

@@ -76,6 +76,28 @@ def wallet_cards(limit_tx=8):
     return {"cards": cards, "total": total}
 
 
+# KPI/bonus uchun «sotuv» — faqat o'quvchi to'lovlari. Qarz, kredit, Б2Б,
+# egа qo'ygan pul va «Мфактор поступления» bunga kirmaydi; aks holda ROP
+# sotuv rejasi ham, foizli bonus bazasi ham shishib ketardi (masalan egа
+# 200 mln qarz qo'ysa — reja bajarilgan ko'rinib, nohaq bonus chiqardi).
+SALES_CATS = {
+    "Поступление от клиента РОП",
+    "Поступление от клиента СМК",
+    "Поступление от клиента ТББ",
+}
+
+
+def sales_income(year, month):
+    """Oylik sof sotuv tushumi — faqat o'quvchi (mijoz) to'lovlari."""
+    q = (Transaction.query
+         .filter(Transaction.operation == "kirim",
+                 Transaction.is_transfer.is_(False),
+                 Transaction.activity != "tech")
+         .filter(func.extract("year", Transaction.tdate) == year)
+         .filter(func.extract("month", Transaction.tdate) == month))
+    return sum(t.amount for t in q if t.category in SALES_CATS)
+
+
 def month_cashflow(year, month):
     """Oylik DDS: statya kesimida kirim/chiqim (transferlar hisobga olinmaydi)."""
     q = (Transaction.query
