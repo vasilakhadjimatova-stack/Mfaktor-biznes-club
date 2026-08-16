@@ -205,7 +205,7 @@ main{padding:22px 34px 70px;max-width:1560px;width:100%;min-width:0}
 /* ══ Yuqori panel — sozlama, mavzu, chiqish (chap paneldan ko'chirildi) ══ */
 .topbar{display:flex;align-items:center;gap:10px;margin:0 0 16px;
   position:sticky;top:0;z-index:30;padding:10px 0 12px;
-  background:linear-gradient(180deg,var(--bg) 72%,transparent)}
+  background:linear-gradient(180deg,var(--ink) 72%,transparent)}
 .tb-spacer{flex:1;min-width:0}
 .tb-cash{display:flex;align-items:baseline;gap:8px;padding:7px 14px;border-radius:11px;
   border:1px solid var(--line);background:var(--card-faint);
@@ -2338,6 +2338,13 @@ function initDeck(){
     cards.forEach(function(c,k){ c.classList.toggle("active", k===i); });
     dots.forEach(function(d,k){ d.classList.toggle("on", k===i); });
   }
+  // kontragent/statya \u2014 foydalanuvchi kiritgan matn, innerHTML'ga
+  // qo'yishdan oldin ekranlanadi (aks holda <img onerror=\u2026> ishga tushardi)
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(ch){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+    });
+  }
   function renderHist(i){
     var w = D[i];
     if (histTitle) histTitle.textContent = w.name;
@@ -2352,7 +2359,7 @@ function initDeck(){
         ? '<path d="M12 19V5M5 12l7 7 7-7"/>' : '<path d="M12 5v14M5 12l7-7 7 7"/>';
       return '<div class="whist-row">'
         + '<span class="whist-ic '+dir+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+arrow+'</svg></span>'
-        + '<span class="whist-mid"><b>'+h.t+'</b><span>'+h.d+' \u00b7 '+h.c+'</span></span>'
+        + '<span class="whist-mid"><b>'+esc(h.t)+'</b><span>'+esc(h.d)+' \u00b7 '+esc(h.c)+'</span></span>'
         + '<span class="whist-amt '+dir+'">'+(h["in"]?"+":"\u2212")+fmt(h.a)+'</span>'
         + '</div>';
     }).join("");

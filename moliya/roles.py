@@ -51,7 +51,7 @@ _FINANCE = {
     "transactions_export",
     "automation_page", "book_recurring", "close_day", "mark_reminded",
     "payments_inbox", "inbox_link", "inbox_new_contract", "inbox_rerun",
-    "inbox_restore", "inbox_skip", "inbox_unlink",
+    "inbox_restore", "inbox_skip", "inbox_unlink", "inbox_bulk",
     "ddsdata", "ddsdata_add", "ddsdata_delete", "ddsdata_edit",
     "ddsdata_export", "ddsdata_rebuild", "dds",
     "transfers_page", "transfer_fix",

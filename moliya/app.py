@@ -131,6 +131,10 @@ def create_app():
     # O'rnatilmagan bo'lsa (lokal ishlab chiqish) — himoya o'chiq.
     APP_PIN = roles.app_pin()
     _pin_fails = {}                    # ip -> (soni, oxirgi urinish vaqti)
+    # Global qulf — IP yoki X-Forwarded-For sarlavhasini almashtirib aylanib
+    # o'tib bo'lmaydi. Ketma-ket xatolarda kutish o'sib boradi (5 daqiqagacha),
+    # shu bilan 6 xonali kodni qidirib topish amalda imkonsiz bo'ladi.
+    _pin_lock = {"fails": 0, "until": 0.0}
     # Endpoint'i yo'q fayl manzillari (marshrutga tushmaydi)
     _PUBLIC_PATHS = ("/static/", "/manifest.json", "/offline.html")
 
@@ -165,19 +169,24 @@ def create_app():
         if session.get("auth"):
             return redirect(roles.home_for(_current_role()))
         err = wait = None
-        ip = request.headers.get("X-Forwarded-For",
-                                 request.remote_addr or "?").split(",")[0]
-        fails, last = _pin_fails.get(ip, (0, 0))
+        now = time.time()
+        # ishonchli proksi (Railway) qo'shadigan OXIRGI hop — uni mijoz
+        # o'zgartira olmaydi (birinchi hop soxtalashtirilishi mumkin)
+        xff = request.headers.get("X-Forwarded-For", "")
+        ip = (xff.split(",")[-1].strip() if xff
+              else (request.remote_addr or "?"))
         if request.method == "POST":
-            # 5 marta xato — 60 soniya kutish (qo'pol kuchga qarshi)
-            if fails >= 5 and time.time() - last < 60:
-                wait = int(60 - (time.time() - last))
+            # Global qulf faol bo'lsa — hech kimga urinishga ruxsat yo'q
+            if _pin_lock["until"] > now:
+                wait = int(_pin_lock["until"] - now)
             else:
                 pin = "".join(ch for ch in request.form.get("pin", "")
                               if ch.isdigit())
                 role = roles.match_role(pin) if pin else None
                 if role:
                     _pin_fails.pop(ip, None)
+                    _pin_lock["fails"] = 0
+                    _pin_lock["until"] = 0.0
                     session.permanent = True
                     session["auth"] = True
                     session["role"] = role
@@ -193,10 +202,15 @@ def create_app():
                             ep = None
                         return redirect(nxt if roles.can(role, ep) else home)
                     return redirect(home)
-                _pin_fails[ip] = (fails + 1, time.time())
+                # xato — global hisoblagich, 5 tadan keyin o'suvchi kutish
+                _pin_lock["fails"] += 1
+                fc = _pin_lock["fails"]
+                _pin_fails[ip] = (_pin_fails.get(ip, (0, 0))[0] + 1, now)
+                if fc >= 5:
+                    back = min(300, 2 ** (fc - 4))     # 2,4,8… 300 soniyagacha
+                    _pin_lock["until"] = now + back
+                    wait = back
                 err = "Kod noto'g'ri"
-                if fails + 1 >= 5:
-                    wait = 60
         return render_template("login.html", err=err, wait=wait)
 
     @app.route("/logout", methods=["POST"])
@@ -477,10 +491,38 @@ def register_routes(app):
     @app.route("/transactions/<int:tid>/delete", methods=["POST"])
     def delete_transaction(tid):
         t = db.session.get(Transaction, tid)
-        if t:
-            db.session.delete(t)
-            db.session.commit()
-            flash("O'chirildi", "ok")
+        if not t:
+            return redirect(url_for("transactions"))
+        # ДДС'dan tug'ilgan yozuvni bu yerdan o'chirib bo'lmaydi: manba qator
+        # joyida qolib, keyingi qayta qurishda yozuv tiklanardi (balans ikki
+        # marta hisoblanardi). Uni «ДДС данные» sahifasidan o'chirish kerak.
+        if t.dds_row_id:
+            flash("Bu yozuv «ДДС данные»dan kelgan — o'sha sahifadan o'chiring, "
+                  "aks holda qayta tiklanadi.", "err")
+            return redirect(url_for("transactions"))
+        # Shartnomaga bog'langan bo'lsa, grafikka ta'sirini qaytaramiz —
+        # aks holda talaba «to'ladi» bo'lib qolib, qayta kiritilsa ikki barobar
+        # ko'rinardi.
+        c = db.session.get(Contract, t.contract_id) if t.contract_id else None
+        if c:
+            if t.operation == "kirim":
+                rest = t.amount               # grafikni teskari (LIFO) yechamiz
+                for line in reversed(list(c.lines)):
+                    if rest <= 0:
+                        break
+                    take = min(line.paid, rest)
+                    line.paid -= take
+                    rest -= take
+            elif t.category == "Возврат клиенту":
+                # refund chiqimi edi — boshqa refund qolmasa belgini bekor qil
+                if not Transaction.query.filter(
+                        Transaction.id != t.id,
+                        Transaction.contract_id == c.id,
+                        Transaction.category == "Возврат клиенту").first():
+                    c.refund_amount = 0.0
+        db.session.delete(t)
+        db.session.commit()
+        flash("O'chirildi", "ok")
         return redirect(url_for("transactions"))
 
     # ── Kurslar / oqimlar ────────────────────────────────────────
@@ -627,24 +669,49 @@ def register_routes(app):
     @app.route("/contracts/<int:cid>/status", methods=["POST"])
     def contract_status(cid):
         c = db.session.get(Contract, cid)
+        if not c:
+            return redirect(url_for("contracts"))
         f = request.form
-        if c:
-            c.status = f.get("status", c.status)
-            if c.status == "refunded":
-                refund = float(f.get("refund_amount") or c.paid_total())
-                c.refund_amount = refund
-                wallet = f.get("wallet_code", "")
-                if refund > 0 and wallet:
-                    db.session.add(Transaction(
-                        tdate=date.today(), wallet_code=wallet,
-                        operation="chiqim", amount=refund,
-                        category="Возврат клиенту",
-                        counterparty=c.student.name,
-                        contract_id=c.id,
-                        comment="Pul qaytarish (kafolat)"))
-                    automation.on_refund(c, refund)
-            db.session.commit()
-            flash("Holat yangilandi", "ok")
+        new_status = f.get("status", c.status)
+        is_finance = _current_role() in (roles.DIREKTOR, roles.BUXGALTER)
+
+        # «refunded» — kassadan pul chiqaradi, faqat moliya roli qila oladi
+        if new_status == "refunded" and not is_finance:
+            flash("Pul qaytarish faqat moliya bo'limi huquqida", "err")
+            return redirect(url_for("contract_detail", cid=cid))
+
+        prev = c.status
+        c.status = new_status
+        # shu shartnomaga refund yozuvi allaqachon bormi
+        refund_tx = Transaction.query.filter_by(
+            contract_id=c.id, category="Возврат клиенту").first()
+
+        if new_status == "refunded":
+            try:
+                refund = float(str(f.get("refund_amount") or c.paid_total())
+                               .replace(" ", "").replace(",", "."))
+            except (ValueError, TypeError):
+                refund = c.paid_total()
+            c.refund_amount = refund
+            wallet = f.get("wallet_code", "")
+            # idempotentlik: forma qayta yuborilsa ikkinchi chiqim yozilmaydi
+            if refund > 0 and wallet and not refund_tx:
+                db.session.add(Transaction(
+                    tdate=date.today(), wallet_code=wallet,
+                    operation="chiqim", amount=refund,
+                    category="Возврат клиенту",
+                    counterparty=c.student.name,
+                    contract_id=c.id,
+                    comment="Pul qaytarish (kafolat)"))
+                automation.on_refund(c, refund)
+        elif prev == "refunded" and refund_tx:
+            # refunddan qaytarish: chiqimni bekor qilamiz, aks holda pul
+            # kassadan chiqib, qarz esa kam ko'rinib qolardi
+            db.session.delete(refund_tx)
+            c.refund_amount = 0.0
+
+        db.session.commit()
+        flash("Holat yangilandi", "ok")
         return redirect(url_for("contract_detail", cid=cid))
 
     # ── Qarzdorlik ───────────────────────────────────────────────
