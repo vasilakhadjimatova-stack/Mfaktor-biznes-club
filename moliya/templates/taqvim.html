@@ -135,10 +135,13 @@ function openDay(dd){
   document.getElementById("pp-title").textContent = dd + "-" + OYNOMI + " " + Y;
   var rows = dayRows(dd);
   document.getElementById("pp-rows").innerHTML = rows.length ? rows.map(function(r){
+    // statya matni ekranlanadi (innerHTML'ga xom qo'yilmaydi) va data-cat
+    // orqali uzatiladi — apostrofli statya onchange'ni buzmaydi
+    var c = esc(r.cat);
     return '<div class="pp-grid">' +
-      '<span class="pp-cat" title="' + r.cat.replace(/"/g, "&quot;") + '">' + r.cat + '</span>' +
+      '<span class="pp-cat" title="' + c + '">' + c + '</span>' +
       '<input class="pp-in" inputmode="numeric" value="' + (r.p ? pfmt(r.p) : "") + '" ' +
-        'placeholder="—" onchange=\'savePlan(this, ' + JSON.stringify(r.cat) + ')\'>' +
+        'placeholder="—" data-cat="' + c + '" onchange="savePlan(this)">' +
       '<span class="r ppf' + (r.p && r.f > r.p ? " ov" : "") + '">' + (pfmt(r.f) || "—") + '</span></div>';
   }).join("") : '<div class="hint" style="margin:6px 0">Bu kunga hali reja ham, fakt ham yo\'q</div>';
   document.querySelectorAll(".pcal-cell").forEach(function(c){
@@ -151,7 +154,13 @@ function closeDay(){
   document.querySelectorAll(".pcal-cell.sel").forEach(function(c){ c.classList.remove("sel"); });
   curD = null;
 }
-function savePlan(inp, cat){
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(ch){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+  });
+}
+function savePlan(inp){
+  var cat = inp.dataset.cat;
   var raw = String(inp.value).replace(/[\s ]/g, "").replace(",", ".");
   var val = parseFloat(raw) || 0;
   var body = new URLSearchParams({y: Y, m: M, d: curD, cat: cat, amount: val});

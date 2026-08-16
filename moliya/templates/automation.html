@@ -48,6 +48,7 @@
 <div class="card" style="margin-top:14px">
   <h2>Bugungi takroriy to'lovlar — {{ day.rec_due|length }} ta</h2>
   {% if day.rec_due %}
+  <div class="tablewrap">
   <table>
     <tr><th>Nomi</th><th class="r">Summa</th><th>Statya</th><th style="width:280px"></th></tr>
     {% for r in day.rec_due %}
@@ -64,6 +65,7 @@
     </tr>
     {% endfor %}
   </table>
+  </div>
   {% else %}<div class="empty">Bugun muddati kelgan takroriy to'lov yo'q</div>{% endif %}
 </div>
 {% endif %}
@@ -71,6 +73,7 @@
 <div class="card" style="margin-top:14px">
   <h2>Avtomatika jurnali</h2>
   {% if feed %}
+  <div class="tablewrap">
   <table>
     <tr><th style="width:130px">Vaqt</th><th style="width:110px">Turi</th><th>Voqea va zanjir</th></tr>
     {% for e in feed %}
@@ -86,6 +89,7 @@
     </tr>
     {% endfor %}
   </table>
+  </div>
   {% else %}<div class="empty">Jurnal hozircha bo'sh — to'lov kiriting yoki kunni yoping</div>{% endif %}
 </div>
 

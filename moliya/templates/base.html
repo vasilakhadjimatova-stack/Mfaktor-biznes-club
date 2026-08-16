@@ -343,6 +343,11 @@ input,select,textarea{background:var(--ink3);border:1px solid var(--line2);color
   border-radius:10px;padding:9px 11px;font:13.5px var(--sans);width:100%;transition:.15s}
 input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-dim)}
 input[type=number]{font-variant-numeric:tabular-nums}
+/* iOS PWA: 16px'dan kichik maydonga fokusda ekran o'zi kattalashib ketadi —
+   shuning uchun mobilda barcha kiritish maydonlari kamida 16px */
+@media(max-width:900px){
+  input,select,textarea{font-size:16px}
+}
 button,.btn{background:linear-gradient(180deg,var(--btn-g1),var(--btn-g2));color:var(--btn-txt);border:0;
   border-radius:10px;padding:10px 18px;font:600 13.5px var(--sans);cursor:pointer;transition:.15s;
   box-shadow:0 2px 18px rgba(240,179,66,.45), 0 1px 0 rgba(255,255,255,.4) inset}
