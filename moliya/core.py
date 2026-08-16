@@ -565,11 +565,16 @@ def dashboard_data(today=None):
         [{"key": "inc", "name": "Tushum", "values": dm["inc_tot"][:m]},
          {"key": "exp", "name": "Xarajat", "values": dm["exp_tot"][:m]}],
         MN[:m])
+    # moliyaviy oqim belgili: musbat — kirim (qarz/kredit olindi), manfiy —
+    # chiqim (dividend/qarz to'landi). abs bilan doim minus qilib bo'lmaydi,
+    # aks holda musbat yilda sharshara «Hozir» bilan to'g'ri kelmasdi.
+    fin_y = dm["fin_year"]
     wf = charts.waterfall([
         {"name": "Yil boshi", "value": dm["opens"][0], "kind": "start"},
         {"name": "Tushum", "value": sum(dm["inc_tot"]), "kind": "plus"},
         {"name": "Xarajat", "value": sum(dm["exp_tot"]), "kind": "minus"},
-        {"name": "Dividend", "value": abs(dm["fin_year"]), "kind": "minus"},
+        {"name": "Moliya", "value": abs(fin_y),
+         "kind": "plus" if fin_y >= 0 else "minus"},
         {"name": "Hozir", "value": dm["closes"][m - 1], "kind": "end"},
     ])
     rank = charts.rank_bars([{"cat": r["cat"], "val": r["total"]}
@@ -602,7 +607,8 @@ def dashboard_data(today=None):
                 {"name": "Yil boshi", "value": round(dm["opens"][0]), "kind": "start"},
                 {"name": "Tushum", "value": round(sum(dm["inc_tot"])), "kind": "plus"},
                 {"name": "Xarajat", "value": round(sum(dm["exp_tot"])), "kind": "minus"},
-                {"name": "Dividend", "value": round(abs(dm["fin_year"])), "kind": "minus"},
+                {"name": "Moliya", "value": round(abs(dm["fin_year"])),
+                 "kind": "plus" if dm["fin_year"] >= 0 else "minus"},
                 {"name": "Hozir", "value": round(dm["closes"][m - 1]), "kind": "end"},
             ],
         },
