@@ -1327,14 +1327,28 @@ body.xlfull .xl-fs-exit{display:block}
 @view-transition{navigation:auto}
 @media (prefers-reduced-motion:no-preference){
   ::view-transition-old(root){animation:vt-out .14s ease both}
-  ::view-transition-new(root){animation:vt-in .22s ease both}
+  /* yangi sahifa animatsiyasini main o'zi bajaradi (pastda) — ikki marta
+     xiralashmasin */
+  ::view-transition-new(root){animation:none}
 }
 @keyframes vt-out{to{opacity:0}}
-@keyframes vt-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(max-width:900px){
   .tabbar{view-transition-name:mf-tabbar}
   aside{view-transition-name:mf-head}
 }
+/* Har sahifa kontenti ochilishda ohista ko'tarilib chiqadi — bu View
+   Transitions'ga bog'liq emas, har qanday telefonda ishlaydi */
+@media(max-width:900px) and (prefers-reduced-motion:no-preference){
+  main{animation:pg-in .32s cubic-bezier(.2,.8,.3,1) both}
+}
+@keyframes pg-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+/* Sekin yuklanishda yuqorida oltin progress chizig'i — bosilgani darhol
+   ko'rinadi, sahifa kelgach o'zi yo'qoladi */
+#navprog{position:fixed;top:0;left:0;height:2.5px;width:0;z-index:99;
+  pointer-events:none;border-radius:0 2px 2px 0;opacity:0;
+  background:linear-gradient(90deg,#c9a03c,#eecc7e);
+  box-shadow:0 0 10px rgba(238,204,126,.65);
+  transition:width 1.2s cubic-bezier(.15,.6,.3,1),opacity .18s}
 
 /* ── Pastki tab-bar (mobil, PWA) ── */
 .tabbar{display:none}
@@ -1731,17 +1745,34 @@ button.chip:hover{border-color:var(--line2);color:var(--txt)}
     <svg viewBox="0 0 256 256" fill="currentColor"><path d="M156,128a28,28,0,1,1-28-28A28,28,0,0,1,156,128ZM48,100a28,28,0,1,0,28,28A28,28,0,0,0,48,100Zm160,0a28,28,0,1,0,28,28A28,28,0,0,0,208,100Z"/></svg>
     Menyu</button>
 </nav>
-{# Tab bosilgan zahoti belgini ko'chirish — sahifa yuklanguncha kutmasdan
-   barmoqqa darhol javob beriladi #}
+<div id="navprog"></div>
+{# Tab bosilgan zahoti belgini ko'chirish va progress chizig'ini yoqish —
+   sahifa yuklanguncha kutmasdan barmoqqa darhol javob beriladi #}
 <script>
 (function(){
   var bar = document.querySelector('.tabbar');
-  if (!bar) return;
-  bar.addEventListener('click', function(e){
+  if (bar) bar.addEventListener('click', function(e){
     var a = e.target.closest('a');
     if (!a || a.classList.contains('on')) return;
     bar.querySelectorAll('a.on').forEach(function(x){ x.classList.remove('on'); });
     a.classList.add('on');
+  });
+  var prog = document.getElementById('navprog');
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if (!a || !prog) return;
+    var h = a.getAttribute('href');
+    if (!h || h[0] !== '/' || a.target || a.hasAttribute('download') ||
+        e.metaKey || e.ctrlKey) return;
+    prog.style.opacity = '1';
+    requestAnimationFrame(function(){ prog.style.width = '80%'; });
+  });
+  // sahifa qaytib ko'rsatilganda (orqaga qaytish ham) chiziq tozalanadi
+  window.addEventListener('pageshow', function(){
+    if (!prog) return;
+    prog.style.transition = 'none';
+    prog.style.width = '0'; prog.style.opacity = '0';
+    requestAnimationFrame(function(){ prog.style.transition = ''; });
   });
 })();
 </script>
