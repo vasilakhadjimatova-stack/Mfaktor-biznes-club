@@ -172,10 +172,7 @@ def close_day(today=None):
         if not exists:
             rec_due.append(r)
 
-    # 3) 7 kunlik prognoz
-    upcoming = core.upcoming_lines(7, today)
-
-    # 4) kunlik xulosa
+    # 3) kunlik xulosa
     day_txs = (Transaction.query
                .filter(Transaction.tdate == today,
                        Transaction.is_transfer.is_(False),
@@ -189,7 +186,7 @@ def close_day(today=None):
               f"{len(reminders)} eslatma tayyorlandi · "
               f"{len(rec_due)} takroriy to'lov kutilmoqda")
     return {"today": today, "reminders": reminders, "rec_due": rec_due,
-            "upcoming": upcoming, "inc": inc, "exp": exp, "net": inc - exp}
+            "inc": inc, "exp": exp, "net": inc - exp}
 
 
 def mark_reminded(line_id, channel="manual", today=None):

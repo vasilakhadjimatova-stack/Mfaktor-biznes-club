@@ -6,7 +6,7 @@
 <div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
   <div style="flex:1;min-width:220px">
     <h2 style="margin:0 0 4px">Kunni yopish</h2>
-    <p class="sub" style="margin:0;font-size:12.5px">Bitta tugma: muddati o'tganlarga eslatma matnlari + bugungi takroriy to'lovlar + 7 kunlik prognoz + kunlik xulosa</p>
+    <p class="sub" style="margin:0;font-size:12.5px">Bitta tugma: muddati o'tganlarga eslatma matnlari + bugungi takroriy to'lovlar + kunlik xulosa</p>
   </div>
   <form method="post" action="/automation/close-day">
     <button style="display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>Kunni yopish</button>
@@ -18,9 +18,6 @@
   <div class="card kpi"><div class="l">Bugun kirim</div><div class="v pos">{{ day.inc|grp }}</div></div>
   <div class="card kpi"><div class="l">Bugun chiqim</div><div class="v neg">{{ day.exp|grp }}</div></div>
   <div class="card kpi"><div class="l">Sof</div><div class="v {{ 'pos' if day.net>=0 else 'neg' }}">{{ day.net|grp }}</div></div>
-  <div class="card kpi"><div class="l">7 kunda kutilmoqda</div>
-    <div class="v">{{ day.upcoming|sum(attribute='rest')|grp }}</div>
-    <div class="h">{{ day.upcoming|length }} ta to'lov</div></div>
 </div>
 
 <div class="card" style="margin-top:14px">
