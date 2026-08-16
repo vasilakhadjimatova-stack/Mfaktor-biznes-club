@@ -72,10 +72,14 @@ def import_workbook(stream):
         keep[(row.ddate, round(row.amount or 0, 2),
               (row.purpose or "").strip().lower())] = (row.match_status,
                                                        row.contract_id)
-    # eski qatorlarning kassa izlarini tozalaymiz
-    for row in DdsRow.query.all():
+    # Faqat EXCEL'dan kelgan qatorlarni almashtiramiz. Dasturda qo'lda
+    # kiritilganlar (origin="app": o'tkazma tuzatishi, kofe-break va h.k.)
+    # Excel'da yo'q — ularni o'chirsak, buxgalter kiritgan tuzatishlar
+    # har importda yo'qolib ketardi. Shuning uchun ularга tegmaymiz.
+    excel_rows = DdsRow.query.filter(DdsRow.origin != "app")
+    for row in excel_rows.all():
         ddsflow.unsync_row(row)
-    DdsRow.query.delete()
+    excel_rows.delete(synchronize_session=False)
     db.session.flush()
 
     added = 0

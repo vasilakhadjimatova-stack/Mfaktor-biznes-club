@@ -107,6 +107,10 @@ def create_app():
         SESSION_COOKIE_SAMESITE="Lax",     # boshqa saytdan yuborilmaydi
         # Railway HTTPS'da ishlaydi; lokal ishlab chiqishda o'chiq bo'ladi
         SESSION_COOKIE_SECURE=bool(os.environ.get("APP_PIN", "").strip()),
+        # Yuklanadigan fayl hajmi cheklovi — kichik gzip'ni ochib serverni
+        # to'ldirib yuborishning (gzip-bomba) oldini oladi. 30 MB — Excel
+        # va baza nusxasi uchun yetarli.
+        MAX_CONTENT_LENGTH=30 * 1024 * 1024,
     )
 
     # Bo'sh bazada standart kurslar o'zi paydo bo'ladi — «Oqim» ro'yxati
@@ -135,6 +139,7 @@ def create_app():
     # o'tib bo'lmaydi. Ketma-ket xatolarda kutish o'sib boradi (5 daqiqagacha),
     # shu bilan 6 xonali kodni qidirib topish amalda imkonsiz bo'ladi.
     _pin_lock = {"fails": 0, "until": 0.0}
+    _ai_hits = {}                      # rol -> [so'rov vaqtlari] (AI cheklovi)
     # Endpoint'i yo'q fayl manzillari (marshrutga tushmaydi)
     _PUBLIC_PATHS = ("/static/", "/manifest.json", "/offline.html")
 
@@ -860,7 +865,7 @@ def register_routes(app):
         row = DdsRow(rownum=last + 1, ddate=d, amount=amt,
                      wallet=str(data.get("hamyon", "")),
                      purpose=str(data.get("izoh", "")).strip()[:300],
-                     article="Кофе брейк")
+                     article="Кофе брейк", origin="app")
         db.session.add(row)
         db.session.flush()
         tx = ddsflow.sync_row(row)
@@ -882,6 +887,16 @@ def register_routes(app):
         msgs = data.get("messages")
         if not isinstance(msgs, list) or not msgs or len(msgs) > 40:
             return {"ok": False, "xato": "So'rov noto'g'ri"}, 400
+        # tezlik cheklovi: har rol uchun 5 daqiqada 20 so'rov — takroriy
+        # chaqiruv bilan Anthropic hisobini «puchga chiqarish»ning oldini oladi
+        now = time.time()
+        key = session.get("role") or request.remote_addr or "?"
+        hits = [t for t in _ai_hits.get(key, []) if now - t < 300]
+        if len(hits) >= 20:
+            return {"ok": False, "xato": "Juda ko'p so'rov — bir necha "
+                    "daqiqadan keyin urinib ko'ring."}
+        hits.append(now)
+        _ai_hits[key] = hits
         text, err = ai.chat(msgs)
         if err:
             return {"ok": False, "xato": err}
@@ -1147,7 +1162,7 @@ def register_routes(app):
                      wallet=f.get("wallet", ""),
                      wallet2=f.get("wallet2", ""),
                      purpose=f.get("purpose", "").strip(),
-                     article=f.get("article", ""))
+                     article=f.get("article", ""), origin="app")
         db.session.add(row)
         db.session.flush()
 
@@ -1441,14 +1456,17 @@ def register_routes(app):
     def automation_page():
         day = None
         if request.args.get("closed"):
-            day = automation.close_day()
-            db.session.commit()
+            # sahifa ochilishida faqat hisoblab ko'rsatamiz — jurnalga
+            # yozmaymiz (GET'da mutatsiya yo'q; yangilash/redirect spam bermaydi)
+            day = automation.close_day(write_event=False)
         wallets = Wallet.query.filter_by(is_active=True).order_by(Wallet.sort).all()
         return render_template("automation.html", feed=automation.feed(),
                                day=day, wallets=wallets)
 
     @app.route("/automation/close-day", methods=["POST"])
     def close_day():
+        automation.close_day(write_event=True)   # jurnalga bir marta yoziladi
+        db.session.commit()
         return redirect(url_for("automation_page", closed=1))
 
     @app.route("/automation/reminded/<int:line_id>", methods=["POST"])

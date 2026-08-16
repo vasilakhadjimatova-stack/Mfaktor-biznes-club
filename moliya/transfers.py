@@ -194,7 +194,7 @@ def add_counterpart(row, wallet, amount=None, ddate=None, purpose=None):
                  wallet=wallet,
                  wallet2="",
                  purpose=purpose or (row.purpose or ""),
-                 article=opposite)
+                 article=opposite, origin="app")
     db.session.add(new)
     db.session.flush()
     tx = ddsflow.sync_row(new)

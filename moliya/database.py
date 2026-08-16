@@ -28,6 +28,8 @@ NEW_COLUMNS = [
     # NULL = eski qator (qancha yozilgani noma'lum) — 0 dan farqlanishi shart
     ("dds_rows", "applied_amount", "FLOAT"),
     ("dds_rows", "skip_note", "VARCHAR(200) DEFAULT ''"),
+    # qator manbai: excel (import) | app (dasturda kiritilgan, importda saqlanadi)
+    ("dds_rows", "origin", "VARCHAR(8) DEFAULT 'excel'"),
     # O'quv bo'limi: dropout risk-skoring
     ("contracts", "risk_score", "INTEGER DEFAULT 0"),
     ("contracts", "risk_reasons", "VARCHAR(300) DEFAULT ''"),

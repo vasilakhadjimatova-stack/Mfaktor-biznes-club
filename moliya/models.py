@@ -429,6 +429,10 @@ class DdsRow(db.Model):
     # chetlatish sababi — «nega bu to'lov navbatda emas» degan savolga
     # keyin ham javob topilsin (masalan: «avvalgi guruhlar, reyestr yo'q»)
     skip_note = db.Column(db.String(200), default="")
+    # qator qayerdan: "excel" (import) yoki "app" (dasturda qo'lda kiritilgan).
+    # Excel qayta-import faqat "excel" qatorlarni almashtiradi — dasturda
+    # kiritilganlar (o'tkazma tuzatishi, kofe-break va h.k.) saqlanadi.
+    origin = db.Column(db.String(8), default="excel", index=True)
 
     tx = db.relationship("Transaction", backref="dds_row", uselist=False,
                          foreign_keys="Transaction.dds_row_id")
