@@ -7,8 +7,15 @@ Sozlamalar sahifasidagi «Excel'dan import» formasi shu modulni chaqiradi:
   4. To'lovlar shartnomalarga qayta taqqoslanadi (matching.run_all)
 
 Hammasi bitta tranzaksiyada — xato bo'lsa hech narsa o'zgarmaydi.
+
+Google Sheets havolasi berilsa (import_from_sheets) fayl serverning o'zida
+yuklab olinadi — qo'lda .xlsx eksport qilish shart emas. Buning uchun jadval
+«Havolaga ega bo'lganlar — ko'ruvchi» bo'lishi kerak.
 """
+import io
+import re
 import unicodedata
+import urllib.request
 
 import openpyxl
 
@@ -50,6 +57,35 @@ def _num(v):
                      .replace(",", "."))
     except ValueError:
         return 0.0
+
+
+# Havoladan faqat jadval ID'si olinadi — yuklash manzilini o'zimiz quramiz,
+# shunda forma orqali boshqa saytga so'rov yuborib bo'lmaydi.
+_SHEETS_ID = re.compile(r"docs\.google\.com/spreadsheets/d/([A-Za-z0-9_-]{20,})")
+
+
+def import_from_sheets(link):
+    """Google Sheets havolasidan .xlsx ni yuklab olib, importni bajaradi."""
+    m = _SHEETS_ID.search(link or "")
+    if not m:
+        return {"error": "Havola noto'g'ri — u docs.google.com/spreadsheets/"
+                         "d/… ko'rinishida bo'lishi kerak (jadvalning o'z "
+                         "manzilini nusxalang)."}
+    url = (f"https://docs.google.com/spreadsheets/d/{m.group(1)}"
+           f"/export?format=xlsx")
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            data = resp.read(60 * 1024 * 1024)
+    except Exception as e:                              # noqa: BLE001
+        return {"error": f"Google Sheets'dan yuklab bo'lmadi: {e}"}
+    # Yopiq jadvalda Google xlsx o'rniga HTML kirish sahifasini qaytaradi
+    if not data.startswith(b"PK"):
+        return {"error": "Jadval yopiq ko'rinadi. Google Sheets'da «Ulashish» "
+                         "→ «Havolaga ega bo'lganlar — ko'ruvchi» qilib "
+                         "qo'ying, yoki .xlsx yuklab olib, fayl orqali "
+                         "import qiling."}
+    return import_workbook(io.BytesIO(data))
 
 
 def import_workbook(stream):

@@ -139,21 +139,29 @@
 </div>
 
 <div class="card" style="margin-bottom:14px">
-  <h2 style="margin-top:0">Excel'dan import (Mbm_2026.xlsx)</h2>
-  <p class="sub" style="margin-top:-4px">Google Sheets'dagi faylni
-    (Fayl → Yuklab olish → .xlsx) shu yerga yuklang. «ДДС данные» to'liq
-    almashtiriladi, hamyon qoldiqlari yangilanadi, kassa qayta quriladi va
-    to'lovlar shartnomalarga o'zi taqqoslanadi. Bir necha soniya davom etadi.</p>
-  <form class="inline" method="post" action="/settings/import"
-        enctype="multipart/form-data"
+  <h2 style="margin-top:0">Google Sheets / Excel'dan import</h2>
+  <p class="sub" style="margin-top:-4px">Jadval havolasini bir marta kiriting —
+    keyingi safar faqat «Yangilash» bosiladi: server .xlsx ni o'zi yuklab oladi.
+    «ДДС данные» to'liq almashtiriladi, hamyon qoldiqlari yangilanadi, kassa
+    qayta quriladi va to'lovlar shartnomalarga o'zi taqqoslanadi. Saytda qo'lda
+    kiritilgan qatorlar va qo'lda bog'langan to'lovlar saqlanib qoladi.</p>
+  <form class="inline" method="post" action="/settings/sheets"
         onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Yuklanmoqda…'">
-    <div style="flex:1;min-width:240px"><label>Excel fayl</label>
-      <input type="file" name="xlsx" accept=".xlsx,.xlsm" required></div>
-    <div><button>Import qilish</button></div>
+    <div style="flex:1;min-width:260px"><label>Google Sheets havolasi</label>
+      <input type="url" name="url" value="{{ sheets_url }}" required
+             placeholder="https://docs.google.com/spreadsheets/d/…"></div>
+    <div><button>{{ 'Sheets\'dan yangilash' if sheets_url else 'Sheets\'dan import' }}</button></div>
   </form>
-  <p class="hint warn" style="margin-top:10px">Diqqat: bu amal «ДДС данные»dagi
-    hozirgi qatorlarni fayl bilan to'liq almashtiradi. Saytda qo'lda kiritilgan
-    qatorlar bo'lsa, avval CSV eksport qilib oling.</p>
+  <p class="hint" style="margin-top:8px">Ishlashi uchun jadvalda «Ulashish» →
+    «Havolaga ega bo'lganlar — ko'ruvchi» yoqilgan bo'lishi kerak. Yopiq qolsin
+    desangiz — pastdagi fayl usulidan foydalaning.</p>
+  <form class="inline" method="post" action="/settings/import"
+        enctype="multipart/form-data" style="margin-top:12px"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Yuklanmoqda…'">
+    <div style="flex:1;min-width:240px"><label>Yoki Excel fayl (Fayl → Yuklab olish → .xlsx)</label>
+      <input type="file" name="xlsx" accept=".xlsx,.xlsm" required></div>
+    <div><button>Fayldan import</button></div>
+  </form>
 </div>
 
 <div class="card" style="margin-bottom:14px">

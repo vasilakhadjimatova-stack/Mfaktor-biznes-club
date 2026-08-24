@@ -74,6 +74,24 @@ def _session_secret(app):
             return secrets.token_urlsafe(48)
 
 
+def _get_setting(key, default=""):
+    try:
+        row = db.session.get(AppSetting, key)
+    except Exception:                                  # noqa: BLE001
+        db.session.rollback()
+        return default
+    return (row.value or default) if row else default
+
+
+def _set_setting(key, value):
+    row = db.session.get(AppSetting, key)
+    if row is None:
+        row = AppSetting(key=key)
+        db.session.add(row)
+    row.value = value
+    db.session.commit()
+
+
 def _tg_secret():
     """Webhook manzilining maxfiy qismi — sessiya kalitidan hosil bo'ladi."""
     from flask import current_app
@@ -1544,7 +1562,8 @@ def register_routes(app):
             recurring=RecurringPayment.query.order_by(
                 RecurringPayment.pay_day).all(),
             ai_key=bool(ai.api_key()),
-            ai_env=bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()))
+            ai_env=bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()),
+            sheets_url=_get_setting("sheets_url"))
 
     @app.route("/settings/kod", methods=["POST"])
     def settings_pin():
@@ -1646,6 +1665,18 @@ def register_routes(app):
         flash(f"Moliya bazasi almashtirildi — {parts}", "ok")
         return redirect(url_for("settings"))
 
+    def _import_flash(res):
+        """Excel/Sheets importi natijasini bitta xabarga yig'adi."""
+        if res.get("error"):
+            flash(res["error"], "err")
+            return
+        flash(f"Import tayyor: {res['added']} qator yuklandi "
+              f"(eski {res['old']} almashtirildi), {res['openings']} hamyon "
+              f"qoldig'i, kassada {res['tx']} yozuv, {res['auto']} to'lov "
+              f"avtomat bog'landi, {res['queued']} navbatda"
+              + (f", {res['restored']} qo'lda qilingan qaror saqlandi"
+                 if res.get("restored") else "") + ".", "ok")
+
     @app.route("/settings/import", methods=["POST"])
     def settings_import():
         """Mbm_2026.xlsx ni sayt orqali yuklab, butun zanjirni ishga tushirish."""
@@ -1663,15 +1694,29 @@ def register_routes(app):
             db.session.rollback()
             flash(f"Import xatosi: {e}", "err")
             return redirect(url_for("settings"))
-        if res.get("error"):
-            flash(res["error"], "err")
+        _import_flash(res)
+        return redirect(url_for("settings"))
+
+    @app.route("/settings/sheets", methods=["POST"])
+    def settings_sheets():
+        """Google Sheets havolasidan to'g'ridan-to'g'ri import.
+
+        Havola bazada esda qoladi — keyingi safar faqat tugma bosiladi.
+        """
+        import importer
+        link = (request.form.get("url") or "").strip()
+        if not link:
+            flash("Google Sheets havolasini kiriting", "err")
             return redirect(url_for("settings"))
-        flash(f"Import tayyor: {res['added']} qator yuklandi "
-              f"(eski {res['old']} almashtirildi), {res['openings']} hamyon "
-              f"qoldig'i, kassada {res['tx']} yozuv, {res['auto']} to'lov "
-              f"avtomat bog'landi, {res['queued']} navbatda"
-              + (f", {res['restored']} qo'lda qilingan qaror saqlandi"
-                 if res.get("restored") else "") + ".", "ok")
+        if link != _get_setting("sheets_url"):
+            _set_setting("sheets_url", link)
+        try:
+            res = importer.import_from_sheets(link)
+        except Exception as e:                          # noqa: BLE001
+            db.session.rollback()
+            flash(f"Import xatosi: {e}", "err")
+            return redirect(url_for("settings"))
+        _import_flash(res)
         return redirect(url_for("settings"))
 
     @app.route("/settings/wallet", methods=["POST"])
