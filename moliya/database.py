@@ -71,8 +71,30 @@ def init_db(app):
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
     with app.app_context():
-        db.create_all()
-        ensure_columns(app)
+        # Gunicorn bir nechta worker'ni BARAVAR ishga tushiradi — har biri
+        # shu yerdan o'tadi. PostgreSQL'da ikkitasi bir vaqtda CREATE/ALTER
+        # qilsa, bittasi «duplicate key/column» bilan yiqilib, gunicorn
+        # butun ilovani o'chirardi. Advisory lock navbatga soladi.
+        from sqlalchemy import text
+        lock = None
+        if db.engine.dialect.name == "postgresql":
+            lock = db.engine.connect()
+            lock.execute(text("SELECT pg_advisory_lock(731225)"))
+        try:
+            db.create_all()
+            ensure_columns(app)
+        except Exception as exc:                       # noqa: BLE001
+            # Poyga qoldig'i: boshqa worker allaqachon yaratgan bo'lishi
+            # mumkin. Qayta urinamiz — checkfirst mavjudini o'tkazib yuboradi.
+            db.session.rollback()
+            logging.getLogger(__name__).warning(
+                f"Sxema yaratishda to'qnashuv, qayta urinilmoqda: {exc}")
+            db.create_all()
+            ensure_columns(app)
+        finally:
+            if lock is not None:
+                lock.execute(text("SELECT pg_advisory_unlock(731225)"))
+                lock.close()
         # Dars mazmuni elementlarga ko'chadi (bir marta, xavfsiz)
         try:
             import education

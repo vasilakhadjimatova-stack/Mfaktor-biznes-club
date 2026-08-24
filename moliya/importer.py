@@ -93,7 +93,9 @@ def import_workbook(stream):
 
     Qaytaradi: xulosa dict (sahifada ko'rsatiladi).
     """
-    wb = openpyxl.load_workbook(stream, data_only=True)
+    # read_only: katta fayl (Google butun jadvalni eksport qiladi) xotirani
+    # yeb qo'ymasligi uchun — varaqlar diskdan oqim bo'lib o'qiladi.
+    wb = openpyxl.load_workbook(stream, data_only=True, read_only=True)
     if SHEET_DATA not in wb.sheetnames:
         return {"error": f"Faylda «{SHEET_DATA}» varag'i topilmadi. "
                          f"Mavjud varaqlar: {', '.join(wb.sheetnames[:8])}…"}
@@ -119,18 +121,20 @@ def import_workbook(stream):
     db.session.flush()
 
     added = 0
-    for r in range(3, ws.max_row + 1):
-        d = ws.cell(r, 3).value
+    # read_only rejimida katakka birma-bir murojaat sekin — qatorlab o'qiymiz
+    for r, vals in enumerate(
+            ws.iter_rows(min_row=3, max_col=8, values_only=True), start=3):
+        d = vals[2]
         if d is None:
             continue
         db.session.add(DdsRow(
             rownum=r,
             ddate=d.date() if hasattr(d, "date") else d,
-            amount=_num(ws.cell(r, 4).value),
-            wallet=(ws.cell(r, 5).value or ""),
-            wallet2=(ws.cell(r, 6).value or ""),
-            purpose=str(ws.cell(r, 7).value or "").strip(),
-            article=(ws.cell(r, 8).value or ""),
+            amount=_num(vals[3]),
+            wallet=(vals[4] or ""),
+            wallet2=(vals[5] or ""),
+            purpose=str(vals[6] or "").strip(),
+            article=(vals[7] or ""),
         ))
         added += 1
         if added % 500 == 0:
@@ -144,8 +148,9 @@ def import_workbook(stream):
         ddsflow.ensure_wallets()
         ys = wb[year_sheet]
         in_bal = False
-        for r in range(1, min(ys.max_row, 40) + 1):
-            label = _norm(ys.cell(r, 1).value)
+        for vals in ys.iter_rows(min_row=1, max_row=40, max_col=2,
+                                 values_only=True):
+            label = _norm(vals[0])
             if not label:
                 continue
             if label.startswith("остаток дс на начало"):
@@ -156,7 +161,7 @@ def import_workbook(stream):
                 if code:
                     w = Wallet.query.filter_by(code=code).first()
                     if w:
-                        w.opening = _num(ys.cell(r, 2).value)
+                        w.opening = _num(vals[1])
                         openings += 1
                 elif label.startswith(("операционная", "поступления")):
                     break
