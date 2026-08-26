@@ -8,6 +8,8 @@ summalar esa demo (real raqamlar import_dds.py orqali yuklanadi).
 import random
 from datetime import date, timedelta
 
+import localtime
+
 from app import create_app
 from database import db
 from models import (Budget, Cohort, Contract, Course, InstallmentLine,
@@ -30,7 +32,7 @@ def run():
             print("Baza bo'sh emas — seed o'tkazib yuborildi.")
             return
         random.seed(7)
-        today = date.today()
+        today = localtime.today()
 
         # Hamyonlar — real ДДС jadvalidagi ro'yxat (ochilish qoldiqlari demo)
         wallets = [

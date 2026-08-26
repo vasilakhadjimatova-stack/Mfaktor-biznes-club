@@ -14,6 +14,8 @@ Unit-ekonomika uchun: MarketingSpend (kanal bo'yicha) → CAC, LTV, ARPU.
 import unicodedata
 from datetime import date, datetime
 
+import localtime
+
 from database import db
 
 # ── Lug'atlar — Mfaktor ДДС jadvali bilan 1:1 mos ────────────────
@@ -136,7 +138,7 @@ class Transaction(db.Model):
     """Pul harakati — kassa qatlami (Impulse Moliya andozasi)."""
     __tablename__ = "transactions"
     id          = db.Column(db.Integer, primary_key=True)
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at  = db.Column(db.DateTime, default=localtime.now)
     tdate       = db.Column(db.Date, nullable=False, index=True)
     wallet_code = db.Column(db.String(20), nullable=False, index=True)
     operation   = db.Column(db.String(10), nullable=False, index=True)  # kirim/chiqim
@@ -194,7 +196,7 @@ class Student(db.Model):
     # bitta havola bilan hammasini ko'radi.
     portal_token = db.Column(db.String(48), unique=True, index=True)
     note    = db.Column(db.Text, default="")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=localtime.now)
 
 
 class Contract(db.Model):
@@ -243,7 +245,7 @@ class InstallmentLine(db.Model):
     paid        = db.Column(db.Float, default=0.0)
 
     def overdue_days(self, today=None):
-        today = today or date.today()
+        today = today or localtime.today()
         if self.paid >= self.amount - 0.01:
             return 0
         return max((today - self.due_date).days, 0)
@@ -257,7 +259,7 @@ class AutoEvent(db.Model):
     """
     __tablename__ = "auto_events"
     id         = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=localtime.now, index=True)
     kind       = db.Column(db.String(30), default="info")   # payment/contract/reminder/day/refund
     title      = db.Column(db.String(200), nullable=False)
     detail     = db.Column(db.Text, default="")
@@ -512,7 +514,7 @@ class Assignment(db.Model):
     max_score   = db.Column(db.Integer, default=100)
     # dars materiali: video yoki fayl havolasi (o'quvchi kabinetida ko'rinadi)
     material_url = db.Column(db.String(500), default="")
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at  = db.Column(db.DateTime, default=localtime.now)
     cohort      = db.relationship("Cohort", backref="assignments")
 
 
@@ -529,7 +531,7 @@ class Submission(db.Model):
     contract_id   = db.Column(db.Integer, db.ForeignKey("contracts.id"),
                               nullable=False, index=True)
     content       = db.Column(db.Text, default="")
-    submitted_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    submitted_at  = db.Column(db.DateTime, default=localtime.now)
     status        = db.Column(db.String(12), default="pending")  # pending/graded
     score         = db.Column(db.Integer)          # yakuniy ball
     feedback      = db.Column(db.Text, default="")
@@ -549,7 +551,7 @@ class EduCertificate(db.Model):
     token       = db.Column(db.String(48), unique=True, index=True,
                             nullable=False)
     serial      = db.Column(db.String(40), unique=True, nullable=False)
-    issued_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    issued_at   = db.Column(db.DateTime, default=localtime.now)
     contract    = db.relationship("Contract",
                                   backref=db.backref("certificate",
                                                      uselist=False))
@@ -565,7 +567,7 @@ class EduCertificate(db.Model):
         cert = EduCertificate(
             contract_id=contract.id,
             token=_secrets.token_urlsafe(24),
-            serial=f"MF-{datetime.utcnow().year}-{n:05d}")
+            serial=f"MF-{localtime.now().year}-{n:05d}")
         db.session.add(cert)
         return cert
 
@@ -656,7 +658,7 @@ class LessonView(db.Model):
     contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
                             nullable=False, index=True)
     done        = db.Column(db.Boolean, default=True)
-    viewed_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    viewed_at   = db.Column(db.DateTime, default=localtime.now)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -686,8 +688,8 @@ class LessonWatch(db.Model):
     pct         = db.Column(db.Float, default=0.0)   # foiz
     max_pos     = db.Column(db.Float, default=0.0)   # eng uzoq borgan nuqta
     opens       = db.Column(db.Integer, default=0)   # necha marta ochgan
-    first_at    = db.Column(db.DateTime, default=datetime.utcnow)
-    last_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    first_at    = db.Column(db.DateTime, default=localtime.now)
+    last_at     = db.Column(db.DateTime, default=localtime.now)
     lesson      = db.relationship("VideoLesson")
     contract    = db.relationship("Contract")
 
@@ -746,7 +748,7 @@ class QuizAttempt(db.Model):
     score       = db.Column(db.Integer, default=0)     # foiz
     passed      = db.Column(db.Boolean, default=False)
     answers     = db.Column(db.Text, default="{}")     # JSON: {savol: variant}
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at  = db.Column(db.DateTime, default=localtime.now)
     contract    = db.relationship("Contract")
     quiz        = db.relationship("Quiz")
 
@@ -765,7 +767,7 @@ class TgMessage(db.Model):
     text        = db.Column(db.Text, default="")
     ok          = db.Column(db.Boolean, default=False)
     error       = db.Column(db.String(300), default="")
-    sent_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    sent_at     = db.Column(db.DateTime, default=localtime.now)
     contract    = db.relationship("Contract")
 
 

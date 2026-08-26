@@ -13,6 +13,8 @@ Jahon ta'lim-moliya standartlari shu yerda:
 from collections import defaultdict
 from datetime import date, timedelta
 
+import localtime
+
 from sqlalchemy import func
 
 import charts
@@ -126,7 +128,7 @@ def contract_recognized(contract, as_of=None):
     Chiziqli usul: net narx × (o'tgan kunlar / kurs davomiyligi).
     Qaytarilgan shartnomada faqat qaytarilmagan qismi tan olinadi.
     """
-    as_of = as_of or date.today()
+    as_of = as_of or localtime.today()
     c = contract.cohort
     if contract.status == "cancelled":
         return 0.0
@@ -143,7 +145,7 @@ def contract_recognized(contract, as_of=None):
 
 def accrual_summary(as_of=None):
     """Butun portfel: tan olingan daromad, deferred revenue, debitorka."""
-    as_of = as_of or date.today()
+    as_of = as_of or localtime.today()
     recognized = deferred = receivable = booked = 0.0
     for c in Contract.query.filter(Contract.status != "cancelled").all():
         rec = contract_recognized(c, as_of)
@@ -167,7 +169,7 @@ def accrual_summary(as_of=None):
 # ══════════════════════════════════════════════════════════════════
 def overdue_lines(today=None):
     """Muddati o'tgan grafik qatorlari, aging bilan."""
-    today = today or date.today()
+    today = today or localtime.today()
     rows = []
     q = (InstallmentLine.query.join(Contract)
          .filter(Contract.status == "active")
@@ -187,7 +189,7 @@ def overdue_lines(today=None):
 
 def upcoming_lines(days=7, today=None):
     """Yaqin N kunda to'lanishi kerak bo'lgan grafik qatorlari."""
-    today = today or date.today()
+    today = today or localtime.today()
     till = today + timedelta(days=days)
     q = (InstallmentLine.query.join(Contract)
          .filter(Contract.status == "active")
@@ -535,7 +537,7 @@ def budget_planfact(year, month):
 #  DASHBOARD jamlamasi
 # ══════════════════════════════════════════════════════════════════
 def dashboard_data(today=None):
-    today = today or date.today()
+    today = today or localtime.today()
     y, m = today.year, today.month
     balances, total_balance = wallet_balances()
     cf = month_cashflow(y, m)
@@ -630,7 +632,7 @@ def contracts_board(status="active", today=None):
     puli va qarzi bir qarashda; ochilganda har o'quvchining to'lov holati,
     keyingi muddati va kechikishi ko'rinadi.
     """
-    today = today or date.today()
+    today = today or localtime.today()
     out = []
     for ch in (Cohort.query.order_by(Cohort.start_date.desc()).all()):
         q = Contract.query.filter_by(cohort_id=ch.id)

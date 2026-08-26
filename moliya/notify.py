@@ -25,6 +25,8 @@ import urllib.parse
 import urllib.request
 from datetime import date, timedelta
 
+import localtime
+
 from database import db
 
 logger = logging.getLogger(__name__)
@@ -190,7 +192,7 @@ def pending(today=None, debt_days=1, lesson_ahead=1, task_ahead=2):
     Hech nima yubormaydi — kurator avval ko'rib, keyin tugmani bosadi.
     """
     from models import (Assignment, Contract, LessonSession, Submission)
-    today = today or date.today()
+    today = today or localtime.today()
     out = []
 
     # 1) Muddati o'tgan to'lovlar

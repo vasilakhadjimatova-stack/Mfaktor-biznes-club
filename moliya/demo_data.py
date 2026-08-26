@@ -15,6 +15,8 @@ Hammasi «[namuna]» belgisi bilan yuritiladi va bitta tugma bilan izsiz
 o'chiriladi.
 """
 from datetime import date, timedelta
+
+import localtime
 import random
 
 from database import db
@@ -109,7 +111,7 @@ def seed_demo(seed=7):
     """
     clear_demo()
     rnd = random.Random(seed)
-    today = date.today()
+    today = localtime.today()
 
     def pick(*keys):
         for k in keys:

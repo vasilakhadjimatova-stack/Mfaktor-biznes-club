@@ -14,6 +14,8 @@ import os
 import secrets
 import time
 from datetime import date, datetime, timedelta
+
+import localtime
 from urllib.parse import urlencode
 
 from flask import (Flask, Response, abort, flash, redirect, render_template,
@@ -292,7 +294,7 @@ def create_app():
             inbox_open = 0
         return {"INCOME_CATS": INCOME_CATS, "EXPENSE_CATS": EXPENSE_CATS,
                 "CHANNELS": MARKETING_CHANNELS, "STATUSES": CONTRACT_STATUSES,
-                "today": date.today(), "total_cash": total_cash,
+                "today": localtime.today(), "total_cash": total_cash,
                 "inbox_open": inbox_open, "bad_transfers": bad_transfers,
                 "role": role, "role_label": roles.ROLE_LABELS.get(role, ""),
                 "can": (lambda ep: roles.can(role, ep))}
@@ -307,7 +309,7 @@ def _parse_date(s, default=None):
             return datetime.strptime((s or "").strip(), fmt).date()
         except ValueError:
             continue
-    return default or date.today()
+    return default or localtime.today()
 
 
 def _num(s):
@@ -321,7 +323,7 @@ def _num(s):
 
 def _ym():
     """?y=&m= parametrlari yoki joriy oy."""
-    t = date.today()
+    t = localtime.today()
     try:
         y = int(request.args.get("y", t.year))
         m = int(request.args.get("m", t.month))
@@ -350,7 +352,7 @@ def register_routes(app):
     # ── Tranzaksiyalar ───────────────────────────────────────────
     def _tx_filters():
         """URL parametrlaridan filtr yig'adi: (query, ctx)."""
-        today = date.today()
+        today = localtime.today()
         args = request.args
         preset = args.get("p", "")
         d_from = args.get("from", "")
@@ -569,7 +571,7 @@ def register_routes(app):
             name=f.get("name", "Yangi oqim"),
             start_date=_parse_date(f.get("start_date")),
             end_date=_parse_date(f.get("end_date"),
-                                 date.today() + timedelta(days=60)),
+                                 localtime.today() + timedelta(days=60)),
             capacity=int(f.get("capacity") or 30),
         )
         db.session.add(ch)
@@ -720,7 +722,7 @@ def register_routes(app):
             # idempotentlik: forma qayta yuborilsa ikkinchi chiqim yozilmaydi
             if refund > 0 and wallet and not refund_tx:
                 db.session.add(Transaction(
-                    tdate=date.today(), wallet_code=wallet,
+                    tdate=localtime.today(), wallet_code=wallet,
                     operation="chiqim", amount=refund,
                     category="Возврат клиенту",
                     counterparty=c.student.name,
@@ -762,7 +764,7 @@ def register_routes(app):
                                view=("table" if view == "table" else "month"),
                                y=y, m=m, d=data, oy=oy,
                                first_wd=date(y, m, 1).weekday(),
-                               today=date.today())
+                               today=localtime.today())
 
     @app.route("/taqvim/set", methods=["POST"])
     def taqvim_set():
@@ -811,9 +813,9 @@ def register_routes(app):
     @app.route("/dds")
     def dds():
         try:
-            year = int(request.args.get("year", date.today().year))
+            year = int(request.args.get("year", localtime.today().year))
         except ValueError:
-            year = date.today().year
+            year = localtime.today().year
         view = request.args.get("view", "xl")     # xl — Sheets ko'rinishi
         if view == "xl":
             return render_template("dds_excel.html", x=core.dds_excel(year),
@@ -1149,7 +1151,7 @@ def register_routes(app):
         purp_top = {art: [p for p, _ in c.most_common(6)]
                     for art, c in purp_freq.items()}
         add_pref = {"open": a.get("add") == "1",
-                    "d": a.get("ad") or date.today().isoformat(),
+                    "d": a.get("ad") or localtime.today().isoformat(),
                     "w": a.get("aw", ""), "art": a.get("aa", "")}
 
         return render_template("ddsdata.html", rows=rows, uniq=uniq, sel=sel,
@@ -1391,7 +1393,7 @@ def register_routes(app):
         price = float(f.get("price") or 0) or cohort.course.base_price
         c = Contract(student_id=student.id, cohort_id=cohort.id,
                      price=price, discount=float(f.get("discount") or 0),
-                     signed_date=row.ddate or date.today())
+                     signed_date=row.ddate or localtime.today())
         db.session.add(c)
         db.session.flush()
         n = max(int(f.get("installments") or 1), 1)
@@ -1505,7 +1507,7 @@ def register_routes(app):
     # ── KPI ──
     @app.route("/kpi")
     def kpi_page():
-        today = date.today()
+        today = localtime.today()
         y = int(request.args.get("y", today.year))
         m = int(request.args.get("m", today.month))
         cards = kpi.ensure_month(y, m)
@@ -1645,7 +1647,7 @@ def register_routes(app):
         """Barcha moliya jadvallari bitta faylga — serverga ko'chirish uchun."""
         import fulldump
         blob = fulldump.dump_bytes()
-        name = f"mfaktor-moliya-{date.today().isoformat()}.dump.gz"
+        name = f"mfaktor-moliya-{localtime.today().isoformat()}.dump.gz"
         return Response(blob, mimetype="application/gzip", headers={
             "Content-Disposition": f"attachment; filename={name}"})
 
@@ -1762,7 +1764,7 @@ def register_edu_routes(app):
     # ══════════════════════════════════════════════════════════════
     @app.route("/oquv")
     def oquv():
-        today = date.today()
+        today = localtime.today()
         # Risk to'lov kechikishiga ham bog'liq — u har kuni o'zgaradi.
         # Sahifa ochilganda davom etayotgan oqimlarniki yangilanadi.
         try:
@@ -1808,7 +1810,7 @@ def register_edu_routes(app):
                                contracts=contracts, sessions=sessions,
                                assignments=assignments, att=att, prog=prog,
                                sub_stats=sub_stats, msg=education.contact_message,
-                               att_statuses=ATT_STATUSES, today=date.today(),
+                               att_statuses=ATT_STATUSES, today=localtime.today(),
                                rlevel=education.risk_level,
                                tg=notify.enabled(),
                                tglink=notify.link_url)
@@ -1979,7 +1981,7 @@ def register_edu_routes(app):
         if fb:
             sub.feedback = fb[:4000]
         sub.status = "graded"
-        sub.graded_at = datetime.utcnow()
+        sub.graded_at = localtime.now()
         db.session.commit()
         flash(f"Baholandi: {sub.score} ball", "ok")
         return redirect(url_for("oquv_assignment", aid=sub.assignment_id))
@@ -2597,7 +2599,7 @@ def register_edu_routes(app):
             sub = Submission(assignment_id=a.id, contract_id=c.id)
             db.session.add(sub)
         sub.content = text[:8000]
-        sub.submitted_at = datetime.utcnow()
+        sub.submitted_at = localtime.now()
         sub.status = "pending"
         # AI birinchi qatlam bahosi (kalit bo'lmasa — jim o'tadi)
         score, fb = education.ai_grade(a, sub.content, a.max_score or 100)

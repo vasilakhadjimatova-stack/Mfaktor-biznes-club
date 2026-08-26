@@ -14,6 +14,8 @@ faqat surат qayta hisoblanadi.
 import os
 from datetime import date
 
+import localtime
+
 from database import db
 
 MODEL = os.environ.get("AI_MODEL", "claude-opus-5")
@@ -77,7 +79,7 @@ def snapshot():
     import core
     from models import Cohort, Contract, DdsRow
 
-    today = date.today()
+    today = localtime.today()
     lines = [f"Bugun: {today.isoformat()}"]
     skipped = []       # ma'lumot olinmagan bo'limlar — modelга ochiq aytamiz
 

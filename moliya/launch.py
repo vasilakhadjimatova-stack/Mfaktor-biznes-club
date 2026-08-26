@@ -23,6 +23,8 @@ import json
 import re
 from datetime import date, timedelta
 
+import localtime
+
 from database import db
 from models import (DdsRow, LaunchScenario, dds_activity, dds_group,
                     dds_norm)
@@ -157,9 +159,12 @@ def fakt_sums(items):
             continue
         want = "Поступление" if it.get("dir") == "in" else "Выбытие"
         d1, d2 = _parse_d(it.get("start")), _parse_d(it.get("end"))
+        # So'z boshidan moslash: «аренд» → «аренда» topiladi, lekin «роп»
+        # «пропуск» ichidan topilib qolmaydi (oddiy substring shunday qilardi)
+        q_re = re.compile(r"(?<!\w)" + re.escape(q))
         total, n = 0.0, 0
         for ddate, grp, text, amt in rows:
-            if grp != want or q not in text:
+            if grp != want or not q_re.search(text):
                 continue
             if d1 and (not ddate or ddate < d1):
                 continue
@@ -171,7 +176,8 @@ def fakt_sums(items):
     return out
 
 
-_DARS_RE = re.compile(r"(\d{1,2})\s*[-–]?\s*dars", re.IGNORECASE)
+# (?<!\d) — «125-dars»dan «25-dars»ni ushlab olmaslik uchun
+_DARS_RE = re.compile(r"(?<!\d)(\d{1,2})\s*[-–]?\s*dars", re.IGNORECASE)
 
 
 def _matched_rows(queries, d1, d2):
@@ -212,7 +218,7 @@ def dars_journal(queries, start, end, kunlar=None):
     """
     d1, d2 = _parse_d(start), _parse_d(end)
     rows = _matched_rows(queries, d1, d2)
-    today = date.today()
+    today = localtime.today()
 
     wd = set()
     for k in kunlar or []:

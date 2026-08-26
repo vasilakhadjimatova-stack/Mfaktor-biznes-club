@@ -19,6 +19,8 @@ Har bir asosiy amal zanjir ishga tushiradi:
 """
 from datetime import date, datetime, timedelta
 
+import localtime
+
 from sqlalchemy import func
 
 from database import db
@@ -154,7 +156,7 @@ def close_day(today=None, write_event=True):
     ochilganда ko'rsatish uchun). Aks holda «Kun yopildi» hodisasi kuniga
     bir marta yoziladi (takror bosish/yangilashda spam bo'lmaydi).
     """
-    today = today or date.today()
+    today = today or localtime.today()
 
     # 1) muddati o'tganlar — bugun hali eslatilmaganlar
     overdue = core.overdue_lines(today)
@@ -203,7 +205,7 @@ def close_day(today=None, write_event=True):
 
 
 def mark_reminded(line_id, channel="manual", today=None):
-    today = today or date.today()
+    today = today or localtime.today()
     if not ReminderLog.query.filter_by(line_id=line_id, sent_date=today).first():
         db.session.add(ReminderLog(line_id=line_id, sent_date=today,
                                    channel=channel))
@@ -218,7 +220,7 @@ def mark_reminded(line_id, channel="manual", today=None):
 
 def book_recurring(rec_id, wallet_code, today=None):
     """Takrorlanuvchi to'lovni bir bosishda kassaga yozish."""
-    today = today or date.today()
+    today = today or localtime.today()
     r = db.session.get(RecurringPayment, rec_id)
     if not r:
         return None

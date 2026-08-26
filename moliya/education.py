@@ -17,6 +17,8 @@ import re
 import urllib.request
 from datetime import date, datetime
 
+import localtime
+
 from database import db
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ API_TIMEOUT_SEC = 90
 # ──────────────────────────────────────────────────────────────────
 def edu_stats():
     from models import Cohort, Contract, Submission
-    today = date.today()
+    today = localtime.today()
     running = Cohort.query.filter(Cohort.start_date <= today,
                                   Cohort.end_date >= today).count()
     active_students = Contract.query.filter_by(status="active").count()
@@ -261,7 +263,7 @@ def refresh_all_risk(only_running=True):
     from models import Cohort
     q = Cohort.query
     if only_running:
-        today = date.today()
+        today = localtime.today()
         q = q.filter(Cohort.start_date <= today, Cohort.end_date >= today)
     n = 0
     for ch in q.all():
@@ -315,7 +317,7 @@ def portal_data(contract):
     from models import (Assignment, LessonSession, LessonAttendance,
                         Submission)
     ch = contract.cohort
-    today = date.today()
+    today = localtime.today()
 
     sessions = (LessonSession.query.filter_by(cohort_id=ch.id)
                 .order_by(LessonSession.date).all())
@@ -451,7 +453,7 @@ def course_content(contract):
     item_ids = [i.id for i in LessonItem.query.filter(
         LessonItem.lesson_id.in_(lids)).all()] if lids else []
     watch = watch_map(contract.id, item_ids)
-    today = date.today()
+    today = localtime.today()
 
     out, total, done, locked_n = [], 0, 0, 0
     for m in mods:
@@ -496,7 +498,7 @@ def mark_view(contract, lesson, done=True):
         row = LessonView(lesson_id=lesson.id, contract_id=contract.id)
         db.session.add(row)
     row.done = bool(done)
-    row.viewed_at = datetime.utcnow()
+    row.viewed_at = localtime.now()
     db.session.commit()
     return row
 
@@ -570,7 +572,7 @@ def record_watch(contract, item, spans, duration=0.0, pos=0.0, opened=False):
                       merged[-1][1] if merged else 0.0)
     if opened:
         row.opens = (row.opens or 0) + 1
-    row.last_at = datetime.utcnow()
+    row.last_at = localtime.now()
     db.session.commit()
     sync_lesson_done(contract, item.lesson)
     return row
@@ -740,7 +742,7 @@ def lesson_locked(lesson, cohort, today=None):
     od = lesson_open_date(lesson, cohort)
     if od is None:
         return False, None
-    return (today or date.today()) < od, od
+    return (today or localtime.today()) < od, od
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -827,7 +829,7 @@ def quiz_stats(quiz):
 def curator_queue(today=None):
     from models import (Assignment, Cohort, Contract, LessonSession,
                         Submission)
-    today = today or date.today()
+    today = today or localtime.today()
     items = []
 
     # 1) Davomat olinmagan darslar — eng shoshilinchi, chunki kechiksa
@@ -900,7 +902,7 @@ def cohort_rows(today=None):
     """Oqimlar ro'yxati — har birida jarayon qay darajada ketgani."""
     from models import (Assignment, Cohort, Contract, LessonSession,
                         Submission)
-    today = today or date.today()
+    today = today or localtime.today()
     out = []
     for ch in Cohort.query.order_by(Cohort.start_date.desc()).all():
         actives = Contract.query.filter_by(cohort_id=ch.id,

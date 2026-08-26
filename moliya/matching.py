@@ -260,6 +260,27 @@ def unapply(row):
         row.match_status = "none"
 
 
+def _manual_twin(row, contract):
+    """Xuddi shu to'lov saytdan qo'lda ham kiritilganga o'xshaydimi.
+
+    Shartnoma sahifasidan qo'lda to'lov yozilib, keyin o'sha pul Google
+    Sheets orqali ham kelsa, avtomat bog'lash uni IKKINCHI marta grafikka
+    yozib yuborardi. Shu holat (o'sha shartnoma, o'sha summa, ±3 kun,
+    ДДСsiz qo'lda kirim) ko'rinsa — avtomat to'xtab, navbatga qo'yadi.
+    """
+    if not row.ddate:
+        return False
+    from datetime import timedelta
+    lo, hi = row.ddate - timedelta(days=3), row.ddate + timedelta(days=3)
+    return db.session.query(Transaction.id).filter(
+        Transaction.contract_id == contract.id,
+        Transaction.dds_row_id.is_(None),
+        Transaction.operation == "kirim",
+        Transaction.amount == float(row.amount or 0),
+        Transaction.tdate >= lo, Transaction.tdate <= hi,
+    ).first() is not None
+
+
 def auto_match(row):
     """Ishonch yetsa — o'zi bog'laydi. Aks holda navbatda qoladi.
 
@@ -283,6 +304,11 @@ def auto_match(row):
     # o'xshash familiya (erkak/ayol) boshqa odamga bog'lanib ketardi
     if (top["score"] >= AUTO_THRESHOLD and top["score"] - second >= 0.08
             and strong_name_match(row.purpose, top["contract"].student.name)):
+        # ehtimoliy dublikat (qo'lda kiritilgan egizak) — odam hal qilsin
+        if _manual_twin(row, top["contract"]):
+            row.match_status = "none"
+            row.match_score = top["score"]
+            return "none"
         apply(row, top["contract"], status="auto", score=top["score"])
         return "auto"
     row.match_status = "none"
