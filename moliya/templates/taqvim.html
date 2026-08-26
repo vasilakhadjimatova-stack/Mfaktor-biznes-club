@@ -51,15 +51,19 @@
     {% for w in ['Du','Se','Cho','Pa','Ju','Sha','Ya'] %}
     <span class="{{ 'we' if loop.index0 >= 5 }}">{{ w }}</span>
     {% endfor %}
+    <span class="wkh">Hafta</span>
   </div>
   <div class="pcal">
     {% for _ in range(first_wd) %}<div class="pcal-cell empty"></div>{% endfor %}
     {% for day in d.days %}
     {% set i = loop.index0 %}
+    {% set pos = first_wd + i %}
     {% set p, f = d.day_p[i], d.day_f[i] %}
     <div class="pcal-cell {{ 'we' if day.we }}
                 {{ 'today' if today.year == y and today.month == m and today.day == day.d }}"
+         style="--ht:{{ '%.3f'|format(d.heat[i]) }}"
          data-d="{{ day.d }}" tabindex="0" role="button"
+         title="{{ day.d }}-kun: fakt {{ f|round|int|grp }}{% if p %} · reja {{ p|round|int|grp }}{% endif %}"
          onclick="openDay({{ day.d }})"
          onkeydown="if(event.key==='Enter')openDay({{ day.d }})">
       <span class="pd">{{ day.d }}</span>
@@ -68,6 +72,17 @@
       <i class="pbar" data-pb="{{ day.d }}">{% if p %}<b class="{{ 'ov' if f > p }}"
         style="width:{{ [100, (f / p * 100)|round|int]|min }}%"></b>{% endif %}</i>
     </div>
+    {% if (pos + 1) % 7 == 0 or loop.last %}
+      {% if loop.last and (pos + 1) % 7 != 0 %}
+        {% for _ in range(7 - (pos + 1) % 7) %}<div class="pcal-cell empty"></div>{% endfor %}
+      {% endif %}
+      {% set wk = d.weeks[pos // 7] %}
+      <div class="pcal-wk" title="{{ wk.d1 }}–{{ wk.d2 }}-kunlar">
+        <span class="wl">{{ wk.d1 }}–{{ wk.d2 }}</span>
+        <b class="wf">{{ wk.f|round|int|grp if wk.f else '—' }}</b>
+        {% if wk.p %}<i class="wp">reja {{ wk.p|round|int|grp }}</i>{% endif %}
+      </div>
+    {% endif %}
     {% endfor %}
   </div>
   <div class="pcal-sum">
@@ -76,6 +91,40 @@
     <span>Farq: <b class="{{ 'neg2' if d.total_diff > 0 }}">{{ d.total_diff|grp }}</b></span>
   </div>
 </div>
+
+{# ── jamg'arma grafigi: oy boshidan buyon to'plangan xarajat ── #}
+{% if d.total_f or d.total_p %}
+<div class="card pburn">
+  <div class="pb-h">
+    <b>Oy davomida to'planishi</b>
+    <span class="pb-leg">
+      <i class="lf"></i> fakt <b>{{ d.cum_f_end|round|int|grp }}</b>
+      {% if d.cum_p_pts %}<i class="lp"></i> reja <b>{{ d.cum_p_end|round|int|grp }}</b>{% endif %}
+    </span>
+  </div>
+  <svg class="burn" viewBox="0 0 600 150" preserveAspectRatio="none"
+       role="img" aria-label="Oy boshidan to'plangan xarajat">
+    {% for k in [0, 1, 2, 3] %}
+    <line class="gl" x1="0" y1="{{ 15 + k * 45 }}" x2="600" y2="{{ 15 + k * 45 }}"
+          vector-effect="non-scaling-stroke"/>
+    {% endfor %}
+    {% if d.today_x is not none %}
+    <line class="tdl" x1="{{ d.today_x }}" y1="4" x2="{{ d.today_x }}" y2="150"
+          vector-effect="non-scaling-stroke"/>
+    {% endif %}
+    {% if d.cum_f_pts %}
+    <polygon class="ba" points="0,150 {{ d.cum_f_pts }} {{ d.cum_f_x }},150"/>
+    {% endif %}
+    {% if d.cum_p_pts %}<polyline class="bp" points="{{ d.cum_p_pts }}"
+       vector-effect="non-scaling-stroke"/>{% endif %}
+    {% if d.cum_f_pts %}<polyline class="bf" points="{{ d.cum_f_pts }}"
+       vector-effect="non-scaling-stroke"/>{% endif %}
+  </svg>
+  <div class="pb-ax">
+    {% for k in [1, 5, 10, 15, 20, 25, d.ndays] %}<span>{{ k }}</span>{% endfor %}
+  </div>
+</div>
+{% endif %}
 
 {# kun paneli: shu kunning statya kesimi + reja kiritish #}
 <div class="card pcal-panel" id="pcal-panel" hidden>
@@ -200,11 +249,48 @@ function addPlan(){
 
 <style>
 .pcal-card{padding:14px 14px 12px}
-.pcal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+.pcal-head{display:grid;grid-template-columns:repeat(7,1fr) 84px;gap:6px;
   margin-bottom:6px;font:600 10px var(--sans);text-transform:uppercase;
   letter-spacing:.07em;color:var(--dim);text-align:center}
 .pcal-head .we{color:var(--gold)}
-.pcal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.pcal{display:grid;grid-template-columns:repeat(7,1fr) 84px;gap:6px}
+/* katak fonining to'qligi — o'sha kunning xarajati (eng og'ir kunga nisbatan) */
+.pcal-cell::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:var(--gold);opacity:calc(var(--ht,0) * .17);pointer-events:none}
+.pcal-cell.empty::before{display:none}
+.pcal-wk{display:flex;flex-direction:column;justify-content:center;gap:2px;
+  padding:6px 8px;border-radius:11px;background:var(--card-faint);
+  border:1px solid var(--line);min-width:0}
+.pcal-wk .wl{font:600 9px var(--sans);letter-spacing:.05em;color:var(--dim);
+  text-transform:uppercase}
+.pcal-wk .wf{font:700 12px var(--sans);color:var(--txt);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.pcal-wk .wp{font-style:normal;font-size:9px;color:var(--dim);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.pcal-head .wkh{font-size:9px}
+
+/* ── jamg'arma grafigi ── */
+.pburn{margin-top:14px}
+.pb-h{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  flex-wrap:wrap;margin-bottom:10px}
+.pb-h b{font-size:14px}
+.pb-leg{font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.pb-leg b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:600}
+.pb-leg i{display:inline-block;width:12px;height:0;border-top:2px solid var(--gold)}
+.pb-leg .lp{border-top:2px dashed var(--mut)}
+.burn{width:100%;height:180px;display:block}
+.pb-ax{display:flex;justify-content:space-between;margin-top:5px;
+  font:500 10.5px var(--sans);color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.burn .gl{stroke:var(--line);stroke-width:1}
+.burn .tdl{stroke:var(--gold);stroke-width:1;stroke-dasharray:3 3;opacity:.55}
+.burn .bp{fill:none;stroke:var(--mut);stroke-width:2;stroke-dasharray:5 4;
+  stroke-linejoin:round}
+.burn .bf{fill:none;stroke:var(--gold);stroke-width:2.5;stroke-linejoin:round;
+  stroke-linecap:round}
+.burn .ba{fill:var(--gold);opacity:.13}
+
 .pcal-cell{min-height:74px;min-width:0;overflow:hidden;
   border:1px solid var(--line);border-radius:11px;
   background:var(--ink3);padding:6px 7px;display:flex;flex-direction:column;
@@ -255,7 +341,14 @@ function addPlan(){
 .vsw{display:flex;gap:6px}
 
 @media(max-width:700px){
+  /* telefonda 8-ustun tor qoladi — hafta jami kalendar ostiga tushadi */
+  .pcal,.pcal-head{grid-template-columns:repeat(7,1fr)}
   .pcal{gap:4px}
+  .pcal-wk{grid-column:1 / -1;flex-direction:row;align-items:baseline;gap:8px;
+    padding:5px 9px}
+  .pcal-wk .wf{margin-left:auto}
+  .pcal-head .wkh{display:none}
+  .burn{height:130px}
   .pcal-cell{min-height:62px;padding:4px 5px;border-radius:9px}
   .pp,.pf{font-size:8.5px}
   .pd{font-size:11px}

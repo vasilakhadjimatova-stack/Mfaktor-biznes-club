@@ -16,6 +16,8 @@ from datetime import date
 
 from sqlalchemy import func
 
+import localtime
+
 from database import db
 from models import CAL_GROUPS, PlanCell, RecurringPayment, Transaction
 
@@ -83,12 +85,56 @@ def month_data(year, month):
     day_p = [sum(r["p"][i] for r in all_rows) for i in range(ndays)]
     day_f = [sum(r["f"][i] for r in all_rows) for i in range(ndays)]
     total_p, total_f = sum(day_p), sum(day_f)
+
+    # ── kalendar ustidagi tasvir uchun ──
+    first_wd = date(year, month, 1).weekday()
+    # katakning bo'yalish darajasi: eng og'ir kunga nisbatan (0…1)
+    mx = max(day_f) or 1.0
+    heat = [(v / mx) for v in day_f]
+
+    # hafta qatorlari — kalendar to'ridagi satrlar bilan bir xil
+    weeks = []
+    for start in range(0, first_wd + ndays, 7):
+        idx = [i for i in range(start - first_wd, start - first_wd + 7)
+               if 0 <= i < ndays]
+        if idx:
+            weeks.append({"p": sum(day_p[i] for i in idx),
+                          "f": sum(day_f[i] for i in idx),
+                          "d1": idx[0] + 1, "d2": idx[-1] + 1})
+
+    # jamg'arma egri chizig'i: oy boshidan buyon to'plangan summa
+    cum_p, cum_f, ap, af = [], [], 0.0, 0.0
+    for i in range(ndays):
+        ap += day_p[i]
+        af += day_f[i]
+        cum_p.append(ap)
+        cum_f.append(af)
+    today = localtime.today()
+    tidx = today.day - 1 if (today.year == year and today.month == month) else None
+    # joriy oyda fakt chizig'i bugundan nariga cho'zilmaydi
+    f_end = (tidx + 1) if tidx is not None else ndays
+    top = max(max(cum_p), max(cum_f)) or 1.0
+
+    def pts(vals, n):
+        if n < 2:
+            return ""
+        return " ".join(
+            "%.1f,%.1f" % (i / (ndays - 1) * 600, 150 - vals[i] / top * 135)
+            for i in range(n))
+
     return {
         "days": days, "groups": groups,
-        "day_p": day_p, "day_f": day_f,
+        "day_p": day_p, "day_f": day_f, "heat": heat, "weeks": weeks,
         "total_p": total_p, "total_f": total_f,
         "total_diff": total_f - total_p,
         "total_pct": (total_f / total_p * 100) if total_p > 0 else None,
+        "cum_f_pts": pts(cum_f, f_end),
+        "cum_p_pts": pts(cum_p, ndays) if total_p else "",
+        "cum_f_x": ((f_end - 1) / (ndays - 1) * 600) if f_end > 1 else 0.0,
+        "cum_f_end": cum_f[f_end - 1] if f_end else 0.0,
+        "cum_p_end": cum_p[f_end - 1] if (total_p and f_end) else 0.0,
+        "today_x": (tidx / (ndays - 1) * 600) if tidx is not None else None,
+        "ndays": ndays,
     }
 
 
