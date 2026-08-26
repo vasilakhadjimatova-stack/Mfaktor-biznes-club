@@ -253,6 +253,7 @@ function addPlan(){
 .pp-add input{width:140px;background:var(--ink3);border:1px solid var(--line);
   border-radius:9px;padding:8px;color:var(--txt);text-align:right}
 .vsw{display:flex;gap:6px}
+
 @media(max-width:700px){
   .pcal{gap:4px}
   .pcal-cell{min-height:62px;padding:4px 5px;border-radius:9px}
@@ -396,59 +397,258 @@ function addPlan(){
 </script>
 
 {% else %}
-{# ═══════════ YILLIK: statya × oy ═══════════ #}
-<div class="xl-wrap">
-<table class="xl x3">
-  <thead>
-    <tr>
-      <th class="rn cat" rowspan="2">Xarajat statyasi</th>
-      <th colspan="2" class="tot">Yil jami</th>
-      {% for mi in range(1, 13) %}<th colspan="3">{{ oy[mi][:3] }}</th>{% endfor %}
-    </tr>
-    <tr>
-      <th class="tot">Reja</th><th class="tot">Fakt</th>
-      {% for mi in range(1, 13) %}<th>R</th><th>F</th><th>%</th>{% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-  {% for g in d.groups %}
-    <tr class="grp">
-      <td class="rn cat">{{ g.name }}</td>
-      <td class="r">{{ num(g.tp) }}</td><td class="r">{{ num(g.tf) }}</td>
-      <td colspan="36"></td>
-    </tr>
-    {% for r in g.rows %}
-    <tr>
-      <td class="rn cat">{{ r.cat }}</td>
-      <td class="r tp">{{ num(r.tp) }}</td>
-      <td class="r tf">{{ num(r.tf) }}</td>
-      {% for mi in range(12) %}
-      {% set p, f = r.p[mi], r.f[mi] %}
-      <td class="r">{{ num(p) }}</td>
-      <td class="r fc {{ 'has' if f }}">{{ num(f) }}</td>
-      <td class="r {{ 'bad' if p and f > p else ('good' if p and f < p) }}">
-        {% if p %}{{ (f / p * 100)|round|int }}%{% endif %}</td>
-      {% endfor %}
-    </tr>
-    {% endfor %}
-  {% endfor %}
-  </tbody>
-  <tfoot>
-    <tr class="sum">
-      <td class="rn cat">JAMI</td>
-      <td class="r">{{ num(d.total_p) }}</td>
-      <td class="r">{{ num(d.total_f) }}</td>
-      {% for mi in range(12) %}
-      <td class="r">{{ num(d.month_p[mi]) }}</td>
-      <td class="r">{{ num(d.month_f[mi]) }}</td>
-      <td class="r">{% if d.month_p[mi] %}{{ (d.month_f[mi] / d.month_p[mi] * 100)|round|int }}%{% endif %}</td>
-      {% endfor %}
-    </tr>
-  </tfoot>
-</table>
+{# ═══════════ YILLIK HISOBOT: xulosa + grafik + jadval ═══════════ #}
+<style>
+/* ══ Yillik hisobot ══ */
+.yk{margin-bottom:14px}
+.yk .kpi .s{font-size:11px;color:var(--dim);margin-top:4px}
+.yk .kpi .v.dim{color:var(--dim);font-size:18px}
+.ychart{margin-bottom:14px}
+.yc-h{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.yc-h b{font-size:14px}
+.yc-leg{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:5px}
+.yc-leg i{display:inline-block;width:9px;height:9px;border-radius:2px}
+.yc-leg .lf{background:var(--gold)}
+.yc-leg .lp{background:transparent;border-top:2px dashed var(--mut);
+  height:0;width:14px;border-radius:0}
+.yc-bars{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;
+  align-items:end}
+.yc-col{display:flex;flex-direction:column;align-items:center;gap:5px;
+  border-radius:9px;padding:4px 2px}
+.yc-col.now{background:var(--card-faint)}
+.yc-v{font:600 10px var(--sans);color:var(--mut);
+  font-variant-numeric:tabular-nums;height:13px;white-space:nowrap}
+.yc-track{position:relative;width:100%;height:132px;background:var(--track);
+  border-radius:7px;display:flex;align-items:flex-end;overflow:visible}
+.yc-f{width:100%;background:linear-gradient(180deg,var(--gold),#b8860b);
+  border-radius:7px;min-height:2px;transition:height .3s ease}
+.yc-col.now .yc-f{background:linear-gradient(180deg,#ffd66b,var(--gold))}
+.yc-p{position:absolute;left:-2px;right:-2px;height:0;
+  border-top:2px dashed var(--mut)}
+.yc-m{font:600 10.5px var(--sans);color:var(--dim);text-transform:uppercase}
+.yc-col.now .yc-m{color:var(--gold)}
+
+.yshare{margin-bottom:14px}
+.yshare b{font-size:14px}
+.ys-rows{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.ys-r{display:grid;grid-template-columns:minmax(120px,1.3fr) 1fr 38px auto;
+  gap:10px;align-items:center;font-size:12.5px}
+.ys-n{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ys-bar{height:7px;background:var(--track);border-radius:4px;overflow:hidden}
+.ys-bar i{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--gold),#b8860b)}
+.ys-p{text-align:right;color:var(--txt);font-weight:600;
+  font-variant-numeric:tabular-nums}
+.ys-s{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums;
+  font-size:11.5px;min-width:88px}
+
+/* o'z scroll maydoni — sarlavha va JAMI qatori ko'z oldida qoladi */
+.ytwrap{max-height:72vh;overflow:auto}
+.ytbl{border-collapse:separate;border-spacing:0;width:100%;
+  font-variant-numeric:tabular-nums}
+.ytbl th{position:sticky;top:0;z-index:2;background:var(--ink2);
+  font:600 10px var(--sans);text-transform:uppercase;letter-spacing:.06em;
+  color:var(--dim);text-align:right;padding:8px 9px;
+  border-bottom:1px solid var(--line2);white-space:nowrap}
+.ytbl th.ct{text-align:left;left:0;z-index:3;min-width:190px}
+.ytbl th.now{color:var(--gold)}
+.ytbl td{padding:7px 9px;font-size:12.5px;border-bottom:1px solid var(--line);
+  white-space:nowrap}
+.ytbl td.r{text-align:right}
+.ytbl td.ct{position:sticky;left:0;background:var(--ink2);z-index:1;
+  text-align:left;color:var(--mut);max-width:230px;overflow:hidden;
+  text-overflow:ellipsis}
+.ytbl td.ct.sub{padding-left:22px;font-size:12px}
+.ytbl td.now{background:var(--card-faint)}
+.ytbl tr.ygrp{cursor:pointer}
+.ytbl tr.ygrp td{background:var(--card-faint);font-weight:700;color:var(--txt);
+  border-bottom:1px solid var(--line2)}
+.ytbl tr.ygrp:hover td{background:var(--ink3)}
+.ytbl .caret{display:inline-block;width:14px;color:var(--dim);font-size:10px}
+.ytbl td.tt{font-weight:700;color:var(--txt);border-left:1px solid var(--line2)}
+.ytbl tfoot td{position:sticky;bottom:0;background:var(--ink2);font-weight:700;
+  color:var(--txt);border-top:1px solid var(--line2);font-size:13px}
+.ytbl .z{color:var(--line2)}
+.ytbl .over{color:var(--red)}
+.ytbl .under{color:var(--green)}
+.ytbl .pl{display:block;font-style:normal;font-size:9.5px;color:var(--dim)}
+{% for i in range(12) %}
+#ytbl.fold{{ i }} tr.yrow.g{{ i }}{display:none}
+{% endfor %}
+.btn.sm{padding:5px 10px;font-size:11.5px}
+.yt-acts{display:flex;gap:7px;align-items:center}
+.yc-s{display:none}
+@media(max-width:900px){
+  /* telefonda «474.2 mln» yorlig'i 12 ustunni ekrandan chiqarib yuboradi —
+     uning o'rniga oy nomi ostida qisqa raqam (mln) turadi */
+  .yc-track{height:96px}
+  .yc-v{display:none}
+  .yc-s{display:block;font:600 9.5px var(--sans);color:var(--mut);
+    font-variant-numeric:tabular-nums;height:12px}
+  .yc-col.now .yc-s{color:var(--gold)}
+  .yc-m{font-size:9px}
+  .yc-col{padding:4px 0}
+  .yc-bars{gap:3px}
+  .ys-r{grid-template-columns:minmax(90px,1fr) 1fr 34px;font-size:12px}
+  .ys-s{display:none}
+  .ytbl th.ct,.ytbl td.ct{min-width:140px;max-width:150px}
+}
+</style>
+
+{% macro mln(v) %}{{ (v / 1000000)|round(1) }} mln{% endmacro %}
+
+<div class="grid g4 yk">
+  <div class="card kpi">
+    <div class="l">Yil bo'yicha fakt</div>
+    <div class="v neg">{{ d.total_f|grp }}</div>
+    <div class="s">{{ d.live_months }} oyda harakat bo'lgan</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">O'rtacha oylik</div>
+    <div class="v">{{ d.avg_month|round|int|grp }}</div>
+    <div class="s">faktli oylar bo'yicha</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Eng qimmat oy</div>
+    <div class="v">{% if d.peak_month is not none %}{{ oy[d.peak_month + 1] }}{% else %}—{% endif %}</div>
+    <div class="s">{% if d.peak_month is not none %}{{ d.peak_sum|round|int|grp }} so'm{% endif %}</div>
+  </div>
+  <div class="card kpi">
+    {% if d.has_plan %}
+      <div class="l">Rejaga nisbatan</div>
+      <div class="v {{ 'neg' if d.diff > 0 else 'pos' }}">{{ d.pct|round|int }}%</div>
+      <div class="s">reja {{ d.total_p|grp }} · farq
+        {{ '+' if d.diff > 0 }}{{ d.diff|round|int|grp }}</div>
+    {% else %}
+      <div class="l">Reja</div>
+      <div class="v dim">kiritilmagan</div>
+      <div class="s">oylik kalendarda kunlar bo'yicha kiritiladi</div>
+    {% endif %}
+  </div>
 </div>
-<p class="hint" style="margin-top:10px">Oylik reja — o'sha oy taqvimidagi kunlik
-  rejalarning yig'indisi (oylik taqvimda kiritiladi). «%» — rejaning bajarilishi.
-  Sheets'dagi yillik jadvaldan farqi: formulalar buzilmaydi, fakt kassadan o'zi keladi.</p>
+
+<div class="card ychart">
+  <div class="yc-h">
+    <b>Oylar kesimida</b>
+    <span class="yc-leg"><i class="lf"></i> fakt{% if d.has_plan %}
+      <i class="lp"></i> reja{% endif %}</span>
+  </div>
+  <div class="yc-bars">
+    {% for mi in range(12) %}
+    {% set f, p = d.month_f[mi], d.month_p[mi] %}
+    <div class="yc-col {{ 'now' if today.year == y and today.month == mi + 1 }}"
+         title="{{ oy[mi + 1] }}: fakt {{ f|round|int|grp }}{% if p %} · reja {{ p|round|int|grp }}{% endif %}">
+      <div class="yc-v">{% if f %}{{ mln(f) }}{% endif %}</div>
+      <div class="yc-track">
+        <div class="yc-f" style="height:{{ (f / d.max_month * 100)|round(1) }}%"></div>
+        {% if p %}<div class="yc-p" style="bottom:{{ (p / d.max_month * 100)|round(1) }}%"></div>{% endif %}
+      </div>
+      <div class="yc-m">{{ oy[mi + 1][:3] }}</div>
+      <div class="yc-s">{% if f %}{{ (f / 1000000)|round|int }}{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if d.top_groups and d.total_f %}
+<div class="card yshare">
+  <b>Pul qayerga ketdi</b>
+  <div class="ys-rows">
+    {% for g in d.top_groups %}{% if g.tf %}
+    <div class="ys-r">
+      <span class="ys-n">{{ g.name }}</span>
+      <span class="ys-bar"><i style="width:{{ g.share|round(1) }}%"></i></span>
+      <span class="ys-p">{{ g.share|round|int }}%</span>
+      <span class="ys-s">{{ g.tf|round|int|grp }}</span>
+    </div>
+    {% endif %}{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card ytbl-card">
+  <div class="yc-h">
+    <b>Statyalar bo'yicha</b>
+    <span class="yt-acts">
+      <button type="button" class="btn ghost sm" onclick="ytFold()">Guruhlarni yig'ish</button>
+      <a class="btn ghost sm" href="/taqvim/eksport?y={{ y }}">⬇ CSV</a>
+    </span>
+  </div>
+  <div class="tablewrap ytwrap">
+  <table class="ytbl" id="ytbl">
+    <thead>
+      <tr>
+        <th class="ct">Statya</th>
+        {% for mi in range(1, 13) %}
+        <th class="{{ 'now' if today.year == y and today.month == mi }}">{{ oy[mi][:3] }}</th>
+        {% endfor %}
+        <th class="tt">Yil jami</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in d.groups %}
+      {% set gi = loop.index0 %}
+      <tr class="ygrp" data-g="{{ gi }}" onclick="ytToggle({{ gi }})">
+        <td class="ct"><span class="caret">▾</span>{{ g.name }}</td>
+        {% for mi in range(12) %}
+        <td class="r {{ 'now' if today.year == y and today.month == mi + 1 }}">{{ num(g.f[mi]|round|int) }}</td>
+        {% endfor %}
+        <td class="r tt">{{ num(g.tf|round|int) }}</td>
+      </tr>
+      {% for r in g.rows %}
+      <tr class="yrow g{{ gi }}">
+        <td class="ct sub">{{ r.cat }}</td>
+        {% for mi in range(12) %}
+        {% set p, f = r.p[mi], r.f[mi] %}
+        <td class="r {{ 'now' if today.year == y and today.month == mi + 1 }}"
+            {% if p %}title="reja {{ p|round|int|grp }} · fakt {{ f|round|int|grp }}"{% endif %}>
+          {% if f %}<span class="{{ 'over' if p and f > p else ('under' if p and f < p) }}">{{ f|round|int|grp }}</span>{% else %}<span class="z">·</span>{% endif %}
+          {% if p %}<i class="pl">{{ p|round|int|grp }}</i>{% endif %}
+        </td>
+        {% endfor %}
+        <td class="r tt">{{ num(r.tf|round|int) }}</td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td class="ct">JAMI</td>
+        {% for mi in range(12) %}
+        <td class="r {{ 'now' if today.year == y and today.month == mi + 1 }}">{{ num(d.month_f[mi]|round|int) }}</td>
+        {% endfor %}
+        <td class="r tt">{{ num(d.total_f|round|int) }}</td>
+      </tr>
+    </tfoot>
+  </table>
+  </div>
+</div>
+
+<p class="hint" style="margin-top:10px">Fakt kassadan avtomatik keladi —
+  qo'lda ko'chirilmaydi. Reja kiritilgan bo'lsa, katak ostida kichkina
+  ko'rsatiladi: <span class="over">qizil</span> — rejadan oshgan,
+  <span class="under">yashil</span> — reja ichida qolgan.
+  Reja oylik kalendarda kunlar bo'yicha kiritiladi.</p>
+
+<script>
+function ytToggle(gi){
+  var t = document.getElementById("ytbl");
+  var open = !t.classList.toggle("fold" + gi);
+  var row = t.querySelector('.ygrp[data-g="' + gi + '"] .caret');
+  if (row) row.textContent = open ? "▾" : "▸";
+}
+function ytFold(){
+  var t = document.getElementById("ytbl");
+  var n = t.querySelectorAll(".ygrp").length;
+  var anyOpen = false;
+  for (var i = 0; i < n; i++) if (!t.classList.contains("fold" + i)) anyOpen = true;
+  for (var i = 0; i < n; i++){
+    t.classList.toggle("fold" + i, anyOpen);
+    var c = t.querySelector('.ygrp[data-g="' + i + '"] .caret');
+    if (c) c.textContent = anyOpen ? "▸" : "▾";
+  }
+}
+</script>
 {% endif %}
 {% endblock %}

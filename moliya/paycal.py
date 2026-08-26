@@ -93,7 +93,13 @@ def month_data(year, month):
 
 
 def year_data(year):
-    """Yillik jadval: statya × 12 oy (reja/fakt/og'ish %)."""
+    """Yillik hisobot: statya × 12 oy + guruh va yil bo'yicha xulosalar.
+
+    Jadval uchun xom raqamlardan tashqari sahifada ko'rsatiladigan
+    ko'rsatkichlar ham shu yerda hisoblanadi: guruhning yildagi ulushi,
+    eng qimmat oy, faktli oylar soni va o'rtacha oylik xarajat. Shunda
+    andoza faqat chizadi — hisob-kitob bir joyda turadi.
+    """
     plan = defaultdict(float)
     for c in PlanCell.query.filter_by(year=year).all():
         plan[(c.category, c.month)] += c.amount or 0.0
@@ -108,14 +114,39 @@ def year_data(year):
             rows.append({"cat": cat, "p": p, "f": f,
                          "tp": sum(p), "tf": sum(f)})
         all_rows += rows
-        groups.append({"name": gname, "rows": rows,
-                       "tp": sum(r["tp"] for r in rows),
-                       "tf": sum(r["tf"] for r in rows)})
+        groups.append({
+            "name": gname, "rows": rows,
+            "p": [sum(r["p"][i] for r in rows) for i in range(12)],
+            "f": [sum(r["f"][i] for r in rows) for i in range(12)],
+            "tp": sum(r["tp"] for r in rows),
+            "tf": sum(r["tf"] for r in rows),
+        })
 
     month_p = [sum(r["p"][i] for r in all_rows) for i in range(12)]
     month_f = [sum(r["f"][i] for r in all_rows) for i in range(12)]
-    return {"groups": groups, "month_p": month_p, "month_f": month_f,
-            "total_p": sum(month_p), "total_f": sum(month_f)}
+    total_p, total_f = sum(month_p), sum(month_f)
+
+    # guruhning yildagi ulushi — qayerga ko'p ketayotganini ko'rsatadi
+    for g in groups:
+        g["share"] = (g["tf"] / total_f * 100) if total_f else 0.0
+        g["rows"].sort(key=lambda r: r["tf"], reverse=True)
+    groups_by_size = sorted(groups, key=lambda g: g["tf"], reverse=True)
+
+    live = [i for i in range(12) if month_f[i]]
+    peak = max(range(12), key=lambda i: month_f[i]) if live else None
+    return {
+        "groups": groups, "top_groups": groups_by_size[:4],
+        "month_p": month_p, "month_f": month_f,
+        "total_p": total_p, "total_f": total_f,
+        "diff": total_f - total_p,
+        "pct": (total_f / total_p * 100) if total_p else None,
+        "max_month": max(max(month_f), max(month_p)) or 1,
+        "live_months": len(live),
+        "avg_month": (total_f / len(live)) if live else 0.0,
+        "peak_month": peak,
+        "peak_sum": month_f[peak] if peak is not None else 0.0,
+        "has_plan": total_p > 0,
+    }
 
 
 def set_cell(year, month, day, category, amount):

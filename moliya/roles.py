@@ -57,6 +57,7 @@ _FINANCE = {
     "transfers_page", "transfer_fix",
     "recover_page", "recover_create", "recover_cohort", "recover_undo",
     "taqvim", "taqvim_set", "taqvim_fill", "taqvim_copy", "taqvim_clear",
+    "taqvim_export",
     "reports", "add_budget",
     "launch_page", "launch_save", "launch_fakt",
     "launch_darslar", "launch_dars_add",

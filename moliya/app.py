@@ -758,7 +758,7 @@ def register_routes(app):
         if view == "year":
             data = paycal.year_data(y)
             return render_template("taqvim.html", view="year", y=y, m=m,
-                                   d=data, oy=oy)
+                                   d=data, oy=oy, today=localtime.today())
         data = paycal.month_data(y, m)
         return render_template("taqvim.html",
                                view=("table" if view == "table" else "month"),
@@ -801,6 +801,39 @@ def register_routes(app):
               f"ko'chirildi" + (f", {r['skipped']} tasi band edi"
                                 if r['skipped'] else "") + ".", "ok")
         return redirect(url_for("taqvim", y=y, m=m))
+
+    @app.route("/taqvim/eksport")
+    def taqvim_export():
+        """Yillik hisobot — Excel/Sheets ochadigan CSV."""
+        import paycal
+        try:
+            year = int(request.args.get("y", localtime.today().year))
+        except ValueError:
+            year = localtime.today().year
+        d = paycal.year_data(year)
+        oy = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul",
+              "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"]
+
+        def n(v):
+            return f"{v:.2f}".replace(".", ",")
+
+        out = ["Statya;" + ";".join(oy) + ";Yil jami"]
+        for g in d["groups"]:
+            out.append(g["name"] + ";" + ";".join(n(x) for x in g["f"])
+                       + ";" + n(g["tf"]))
+            for r in g["rows"]:
+                out.append("  " + r["cat"].replace(";", ",") + ";"
+                           + ";".join(n(x) for x in r["f"]) + ";" + n(r["tf"]))
+        out.append("JAMI;" + ";".join(n(x) for x in d["month_f"])
+                   + ";" + n(d["total_f"]))
+        if d["has_plan"]:
+            out.append("")
+            out.append("REJA;" + ";".join(n(x) for x in d["month_p"])
+                       + ";" + n(d["total_p"]))
+        csv = "﻿" + "\r\n".join(out)
+        return Response(csv, mimetype="text/csv; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 f'attachment; filename="taqvim_{year}.csv"'})
 
     @app.route("/taqvim/clear", methods=["POST"])
     def taqvim_clear():
