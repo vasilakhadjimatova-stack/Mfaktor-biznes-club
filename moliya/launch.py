@@ -76,22 +76,47 @@ def _dist(hayriya):
 
 
 def default_scenarios():
-    """Varaqdagi uchta avgust ustuni — boshlang'ich namuna."""
-    out = []
-    for name, price, hayriya in (("Optimistik — 19 mln", 19_000_000, 1),
-                                 ("O'rtacha — 15 mln", 15_000_000, 2.5),
+    """Bitta asosiy oqim + ikkita narx varianti.
+
+    Xarajat tuzilmasi FAQAT birinchi (asosiy) stsenariyda saqlanadi.
+    Variantlarda «blocks» yo'q — ular asosiydagi xarajatlarni qayta
+    ishlatadi. Shuning uchun arenda yoki oylik o'zgarsa, uni bir joyda
+    tuzatish kifoya: uch nusxani qo'lda tenglashtirib yurish kerak emas.
+    """
+    base = {
+        "name": "РОП oqimi — asosiy",
+        "courses": [{"name": "РОП", "price": 19_000_000, "qty": 50}],
+        "blocks": _blocks(kpi=3, target=10, vozvrat=20_800_000),
+        "dist": _dist(1),
+    }
+    out = [base]
+    for name, price, hayriya in (("O'rtacha — 15 mln", 15_000_000, 2.5),
                                  ("Ehtiyotkor — 12 mln", 12_000_000, 2.5)):
         out.append({
             "name": name,
             "courses": [{"name": "РОП", "price": price, "qty": 50}],
-            "blocks": _blocks(kpi=3, target=10, vozvrat=20_800_000),
             "dist": _dist(hayriya),
         })
     return out
 
 
+def _same_blocks(a, b):
+    """Ikki stsenariyning xarajat qatorlari mazmunan bir xilmi."""
+    def flat(s):
+        return [(bl.get("title"), r.get("n"), r.get("m"),
+                 str(r.get("v")), str(r.get("d") or ""))
+                for bl in (s.get("blocks") or []) for r in (bl.get("rows") or [])]
+    return flat(a) == flat(b)
+
+
 def all_scenarios():
-    """Bazadagi stsenariylar; bo'sh bo'lsa namuna bilan to'ldiriladi."""
+    """Bazadagi stsenariylar; bo'sh bo'lsa namuna bilan to'ldiriladi.
+
+    Eski nusxalarda har bir stsenariy o'z xarajat ro'yxatini olib yurardi.
+    Agar ular asosiynikidan farq qilmasa — ortiqcha nusxa deb hisoblanadi
+    va olib tashlanadi (variant asosiydan oladi). Farq qiladigan
+    stsenariy o'z ro'yxatini saqlab qoladi.
+    """
     rows = LaunchScenario.query.order_by(LaunchScenario.sort,
                                          LaunchScenario.id).all()
     if not rows:
@@ -106,6 +131,8 @@ def all_scenarios():
             continue
         d["name"] = r.name
         _upgrade(d)
+        if out and d.get("blocks") and _same_blocks(d, out[0]):
+            d.pop("blocks")
         out.append(d)
     return out
 
@@ -283,9 +310,15 @@ def save_scenarios(scenarios):
     """Hammasini butunlay almashtirib saqlaydi (sahifadagi holat = baza)."""
     if not isinstance(scenarios, list) or len(scenarios) > 12:
         return False
-    for s in scenarios:
-        if not isinstance(s, dict) or not isinstance(s.get("courses"), list) \
-                or not isinstance(s.get("blocks"), list):
+    for i, s in enumerate(scenarios):
+        if not isinstance(s, dict) or not isinstance(s.get("courses"), list):
+            return False
+        # birinchisi — asosiy, xarajat ro'yxati unda bo'lishi shart;
+        # variantlar uni qayta ishlatadi («blocks» bo'lmasligi mumkin)
+        if i == 0:
+            if not isinstance(s.get("blocks"), list):
+                return False
+        elif s.get("blocks") is not None and not isinstance(s["blocks"], list):
             return False
     LaunchScenario.query.delete(synchronize_session=False)
     for i, s in enumerate(scenarios):

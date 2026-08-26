@@ -3,13 +3,14 @@
 <div class="lhead">
   <div>
     <h1>Launch-hisob</h1>
-    <p class="sub">Yangi oqim stsenariylari: narx va o'quvchi sonini o'zgartiring —
-      xarajatlar, yalpi daromad va taqsimot darhol qayta hisoblanadi.
-      Foizli qatorlar (KPI, target) tushumga avtomatik bog'langan.</p>
+    <p class="sub">Xarajat tuzilmasi <b>asosiy</b> stsenariyda bir marta
+      kiritiladi. Variantlarda faqat narx va o'quvchi sonini o'zgartirasiz —
+      xarajatlar o'sha yagona ro'yxatdan olinadi, natija darhol qayta
+      hisoblanadi. Arenda yoki oylik o'zgarsa, uni bir joyda tuzatish kifoya.</p>
   </div>
   <div class="lacts">
     <span id="savestate" class="savestate"></span>
-    <button class="btn ghost" onclick="addScenario()">+ Stsenariy</button>
+    <button class="btn ghost" onclick="addScenario()">+ Narx varianti</button>
   </div>
 </div>
 
@@ -37,13 +38,21 @@ function num(v){
 }
 
 /* ── hisob (varaqdagi formulalar birma-bir) ── */
+/* Xarajat ro'yxati faqat asosiy stsenariyda saqlanadi. Variantda «blocks»
+   bo'lmaydi — u asosiynikini qayta ishlatadi, shuning uchun arenda yoki
+   oylik bir joyda tuzatilsa, hamma variant birdaniga yangilanadi. */
+function blocksOf(s){
+  return s.blocks || (STATE[0] && STATE[0].blocks) || [];
+}
+function isBase(s){ return !!s.blocks; }
+
 function calc(s){
   var tushum = 0, totalQty = 0;
   s.courses.forEach(function(k){
     tushum += num(k.price) * num(k.qty);
     totalQty += num(k.qty);
   });
-  var blocks = s.blocks.map(function(b){
+  var blocks = blocksOf(s).map(function(b){
     var t = 0;
     var rows = b.rows.map(function(r){
       var amt = r.m === "pct" ? tushum * num(r.v) / 100
@@ -72,7 +81,7 @@ function calc(s){
      «kishi» qatorlar o'quvchi soni bilan o'sadi, qolgani o'zgarmas.
      Har o'quvchining hissasi = narx×(1−foizlar) − kishi-boshi xarajat */
   var pctShare = 0, fixSum = 0, perStudent = 0;
-  s.blocks.forEach(function(b){ b.rows.forEach(function(r){
+  blocksOf(s).forEach(function(b){ b.rows.forEach(function(r){
     if (r.m === "pct") pctShare += num(r.v) / 100;
     else if (r.m === "per") perStudent += num(r.v) * (num(r.d) || 1);
     else fixSum += num(r.v);
@@ -102,16 +111,17 @@ function render(){
 }
 function column(s, i){
   var live = s.live || {};
-  var h = '<div class="lcol card" data-i="' + i + '">';
+  var base = isBase(s);
+  var h = '<div class="lcol card' + (base ? " lbase" : "") + '" data-i="' + i + '">';
   h += '<div class="lc-top">' +
+    (base ? '<span class="basetag" title="Xarajatlar shu yerda saqlanadi">ASOSIY</span>' : '') +
     '<input class="lc-name" value="' + esc(s.name) + '" ' +
       'oninput="STATE[' + i + '].name = this.value; dirty()">' +
     '<div class="lc-btns">' +
-    '<button class="ic live' + (live.on ? " on" : "") + '" ' +
+    (base ? '<button class="ic live' + (live.on ? " on" : "") + '" ' +
       'title="Jonli fakt: reja qatorlarini ДДСdagi haqiqiy yozuvlarga bog\'lash" ' +
-      'onclick="toggleLive(' + i + ')">⦿</button>' +
-    '<button class="ic" title="Nusxa olish" onclick="dupScenario(' + i + ')">⧉</button>' +
-    '<button class="ic danger" title="O\'chirish" onclick="delScenario(' + i + ')">✕</button>' +
+      'onclick="toggleLive(' + i + ')">⦿</button>' : '') +
+    (base ? '' : '<button class="ic danger" title="O\'chirish" onclick="delScenario(' + i + ')">✕</button>') +
     '</div></div>';
   if (live.on) {
     var kun = live.kunlar || [5, 6];
@@ -145,8 +155,21 @@ function column(s, i){
        (live.on ? ' <i class="lfk" data-f="' + i + ':tushum"></i>' : '') +
        '</span><b class="amt" data-o="' + i + ':tushum"></b></div></div>';
 
-  /* xarajat bloklari */
-  s.blocks.forEach(function(b, bi){
+  /* xarajat bloklari — variantda faqat natija (asosiydan olinadi) */
+  if (!base) {
+    h += '<div class="lsec"><div class="lsec-t">Xarajatlar ' +
+      '<span class="fromb">asosiydan</span></div>';
+    blocksOf(s).forEach(function(b, bi){
+      h += '<div class="lgrid xr ro"><span class="rot">' + esc(b.title) +
+        '</span><span class="r amt neg" data-o="' + i + ':bt' + bi + '"></span></div>';
+    });
+    h += '<div class="ltotal sm"><span>Jami</span>' +
+         '<b class="amt neg" data-o="' + i + ':xarajat"></b></div>' +
+         '<div class="tiny2">Foizli qatorlar (KPI, target) shu variantning ' +
+         'tushumidan, «kishi boshiga» qatorlar o\'quvchi sonidan hisoblanadi — ' +
+         'shuning uchun summa asosiydan farq qiladi.</div></div>';
+  }
+  (base ? s.blocks : []).forEach(function(b, bi){
     h += '<div class="lsec"><div class="lsec-t">' + esc(b.title) + '</div>';
     b.rows.forEach(function(r, ri){
       h += '<div class="lgrid xr">' +
@@ -236,13 +259,14 @@ function recalc(i){
   };
   s.courses.forEach(function(k, j){ set("c" + j, num(k.price) * num(k.qty)); });
   set("tushum", c.tushum);
-  s.blocks.forEach(function(b, bi){
-    b.rows.forEach(function(r, ri){
+  blocksOf(s).forEach(function(b, bi){
+    if (isBase(s)) b.rows.forEach(function(r, ri){
       set("b" + bi + "r" + ri, c.blocks[bi].rows[ri]);
       if (r.m === "per") set("pq" + bi + "r" + ri, c.totalQty);
     });
     set("bt" + bi, c.blocks[bi].total);
   });
+  set("xarajat", c.xarajat);
   set("yalpi", c.yalpi);
   set("hayriya", c.hayriya, true);
   set("reinvest", c.reinvest, true);
@@ -552,21 +576,21 @@ function renderCompare(){
 function upd(i){ recalc(i); dirty(); }
 
 /* ── tuzilma o'zgarishlari ── */
+/* Variant — yengil nusxa: faqat narx, o'quvchi soni va taqsimot.
+   Xarajatlar asosiydan olinadi, shuning uchun nusxalanmaydi. */
 function addScenario(){
-  var n = JSON.parse(JSON.stringify(STATE[STATE.length - 1] || {
-    name: "Yangi", courses: [{name: "РОП", price: 12000000, qty: 40}],
-    blocks: [], dist: {hayriya: 1, reinvest: 30, soliq: 5,
-                       tasischilar: 70, direktor: 10, oquv: 1, bux: 2}}));
-  n.name = "Yangi stsenariy";
+  var b = STATE[0] || {};
+  var n = {
+    name: "Yangi variant",
+    courses: (b.courses || [{name: "РОП", price: 12000000, qty: 40}])
+      .map(function(k){ return {name: k.name, price: k.price, qty: k.qty}; }),
+    dist: JSON.parse(JSON.stringify(b.dist || {hayriya: 1, reinvest: 30,
+      soliq: 5, tasischilar: 70, direktor: 10, oquv: 1, bux: 2}))
+  };
   STATE.push(n); render(); dirty();
 }
-function dupScenario(i){
-  var n = JSON.parse(JSON.stringify(STATE[i]));
-  n.name = STATE[i].name + " (nusxa)";
-  STATE.splice(i + 1, 0, n); render(); dirty();
-}
 function delScenario(i){
-  if (STATE.length <= 1) { alert("Kamida bitta stsenariy qolishi kerak"); return; }
+  if (isBase(STATE[i])) { alert("Asosiy stsenariy o'chirilmaydi — xarajatlar shunda saqlanadi"); return; }
   if (!confirm("«" + STATE[i].name + "» o'chirilsinmi?")) return;
   STATE.splice(i, 1); render(); dirty();
 }
@@ -640,6 +664,13 @@ render();
 @media(max-width:600px){.lcol{flex:0 0 92vw}}
 
 .lc-top{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.lbase{box-shadow:inset 0 0 0 1px var(--gold)}
+.basetag{font:700 9px var(--sans);letter-spacing:.08em;color:var(--ink);
+  background:var(--gold);padding:3px 6px;border-radius:5px;flex:none}
+.fromb{font-weight:400;text-transform:none;letter-spacing:0;
+  color:var(--dim);font-size:10px}
+.xr.ro{grid-template-columns:1fr auto;padding:5px 0}
+.rot{font-size:12.5px;color:var(--mut)}
 .lc-name{flex:1;min-width:0;background:transparent;border:1px solid transparent;
   border-radius:9px;padding:7px 9px;color:var(--txt);
   font:600 15.5px var(--sans)}
