@@ -19,7 +19,8 @@ from sqlalchemy import func
 import localtime
 
 from database import db
-from models import CAL_GROUPS, PlanCell, RecurringPayment, Transaction
+from models import (CAL_GROUPS, InstallmentLine, PlanCell,
+                    RecurringPayment, Transaction, Wallet)
 
 WD = ["Du", "Se", "Cho", "Pa", "Ju", "Sha", "Ya"]
 
@@ -50,6 +51,58 @@ def _fact_by_month(year):
     out = defaultdict(float)
     for t in rows:
         out[(t.category or "Прочие расходы", t.tdate.month)] += t.amount
+    return out
+
+
+def _in_by_day(year, month):
+    """(day) -> haqiqiy kirim summasi (kassadan)."""
+    rows = (Transaction.query
+            .filter(Transaction.is_transfer.is_(False),
+                    Transaction.activity != "tech",
+                    Transaction.operation == "kirim",
+                    func.extract("year", Transaction.tdate) == year,
+                    func.extract("month", Transaction.tdate) == month)
+            .all())
+    out = defaultdict(float)
+    for t in rows:
+        out[t.tdate.day] += t.amount
+    return out
+
+
+def _cash_before(day):
+    """Shu sanagacha bo'lgan haqiqiy kassa qoldig'i (hamma hamyon).
+
+    O'tkazmalar hamyonlar orasida yuradi — umumiy qoldiqni o'zgartirmaydi,
+    shuning uchun ular hisobga olinmaydi.
+    """
+    opening = db.session.query(func.sum(Wallet.opening)).filter_by(
+        is_active=True).scalar() or 0.0
+    q = (db.session.query(Transaction.operation, func.sum(Transaction.amount))
+         .filter(Transaction.is_transfer.is_(False),
+                 Transaction.tdate < day)
+         .group_by(Transaction.operation).all())
+    net = 0.0
+    for op, amt in q:
+        net += (amt or 0.0) if op == "kirim" else -(amt or 0.0)
+    return opening + net
+
+
+def _due_by_day(year, month, from_day):
+    """Kutilayotgan kirim: shartnoma grafigidagi to'lanmagan qatorlar.
+
+    Faqat kelgusi kunlar uchun — o'tgan kunlarda haqiqiy kirim allaqachon
+    kassada, uni ikki marta hisoblab bo'lmaydi.
+    """
+    rows = (InstallmentLine.query
+            .filter(func.extract("year", InstallmentLine.due_date) == year,
+                    func.extract("month", InstallmentLine.due_date) == month,
+                    InstallmentLine.due_date >= from_day)
+            .all())
+    out = defaultdict(float)
+    for r in rows:
+        rest = (r.amount or 0.0) - (r.paid or 0.0)
+        if rest > 0.01:
+            out[r.due_date.day] += rest
     return out
 
 
@@ -102,37 +155,67 @@ def month_data(year, month):
                           "f": sum(day_f[i] for i in idx),
                           "d1": idx[0] + 1, "d2": idx[-1] + 1})
 
-    # jamg'arma egri chizig'i: oy boshidan buyon to'plangan summa
-    cum_p, cum_f, ap, af = [], [], 0.0, 0.0
-    for i in range(ndays):
-        ap += day_p[i]
-        af += day_f[i]
-        cum_p.append(ap)
-        cum_f.append(af)
+    # ── kassa qoldig'i: o'tgan kunlarda haqiqiy, keyin prognoz ──
     today = localtime.today()
     tidx = today.day - 1 if (today.year == year and today.month == month) else None
-    # joriy oyda fakt chizig'i bugundan nariga cho'zilmaydi
-    f_end = (tidx + 1) if tidx is not None else ndays
-    top = max(max(cum_p), max(cum_f)) or 1.0
+    day_in = _in_by_day(year, month)
+    day_in = [day_in.get(d, 0.0) for d in range(1, ndays + 1)]
+    total_in = sum(day_in)
 
-    def pts(vals, n):
-        if n < 2:
+    # oy boshidagi haqiqiy qoldiq
+    start_cash = _cash_before(date(year, month, 1))
+
+    # oy o'tib ketgan bo'lsa hammasi fakt; kelajakda hammasi prognoz
+    real_to = ndays - 1 if (tidx is None and date(year, month, 1) < today) else (
+        tidx if tidx is not None else -1)
+
+    # kelgusi kunlarda kutilayotgan kirim — shartnoma grafigidan
+    from_day = date(year, month, min(real_to + 2, ndays)) if real_to + 1 < ndays \
+        else date(year, month, ndays)
+    due = _due_by_day(year, month, from_day)
+    plan_in = [due.get(d, 0.0) if (d - 1) > real_to else 0.0
+               for d in range(1, ndays + 1)]
+
+    bal, run = [], start_cash
+    for i in range(ndays):
+        if i <= real_to:                       # o'tgan kun — haqiqiy harakat
+            run += day_in[i] - day_f[i]
+        else:                                  # kelgusi kun — kutilgani
+            run += plan_in[i] - day_p[i]
+        bal.append(run)
+
+    lo, hi = min(0.0, min(bal)), max(0.0, max(bal))
+    span = (hi - lo) or 1.0
+
+    def by(v):
+        return 150 - (v - lo) / span * 135
+
+    def bpts(a, b):
+        if b - a < 1:
             return ""
-        return " ".join(
-            "%.1f,%.1f" % (i / (ndays - 1) * 600, 150 - vals[i] / top * 135)
-            for i in range(n))
+        return " ".join("%.1f,%.1f" % (i / (ndays - 1) * 600, by(bal[i]))
+                        for i in range(a, b + 1))
+
+    neg = [i for i in range(ndays) if bal[i] < 0]
+    mn = min(range(ndays), key=lambda i: bal[i])
 
     return {
         "days": days, "groups": groups,
         "day_p": day_p, "day_f": day_f, "heat": heat, "weeks": weeks,
+        "day_in": day_in, "plan_in": plan_in, "total_in": total_in,
         "total_p": total_p, "total_f": total_f,
         "total_diff": total_f - total_p,
         "total_pct": (total_f / total_p * 100) if total_p > 0 else None,
-        "cum_f_pts": pts(cum_f, f_end),
-        "cum_p_pts": pts(cum_p, ndays) if total_p else "",
-        "cum_f_x": ((f_end - 1) / (ndays - 1) * 600) if f_end > 1 else 0.0,
-        "cum_f_end": cum_f[f_end - 1] if f_end else 0.0,
-        "cum_p_end": cum_p[f_end - 1] if (total_p and f_end) else 0.0,
+        # qoldiq chizig'i: bugungacha to'liq, keyin uzuq (prognoz)
+        "bal": bal, "start_cash": start_cash,
+        "bal_real_pts": bpts(0, real_to) if real_to >= 1 else "",
+        "bal_fc_pts": bpts(max(real_to, 0), ndays - 1) if real_to < ndays - 1 else "",
+        "bal_zero_y": by(0.0),
+        "bal_end": bal[-1],
+        "bal_min": bal[mn], "bal_min_day": mn + 1,
+        "gap_day": (neg[0] + 1) if neg else None,
+        "today_cash": bal[tidx] if tidx is not None else None,
+        "real_to": real_to,
         "today_x": (tidx / (ndays - 1) * 600) if tidx is not None else None,
         "ndays": ndays,
     }

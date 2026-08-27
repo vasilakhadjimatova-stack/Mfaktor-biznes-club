@@ -46,6 +46,36 @@
 
 {% if view == 'month' %}
 {# ═══════════ HAQIQIY KALENDAR: hafta × kun katakchalari ═══════════ #}
+<div class="grid g4 ckpi">
+  <div class="card kpi">
+    <div class="l">{{ 'Bugungi pul' if d.today_cash is not none else 'Oy oxiri qoldiq' }}</div>
+    <div class="v">{{ (d.today_cash if d.today_cash is not none else d.bal_end)|round|int|grp }}</div>
+    <div class="s">oy boshida {{ d.start_cash|round|int|grp }} edi</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Oy oxiriga prognoz</div>
+    <div class="v {{ 'neg' if d.bal_end < 0 }}">{{ d.bal_end|round|int|grp }}</div>
+    <div class="s">rejadagi chiqim va kutilgan kirim bilan</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Eng past nuqta</div>
+    <div class="v {{ 'neg' if d.bal_min < 0 }}">{{ d.bal_min|round|int|grp }}</div>
+    <div class="s">{{ d.bal_min_day }}-{{ oy[m]|lower }}</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Oyda kirim / chiqim</div>
+    <div class="v"><span class="pos">{{ (d.total_in / 1000000)|round|int }}</span>
+      <span class="sl">/</span>
+      <span class="neg">{{ (d.total_f / 1000000)|round|int }}</span>
+      <span class="sl">mln</span></div>
+    <div class="s">sof {{ (d.total_in - d.total_f)|round|int|grp }}</div>
+  </div>
+</div>
+{% if d.gap_day %}
+<div class="card gapwarn">⚠ <b>{{ d.gap_day }}-{{ oy[m]|lower }}</b> kuni kassa
+  qoldig'i manfiyga tushadi — rejadagi chiqimlarni ko'chirish yoki kirimni
+  tezlashtirish kerak.</div>
+{% endif %}
 <div class="card pcal-card">
   <div class="pcal-head">
     {% for w in ['Du','Se','Cho','Pa','Ju','Sha','Ya'] %}
@@ -63,10 +93,10 @@
                 {{ 'today' if today.year == y and today.month == m and today.day == day.d }}"
          style="--ht:{{ '%.3f'|format(d.heat[i]) }}"
          data-d="{{ day.d }}" tabindex="0" role="button"
-         title="{{ day.d }}-kun: fakt {{ f|round|int|grp }}{% if p %} · reja {{ p|round|int|grp }}{% endif %}"
+         title="{{ day.d }}-{{ oy[m]|lower }}: chiqim {{ f|round|int|grp }}{% if p %} (reja {{ p|round|int|grp }}){% endif %}{% if d.day_in[i] %} · kirim {{ d.day_in[i]|round|int|grp }}{% endif %} · qoldiq {{ d.bal[i]|round|int|grp }}"
          onclick="openDay({{ day.d }})"
          onkeydown="if(event.key==='Enter')openDay({{ day.d }})">
-      <span class="pd">{{ day.d }}</span>
+      <span class="pd">{{ day.d }}{% if d.day_in[i] %}<i class="pin">+{{ (d.day_in[i] / 1000000)|round|int }}</i>{% endif %}</span>
       <span class="pp" data-pp="{{ day.d }}">{% if p %}R {{ p|grp }}{% endif %}</span>
       <span class="pf {{ 'ov' if p and f > p }}">{% if f %}F {{ f|grp }}{% endif %}</span>
       <i class="pbar" data-pb="{{ day.d }}">{% if p %}<b class="{{ 'ov' if f > p }}"
@@ -92,39 +122,39 @@
   </div>
 </div>
 
-{# ── jamg'arma grafigi: oy boshidan buyon to'plangan xarajat ── #}
-{% if d.total_f or d.total_p %}
+{# ── kassa qoldig'i: bugungacha haqiqiy, keyin prognoz ── #}
 <div class="card pburn">
   <div class="pb-h">
-    <b>Oy davomida to'planishi</b>
+    <b>Kassa qoldig'i</b>
     <span class="pb-leg">
-      <i class="lf"></i> fakt <b>{{ d.cum_f_end|round|int|grp }}</b>
-      {% if d.cum_p_pts %}<i class="lp"></i> reja <b>{{ d.cum_p_end|round|int|grp }}</b>{% endif %}
+      <i class="lf"></i> haqiqiy
+      <i class="lp"></i> prognoz
+      {% if d.gap_day %}<i class="lz"></i> nol chizig'i{% endif %}
     </span>
   </div>
   <svg class="burn" viewBox="0 0 600 150" preserveAspectRatio="none"
-       role="img" aria-label="Oy boshidan to'plangan xarajat">
-    {% for k in [0, 1, 2, 3] %}
-    <line class="gl" x1="0" y1="{{ 15 + k * 45 }}" x2="600" y2="{{ 15 + k * 45 }}"
-          vector-effect="non-scaling-stroke"/>
-    {% endfor %}
+       role="img" aria-label="Kassa qoldig'ining oy davomidagi harakati">
     {% if d.today_x is not none %}
     <line class="tdl" x1="{{ d.today_x }}" y1="4" x2="{{ d.today_x }}" y2="150"
           vector-effect="non-scaling-stroke"/>
     {% endif %}
-    {% if d.cum_f_pts %}
-    <polygon class="ba" points="0,150 {{ d.cum_f_pts }} {{ d.cum_f_x }},150"/>
+    {% if d.bal_real_pts %}
+    <polygon class="ba" points="{{ d.bal_real_pts }} {{ d.today_x or 600 }},{{ d.bal_zero_y }} 0,{{ d.bal_zero_y }}"/>
     {% endif %}
-    {% if d.cum_p_pts %}<polyline class="bp" points="{{ d.cum_p_pts }}"
+    <line class="zl" x1="0" y1="{{ d.bal_zero_y }}" x2="600" y2="{{ d.bal_zero_y }}"
+          vector-effect="non-scaling-stroke"/>
+    {% if d.bal_fc_pts %}<polyline class="bp" points="{{ d.bal_fc_pts }}"
        vector-effect="non-scaling-stroke"/>{% endif %}
-    {% if d.cum_f_pts %}<polyline class="bf" points="{{ d.cum_f_pts }}"
+    {% if d.bal_real_pts %}<polyline class="bf" points="{{ d.bal_real_pts }}"
        vector-effect="non-scaling-stroke"/>{% endif %}
   </svg>
   <div class="pb-ax">
     {% for k in [1, 5, 10, 15, 20, 25, d.ndays] %}<span>{{ k }}</span>{% endfor %}
   </div>
+  <p class="hint" style="margin:8px 0 0">Bugungacha — kassadagi haqiqiy harakat.
+    Bugundan keyin — taqvimga kiritilgan reja va shartnoma grafigidagi
+    kutilayotgan to'lovlar asosidagi prognoz.</p>
 </div>
-{% endif %}
 
 {# kun paneli: shu kunning statya kesimi + reja kiritish #}
 <div class="card pcal-panel" id="pcal-panel" hidden>
@@ -283,10 +313,19 @@ function addPlan(){
 .pb-ax{display:flex;justify-content:space-between;margin-top:5px;
   font:500 10.5px var(--sans);color:var(--dim);
   font-variant-numeric:tabular-nums}
-.burn .gl{stroke:var(--line);stroke-width:1}
 .burn .tdl{stroke:var(--gold);stroke-width:1;stroke-dasharray:3 3;opacity:.55}
 .burn .bp{fill:none;stroke:var(--mut);stroke-width:2;stroke-dasharray:5 4;
   stroke-linejoin:round}
+.burn .zl{stroke:var(--red);stroke-width:1;opacity:.45}
+.pb-leg .lz{border-top:2px solid var(--red)}
+.ckpi{margin-bottom:14px}
+.ckpi .kpi .s{font-size:11px;color:var(--dim);margin-top:4px}
+.ckpi .kpi .sl{color:var(--dim);font-weight:400;font-size:14px}
+.gapwarn{margin-bottom:14px;border-color:var(--red);font-size:13px;
+  color:var(--txt);padding:12px 15px}
+.gapwarn b{color:var(--red)}
+.pin{float:right;font-style:normal;font-size:9px;color:var(--green);
+  font-weight:600}
 .burn .bf{fill:none;stroke:var(--gold);stroke-width:2.5;stroke-linejoin:round;
   stroke-linecap:round}
 .burn .ba{fill:var(--gold);opacity:.13}
