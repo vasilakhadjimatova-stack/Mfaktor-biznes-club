@@ -759,8 +759,9 @@ def register_routes(app):
             data = paycal.year_data(y)
             return render_template("taqvim.html", view="year", y=y, m=m,
                                    d=data, oy=oy, today=localtime.today())
-        data = paycal.month_data(y, m)
-        return render_template("taqvim.html",
+        grp = (request.args.get("g") or "").strip()
+        data = paycal.month_data(y, m, only_group=grp or None)
+        return render_template("taqvim.html", grp=grp,
                                view=("table" if view == "table" else "month"),
                                y=y, m=m, d=data, oy=oy,
                                first_wd=date(y, m, 1).weekday(),
@@ -801,6 +802,22 @@ def register_routes(app):
               f"ko'chirildi" + (f", {r['skipped']} tasi band edi"
                                 if r['skipped'] else "") + ".", "ok")
         return redirect(url_for("taqvim", y=y, m=m))
+
+    @app.route("/taqvim/kochir", methods=["POST"])
+    def taqvim_move():
+        """Reja katagini shu oy ichida boshqa kunga ko'chirish."""
+        import paycal
+        f = request.form
+        try:
+            y, m = int(f["y"]), int(f["m"])
+            d1, d2 = int(f["d"]), int(f["to"])
+            cat = f["cat"]
+        except (KeyError, ValueError):
+            return {"ok": False}, 400
+        res = paycal.move_cell(y, m, d1, d2, cat)
+        if not res["ok"]:
+            return {"ok": False, "xato": "Ko'chirib bo'lmadi"}, 400
+        return {"ok": True}
 
     @app.route("/taqvim/eksport")
     def taqvim_export():

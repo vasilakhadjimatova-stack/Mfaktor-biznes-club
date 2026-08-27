@@ -25,6 +25,21 @@ from models import (CAL_GROUPS, InstallmentLine, PlanCell,
 WD = ["Du", "Se", "Cho", "Pa", "Ju", "Sha", "Ya"]
 
 
+# O'zbekiston dam olish kunlari (qat'iy sanalar). Diniy bayramlar
+# (Ramazon va Qurbon hayit) oy taqvimi bo'yicha suriladi — ular bu yerda
+# yo'q, kerak bo'lsa qo'lda belgilanadi.
+HOLIDAYS = {
+    (1, 1):  "Yangi yil",
+    (3, 8):  "Xotin-qizlar kuni",
+    (3, 21): "Navro'z",
+    (5, 9):  "Xotira va qadrlash kuni",
+    (9, 1):  "Mustaqillik kuni",
+    (10, 1): "O'qituvchilar kuni",
+    (12, 8): "Konstitutsiya kuni",
+}
+
+
+
 def _fact_by_day(year, month):
     """(category, day) -> haqiqiy chiqim summasi (kassadan)."""
     rows = (Transaction.query
@@ -147,11 +162,17 @@ def _expected_in_rows(year, month, from_day):
     return out
 
 
-def month_data(year, month):
-    """Oylik taqvim: guruh → statya → kunlik reja/fakt + jami/og'ish."""
+def month_data(year, month, only_group=None):
+    """Oylik taqvim: guruh → statya → kunlik reja/fakt + jami/og'ish.
+
+    only_group — guruh nomi berilsa, katakdagi kunlik summalar faqat o'sha
+    guruh bo'yicha hisoblanadi. Kassa qoldig'i esa HAR DOIM to'liq
+    qoladi: pul bo'limlarga bo'linmaydi, filtr uni o'zgartirmasligi kerak.
+    """
     ndays = monthrange(year, month)[1]
     days = [{"d": d, "wd": WD[date(year, month, d).weekday()],
-             "we": date(year, month, d).weekday() >= 5}
+             "we": date(year, month, d).weekday() >= 5,
+             "hol": HOLIDAYS.get((month, d), "")}
             for d in range(1, ndays + 1)]
 
     plan = {(c.category, c.day): (c.amount or 0.0)
@@ -176,8 +197,18 @@ def month_data(year, month):
             "tf": sum(r["tf"] for r in rows),
         })
 
-    day_p = [sum(r["p"][i] for r in all_rows) for i in range(ndays)]
-    day_f = [sum(r["f"][i] for r in all_rows) for i in range(ndays)]
+    # qoldiq hisobi uchun — har doim to'liq
+    full_p = [sum(r["p"][i] for r in all_rows) for i in range(ndays)]
+    full_f = [sum(r["f"][i] for r in all_rows) for i in range(ndays)]
+
+    shown = all_rows
+    if only_group:
+        for g in groups:
+            if g["name"] == only_group:
+                shown = g["rows"]
+                break
+    day_p = [sum(r["p"][i] for r in shown) for i in range(ndays)]
+    day_f = [sum(r["f"][i] for r in shown) for i in range(ndays)]
     total_p, total_f = sum(day_p), sum(day_f)
 
     # ── kalendar ustidagi tasvir uchun ──
@@ -223,9 +254,9 @@ def month_data(year, month):
     bal, run = [], start_cash
     for i in range(ndays):
         if i <= real_to:                       # o'tgan kun — haqiqiy harakat
-            run += day_in[i] - day_f[i]
+            run += day_in[i] - full_f[i]
         else:                                  # kelgusi kun — kutilgani
-            run += plan_in[i] - day_p[i] - exp_out[i]
+            run += plan_in[i] - full_p[i] - exp_out[i]
         bal.append(run)
 
     lo, hi = min(0.0, min(bal)), max(0.0, max(bal))
@@ -250,6 +281,7 @@ def month_data(year, month):
         "exp_out": exp_out, "exp_out_rows": dict(exp_out_rows),
         "exp_in_rows": dict(exp_in_rows),
         "exp_out_total": sum(exp_out),
+        "filtered": bool(only_group), "group_names": [g["name"] for g in groups],
         "exp_in_total": sum(plan_in),
         "total_p": total_p, "total_f": total_f,
         "total_diff": total_f - total_p,
@@ -353,6 +385,30 @@ def set_cell(year, month, day, category, amount):
             "row_pct": (row_f / row_p * 100) if row_p > 0 else None,
             "day_p": day_p, "total_p": total_p,
             "total_diff": total_f - total_p}
+
+
+def move_cell(year, month, day_from, day_to, category):
+    """Reja katagini boshqa kunga ko'chiradi (pul tanqisligini tuzatish uchun).
+
+    Maqsad kunda o'sha statya bo'yicha reja bo'lsa — summalar qo'shiladi.
+    Fakt kassadan keladi, unga tegilmaydi.
+    """
+    ndays = monthrange(year, month)[1]
+    if not (1 <= day_to <= ndays) or day_to == day_from:
+        return {"ok": False}
+    src = PlanCell.query.filter_by(year=year, month=month, day=day_from,
+                                   category=category).first()
+    if src is None:
+        return {"ok": False}
+    dst = PlanCell.query.filter_by(year=year, month=month, day=day_to,
+                                   category=category).first()
+    if dst is None:
+        src.day = day_to
+    else:
+        dst.amount = (dst.amount or 0.0) + (src.amount or 0.0)
+        db.session.delete(src)
+    db.session.commit()
+    return {"ok": True}
 
 
 def fill_from_recurring(year, month):

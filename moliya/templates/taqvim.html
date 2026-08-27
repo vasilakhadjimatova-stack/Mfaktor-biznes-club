@@ -79,6 +79,14 @@
   kiritilmagan (shartnoma to'lov grafiklari bo'sh), shuning uchun prognoz
   faqat chiqimni hisobga oladi.</i>{% endif %}</div>
 {% endif %}
+<div class="gfilt">
+  <span class="gf-l">Guruh:</span>
+  <a class="chip {{ 'on' if not grp }}" href="/taqvim?y={{y}}&m={{m}}">Hammasi</a>
+  {% for gn in d.group_names %}
+  <a class="chip {{ 'on' if grp == gn }}"
+     href="/taqvim?y={{y}}&m={{m}}&g={{ gn|urlencode }}">{{ gn }}</a>
+  {% endfor %}
+</div>
 <div class="card pcal-card">
   <div class="pcal-head">
     {% for w in ['Du','Se','Cho','Pa','Ju','Sha','Ya'] %}
@@ -92,14 +100,14 @@
     {% set i = loop.index0 %}
     {% set pos = first_wd + i %}
     {% set p, f = d.day_p[i], d.day_f[i] %}
-    <div class="pcal-cell {{ 'we' if day.we }}
+    <div class="pcal-cell {{ 'we' if day.we }} {{ 'hol' if day.hol }}
                 {{ 'today' if today.year == y and today.month == m and today.day == day.d }}"
          style="--ht:{{ '%.3f'|format(d.heat[i]) }}"
          data-d="{{ day.d }}" tabindex="0" role="button"
-         title="{{ day.d }}-{{ oy[m]|lower }}: chiqim {{ f|round|int|grp }}{% if p %} (reja {{ p|round|int|grp }}){% endif %}{% if d.day_in[i] %} · kirim {{ d.day_in[i]|round|int|grp }}{% endif %} · qoldiq {{ d.bal[i]|round|int|grp }}"
+         title="{{ day.d }}-{{ oy[m]|lower }}{% if day.hol %} ({{ day.hol }} — dam olish){% endif %}: chiqim {{ f|round|int|grp }}{% if p %} (reja {{ p|round|int|grp }}){% endif %}{% if d.day_in[i] %} · kirim {{ d.day_in[i]|round|int|grp }}{% endif %} · qoldiq {{ d.bal[i]|round|int|grp }}"
          onclick="openDay({{ day.d }})"
          onkeydown="if(event.key==='Enter')openDay({{ day.d }})">
-      <span class="pd">{{ day.d }}{% if d.day_in[i] %}<i class="pin">+{{ (d.day_in[i] / 1000000)|round|int }}</i>{% endif %}</span>
+      <span class="pd">{{ day.d }}{% if day.hol %}<i class="hb" title="{{ day.hol }}">◆</i>{% endif %}{% if d.day_in[i] %}<i class="pin">+{{ (d.day_in[i] / 1000000)|round|int }}</i>{% endif %}</span>
       <span class="pp" data-pp="{{ day.d }}">{% if p %}R {{ p|grp }}{% endif %}</span>
       <span class="pf {{ 'ov' if p and f > p }}{{ ' exp' if not f and d.exp_out[i] }}">{% if f %}F {{ f|grp }}{% elif d.exp_out[i] %}≈ {{ d.exp_out[i]|grp }}{% endif %}</span>
       <i class="pbar" data-pb="{{ day.d }}">{% if p %}<b class="{{ 'ov' if f > p }}"
@@ -119,6 +127,7 @@
     {% endfor %}
   </div>
   <div class="pcal-sum">
+    {% if d.filtered %}<span class="gf-note">Faqat «{{ grp }}»</span>{% endif %}
     <span>Oy rejasi: <b id="pcal-tp">{{ d.total_p|grp }}</b></span>
     <span>Fakt: <b>{{ d.total_f|grp }}</b></span>
     <span>Farq: <b class="{{ 'neg2' if d.total_diff > 0 }}">{{ d.total_diff|grp }}</b></span>
@@ -154,7 +163,9 @@
   <div class="pb-ax">
     {% for k in [1, 5, 10, 15, 20, 25, d.ndays] %}<span>{{ k }}</span>{% endfor %}
   </div>
-  <p class="hint" style="margin:8px 0 0">Bugungacha — kassadagi haqiqiy harakat.
+  <p class="hint" style="margin:8px 0 0">{% if d.filtered %}<b>Qoldiq guruh
+    filtriga bog'liq emas</b> — pul bo'limlarga bo'linmaydi, shuning uchun bu
+    yerda butun kassa ko'rsatiladi. {% endif %}Bugungacha — kassadagi haqiqiy harakat.
     Bugundan keyin — taqvimga kiritilgan reja va shartnoma grafigidagi
     kutilayotgan to'lovlar asosidagi prognoz.</p>
 </div>
@@ -224,7 +235,10 @@ function openDay(dd){
     // orqali uzatiladi — apostrofli statya onchange'ni buzmaydi
     var c = esc(r.cat);
     return '<div class="pp-grid">' +
-      '<span class="pp-cat" title="' + c + '">' + c + '</span>' +
+      '<span class="pp-cat" title="' + c + '">' + c +
+        (r.p ? '<button type="button" class="mvb" title="Boshqa kunga ko\'chirish" ' +
+               'data-cat="' + c + '" onclick="askMove(this)">↦</button>' : "") +
+        '</span>' +
       '<input class="pp-in" inputmode="numeric" value="' + (r.p ? pfmt(r.p) : "") + '" ' +
         'placeholder="—" data-cat="' + c + '" onchange="savePlan(this)">' +
       '<span class="r ppf' + (r.p && r.f > r.p ? " ov" : "") + '">' + (pfmt(r.f) || "—") + '</span></div>';
@@ -256,6 +270,18 @@ function renderExpected(dd){
          '<span class="r ppf ov">' + pfmt(r.s) + '</span></div>';
   });
   host.innerHTML = h;
+}
+/* Rejani boshqa kunga surish — tanqislik kunini yengillatishning oddiy yo'li */
+function askMove(btn){
+  var to = prompt("Qaysi kunga ko'chirilsin? (1–{{ d.ndays }})", "");
+  if (to === null) return;
+  to = parseInt(String(to).trim(), 10);
+  if (!to || to < 1 || to > {{ d.ndays }} || to === curD) return;
+  var body = new URLSearchParams({y: Y, m: M, d: curD, to: to,
+                                  cat: btn.dataset.cat});
+  fetch("/taqvim/kochir", {method: "POST", body: body})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ if (j.ok) location.reload(); else alert(j.xato || "Xato"); });
 }
 function expToPlan(btn){
   var body = new URLSearchParams({y: Y, m: M, d: curD,
@@ -376,6 +402,9 @@ function addPlan(){
 .pcal-cell.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
 .pcal-cell.empty{background:transparent;border-color:transparent;cursor:default}
 .pcal-cell.we{background:var(--card-faint)}
+.pcal-cell.hol{background:var(--card-faint);box-shadow:inset 2px 0 0 var(--red)}
+.hb{font-style:normal;font-size:7px;color:var(--red);vertical-align:super;
+  margin-left:2px}
 .pcal-cell.today .pd{background:var(--gold);color:#1b1405;border-radius:7px;
   padding:0 6px}
 .pd{font:700 12px var(--sans);color:var(--mut);align-self:flex-start}
@@ -395,6 +424,10 @@ function addPlan(){
   border:1px solid var(--line2);color:var(--mut);box-shadow:none;
   border-radius:7px;cursor:pointer}
 .toplan:hover{border-color:var(--gold);color:var(--gold)}
+.mvb{margin-left:6px;padding:0 5px;font-size:11px;background:transparent;
+  border:1px solid var(--line2);color:var(--dim);box-shadow:none;
+  border-radius:6px;cursor:pointer;line-height:16px}
+.mvb:hover{border-color:var(--gold);color:var(--gold)}
 .pbar{position:absolute;left:7px;right:7px;bottom:5px;height:3px;
   border-radius:3px;background:var(--track);overflow:hidden}
 .pbar b{display:block;height:100%;background:var(--green);border-radius:3px}
@@ -427,6 +460,11 @@ function addPlan(){
 .pp-add input{width:140px;background:var(--ink3);border:1px solid var(--line);
   border-radius:9px;padding:8px;color:var(--txt);text-align:right}
 .vsw{display:flex;gap:6px}
+.gfilt{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.gfilt .chip{font-size:11.5px;padding:5px 11px}
+.gf-l{font:600 10px var(--sans);text-transform:uppercase;letter-spacing:.07em;
+  color:var(--dim);margin-right:2px}
+.gf-note{color:var(--gold);font-weight:600}
 
 @media(max-width:700px){
   /* telefonda 8-ustun tor qoladi — hafta jami kalendar ostiga tushadi */
