@@ -1,63 +1,153 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>O'quv bo'limi</h1>
-<p class="sub">Davomat · uy vazifalari · AI baholash · dropout risk-nazorat · sertifikatlar</p>
-
-<div class="grid g4">
-  <div class="card kpi"><div class="l">Davom etayotgan oqimlar</div>
-    <div class="v">{{ stats.running_cohorts }}</div></div>
-  <div class="card kpi"><div class="l">Faol o'quvchilar</div>
-    <div class="v pos">{{ stats.active_students }}</div></div>
-  <div class="card kpi"><div class="l">Tekshirilmagan topshiriq</div>
-    <div class="v {{ 'neg' if stats.pending_subs else '' }}">{{ stats.pending_subs }}</div></div>
-  <div class="card kpi"><div class="l">Xavf ostida</div>
-    <div class="v {{ 'neg' if stats.at_risk else 'pos' }}">{{ stats.at_risk }}</div></div>
+<div class="pghead">
+  <div>
+    <h1>O'quv bo'limi</h1>
+    <p class="sub">{{ today|dmy }} · davomat, vazifa, xavf-nazorat va darsliklar</p>
+  </div>
+  <div class="pgacts">
+    <a class="chip" href="/oquv/xabarnoma">🔔 Xabarnoma</a>
+    <form method="post" action="/oquv/refresh-risk">
+      <button class="chip" title="Davomat, vazifa va to'lov bo'yicha qaytadan hisoblash">
+        ⟳ Riskni yangilash</button></form>
+  </div>
 </div>
 
+{# ══ 1. BUGUNGI ISH — sahifaning yuragi ══════════════════════════ #}
+<div class="card wq">
+  <div class="wq-h">
+    <h2>Bugungi ish</h2>
+    {% if queue %}<span class="wq-n">{{ queue|length }} ta</span>{% endif %}
+  </div>
+
+  {% if queue %}
+  <p class="hint" style="margin:0 0 12px">Eng shoshilinchidan tartiblangan.
+    Har qatorni bosib to'g'ridan-to'g'ri ish joyiga o'tasiz.</p>
+  {% for q in queue %}
+  <a class="wq-i {{ 'urgent' if q.urgent }}" href="{{ q.url }}">
+    <span class="wq-ic k-{{ q.kind }}">
+      {% if q.kind == 'davomat' %}✓{% elif q.kind == 'baho' %}✎
+      {% elif q.kind == 'oqim' %}◷{% else %}⚿{% endif %}</span>
+    <div class="wq-tx">
+      <b>{{ q.title }}</b>
+      <div class="wq-w">{{ q.what }}</div>
+    </div>
+    <span class="wq-note {{ 'neg' if q.urgent }}">{{ q.note }}</span>
+    {% if q.cta %}<span class="wq-go">{{ q.cta }} →</span>{% endif %}
+  </a>
+  {% endfor %}
+  {% else %}
+  <div class="wq-ok">
+    <span class="wq-ok-i">✓</span>
+    <div><b>Hammasi bajarilgan</b>
+      <div class="sub">Davomat olingan, javoblar tekshirilgan.
+        Yangi ish paydo bo'lsa shu yerda chiqadi.</div></div>
+  </div>
+  {% endif %}
+</div>
+
+{# ══ 2. HOLAT ═══════════════════════════════════════════════════ #}
+<div class="grid g4" style="margin-top:14px">
+  <div class="card kpi"><div class="l">Davom etayotgan oqimlar</div>
+    <div class="v">{{ stats.running_cohorts }}</div>
+    <div class="kpi-x">bugun dars ketayotganlari</div></div>
+  <div class="card kpi"><div class="l">Faol o'quvchilar</div>
+    <div class="v pos">{{ stats.active_students }}</div>
+    <div class="kpi-x">shartnomasi ochiq turganlar</div></div>
+  <div class="card kpi"><div class="l">Tekshirilmagan javob</div>
+    <div class="v {{ 'neg' if stats.pending_subs else '' }}">{{ stats.pending_subs }}</div>
+    <div class="kpi-x">o'quvchi bahoni kutmoqda</div></div>
+  <div class="card kpi"><div class="l">Xavf ostida</div>
+    <div class="v {{ 'neg' if stats.at_risk else 'pos' }}">{{ stats.at_risk }}</div>
+    <div class="kpi-x">tashlab ketishi mumkin</div></div>
+</div>
+
+{# ══ 3. XAVF ════════════════════════════════════════════════════ #}
 {% if risk %}
 <div class="card" style="margin-top:14px">
-  <h2 style="margin-top:0">⚠️ Diqqat: tashlab ketish xavfi</h2>
-  <table>
-    <tr><th>O'quvchi</th><th>Oqim</th><th>Risk</th><th>Sabab</th><th>Telefon</th></tr>
+  <h2 style="margin-top:0">Kim tashlab ketishi mumkin</h2>
+  <p class="hint" style="margin:0 0 12px">Ball uchta signaldan yig'iladi:
+    darsga kelmaslik, vazifa topshirmaslik va to'lov kechikishi.
+    <b>60 dan yuqori</b> — bugunoq gaplashish kerak.</p>
+  <div class="tablewrap">
+  <table class="rsk">
+    <tr><th>O'quvchi</th><th>Oqim</th><th style="width:170px">Xavf darajasi</th>
+        <th>Nima uchun</th><th></th></tr>
     {% for c in risk %}
+    {% set lv, word = rlevel(c.risk_score) %}
     <tr>
-      <td><a href="/contracts/{{ c.id }}">{{ c.student.name }}</a></td>
-      <td><a href="/oquv/cohort/{{ c.cohort_id }}">{{ c.cohort.name }}</a></td>
-      <td><span class="badge {{ 'b-red' if c.risk_score >= 60 else 'b-gold' }}">{{ c.risk_score }}</span></td>
-      <td style="font-size:12px;color:var(--mut)">{{ c.risk_reasons or '—' }}</td>
-      <td>{{ c.student.phone or '—' }}</td>
+      <td><a href="/contracts/{{ c.id }}"><b>{{ c.student.name }}</b></a>
+        {% if c.student.phone %}
+        <div class="tsub"><a href="tel:{{ c.student.phone|replace(' ','') }}">{{ c.student.phone }}</a></div>
+        {% endif %}</td>
+      <td><a href="/oquv/cohort/{{ c.cohort_id }}">{{ c.cohort.name|replace('[namuna]','')|trim }}</a></td>
+      <td>
+        <div class="rmeter">
+          <span class="rbar r-{{ lv }}"><i style="width:{{ c.risk_score }}%"></i></span>
+          <b class="r-t-{{ lv }}">{{ c.risk_score }}</b>
+          <span class="rword">{{ word }}</span>
+        </div>
+      </td>
+      <td>{% for why in (c.risk_reasons or '').split(';') %}
+        {% if why|trim %}<span class="why">{{ why|trim }}</span>{% endif %}
+        {% else %}<span class="sub">—</span>{% endfor %}</td>
+      <td>{% if c.student.phone %}
+        <a class="chip" target="_blank" title="Tayyor xabar bilan yozish"
+           href="https://t.me/share/url?url=&text={{ msg(c)|urlencode }}">Yozish</a>{% endif %}</td>
     </tr>
     {% endfor %}
   </table>
+  </div>
 </div>
 {% endif %}
 
+{# ══ 4. OQIMLAR ═════════════════════════════════════════════════ #}
 <div class="card" style="margin-top:14px">
-  <h2 style="margin-top:0">Oqimlar bo'yicha o'quv jarayoni</h2>
-  <table>
-    <tr><th>Oqim</th><th>Holat</th><th class="r">O'quvchi</th>
-        <th class="r">Darslar</th><th class="r">Tekshirilmagan</th><th></th></tr>
+  <div class="pghead" style="margin:0 0 12px">
+    <h2 style="margin:0">Oqimlar</h2>
+    <div class="pgacts">
+      {% for co in courses %}
+      <a class="chip" href="/oquv/kurs/{{ co.id }}/darsliklar"
+         title="{{ co.name }} — video darsliklar">🎬 {{ co.name[:18] }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if rows %}
+  <div class="cohorts">
     {% for r in rows %}
-    <tr>
-      <td><b>{{ r.cohort.course.name }}</b>
-        <div style="font-size:12px;color:var(--mut)">{{ r.cohort.name }} · {{ r.cohort.start_date|dmy }} – {{ r.cohort.end_date|dmy }}</div></td>
-      <td><span class="status-pill {{ 'b-green' if r.running else 'b-gray' }}">{{ 'davom etmoqda' if r.running else 'nofaol' }}</span></td>
-      <td class="r">{{ r.students }}</td>
-      <td class="r">{{ r.sessions }}</td>
-      <td class="r {{ 'neg' if r.pending }}">{{ r.pending }}</td>
-      <td><a class="chip" href="/oquv/cohort/{{ r.cohort.id }}">Ochish →</a></td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="sub">Hali oqim yo'q — avval «Oqimlar» bo'limida oqim oching</td></tr>
+    <a class="co-r {{ r.phase }}" href="/oquv/cohort/{{ r.cohort.id }}">
+      <div class="co-main">
+        <div class="co-t"><b>{{ r.cohort.course.name }}</b>
+          <span class="co-p p-{{ r.phase }}">{{ r.plabel }}</span></div>
+        <div class="tsub">{{ r.cohort.name|replace('[namuna]','')|trim }} ·
+          {{ r.cohort.start_date|dmy }} – {{ r.cohort.end_date|dmy }}</div>
+        {% if r.sessions %}
+        <div class="co-bar" title="{{ r.held }} / {{ r.sessions }} dars o'tkazildi">
+          <i style="width:{{ r.pct }}%"></i></div>
+        {% endif %}
+      </div>
+      <div class="co-num"><b>{{ r.students }}</b><span>o'quvchi</span></div>
+      <div class="co-num"><b>{{ r.held }}<span class="of">/{{ r.sessions }}</span></b>
+        <span>dars</span></div>
+      <div class="co-num"><b class="{{ 'neg' if r.pending }}">{{ r.pending }}</b>
+        <span>tekshirilmagan</span></div>
+      <div class="co-num"><b class="{{ 'neg' if r.at_risk }}">{{ r.at_risk }}</b>
+        <span>xavfda</span></div>
+      <span class="co-go">→</span>
+    </a>
     {% endfor %}
-  </table>
+  </div>
+  {% else %}
+  <div class="empty">Hali oqim yo'q — «Oqimlar» bo'limida birinchisini oching</div>
+  {% endif %}
 </div>
 
 <div class="card" style="margin-top:14px">
   <p class="hint" style="margin:0">Bu bo'lim moliya bilan bitta zanjirda ishlaydi:
-    to'lov kechikishi + davomat + vazifa signallari birga «dropout risk» ballini beradi.
-    Yuqori riskka chiqqan o'quvchi avtomatika lentasiga tushadi.
-    Uy vazifasi saqlanganda AI (Claude) rubrika bo'yicha birinchi bahoni taklif qiladi —
-    kurator bir tugma bilan tasdiqlaydi.</p>
+    to'lov kechikishi + davomat + vazifa signallari birga «tashlab ketish xavfi»
+    ballini beradi. Uy vazifasi saqlanganda AI rubrika bo'yicha birinchi bahoni
+    taklif qiladi — kurator bir tugma bilan tasdiqlaydi yoki o'zgartiradi.
+    {% if not tg %}Telegram xabarnomasi hali ulanmagan.{% endif %}</p>
 </div>
 {% endblock %}

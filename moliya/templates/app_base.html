@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}Mfaktor — O'quvchi{% endblock %}</title>
+{% if token %}<link rel="manifest" href="/app/{{ token }}/manifest.webmanifest">{% endif %}
+<meta name="theme-color" content="#14161f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mfaktor">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════
+   MFAKTOR — o'quvchi ilovasi
+   Uslub: «atelier» — ivory qog'oz, siyoh va oltin folga.
+   Oltin ko'p ishlatilmaydi: u faqat muhim raqam va holatga tegadi,
+   shunda qimmatga o'xshaydi. Chuqurlik shishadan emas, qog'ozning
+   o'zidan — mayin soya, ingichka chiziq va donador yuza orqali.
+════════════════════════════════════════════════════════════════ */
+:root{
+  /* Yuza */
+  --paper:#faf7f0;         /* sahifa foni */
+  --card:#fffdf8;          /* panel */
+  --card-2:#f6f2e8;        /* ichki, botiq yuza */
+  --ink:#14161f;           /* sarlavha paneli */
+  --ink-2:#1e2130;
+
+  /* Siyoh */
+  --txt:#1b1913;
+  --mut:#6d6553;
+  --dim:#a89e88;
+
+  /* Folga — bezak uchun yorqin, matn uchun to'q */
+  --foil:#c9962f;
+  --gold:#8f640d;
+  --foil-lo:rgba(201,150,47,.13);
+  --foil-hi:linear-gradient(135deg,#f0d79a,#c9962f 60%,#a97c1f);
+
+  /* Chiziqlar — soch tolasidek ingichka */
+  --rule:rgba(146,116,52,.15);
+  --rule-2:rgba(146,116,52,.30);
+
+  /* Holat */
+  --green:#1c6f47; --green-lo:rgba(28,111,71,.10);
+  --red:#a5333e;   --red-lo:rgba(165,51,62,.09);
+
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --tab:calc(60px + env(safe-area-inset-bottom,0px));
+  --r:18px;
+  --shadow:0 1px 0 rgba(255,255,255,.9) inset,
+           0 2px 4px -2px rgba(84,64,18,.10),
+           0 18px 40px -28px rgba(84,64,18,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--txt);
+  font:400 15px/1.62 var(--sans);
+  font-optical-sizing:auto;
+  padding-bottom:calc(var(--tab) + 20px);
+  -webkit-tap-highlight-color:transparent;
+  -webkit-font-smoothing:antialiased}
+
+/* Qog'oz donasi — yuzaga tirik tuyg'u beradi */
+body::after{content:"";position:fixed;inset:0;z-index:3;pointer-events:none;
+  opacity:.55;mix-blend-mode:multiply;background-size:200px 200px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E")}
+
+.wrap{position:relative;z-index:2;max-width:640px;margin:0 auto;padding:0 18px}
+
+/* ── Masthead ─────────────────────────────────────────────── */
+header{position:relative;background:var(--ink);color:#f4f1e8;
+  padding:calc(15px + env(safe-area-inset-top,0px)) 0 34px}
+header::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 88% -10%,rgba(201,150,47,.20),transparent 62%)}
+header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(201,150,47,.55),transparent)}
+header .wrap{display:flex;align-items:center;gap:13px}
+.logo{width:38px;height:38px;border-radius:11px;flex:none}
+.brand{flex:1;min-width:0;font:700 16px/1 var(--serif);letter-spacing:.02em;
+  color:#f2dcae}
+.brand span{display:block;font:500 9px/1 var(--sans);letter-spacing:.24em;
+  color:#8e97b0;text-transform:uppercase;margin-top:5px}
+.who{text-align:right;line-height:1.3;min-width:0}
+.who b{display:block;font:600 14px var(--sans);color:#f4f1e8;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.who span{font:500 9px var(--sans);letter-spacing:.18em;text-transform:uppercase;
+  color:#7f8aa4}
+
+/* ── Panel ────────────────────────────────────────────────── */
+.body{margin-top:-22px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);
+  padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card.flush{padding:0;overflow:hidden}
+
+/* Sarlavha ustidagi kichkina yozuv — jurnal uslubi */
+.kicker{font:600 9.5px var(--sans);letter-spacing:.22em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:9px;display:block}
+h1{font:600 25px/1.18 var(--serif);letter-spacing:-.012em}
+h2{font:600 17px/1.25 var(--serif);letter-spacing:-.008em;margin-bottom:12px}
+.sub{color:var(--mut);font-size:13.5px}
+.tiny{font-size:12px;color:var(--dim)}
+.empty{color:var(--mut);font-size:13.5px;text-align:center;padding:22px 0}
+.g{color:var(--green)} .r{color:var(--red)} .gold{color:var(--gold)}
+
+/* Raqamlar — ilovaning imzosi. Serif, jadval raqamlari. */
+.fig{font-family:var(--serif);font-weight:600;font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em;line-height:1}
+.fig-xl{font-size:44px} .fig-lg{font-size:30px} .fig-md{font-size:21px}
+
+/* ── Ko'rsatkichlar qatori ────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(3,1fr)}
+.stats>div{padding:2px 6px;text-align:center;position:relative}
+.stats>div+div::before{content:"";position:absolute;left:0;top:14%;bottom:14%;
+  width:1px;background:var(--rule)}
+.stats .l{font:600 9px var(--sans);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim)}
+.stats .v{font-family:var(--serif);font-weight:600;font-size:19px;
+  font-variant-numeric:tabular-nums;margin-top:6px;letter-spacing:-.01em}
+
+/* ── Yorliqlar ────────────────────────────────────────────── */
+.pill{display:inline-block;padding:4px 11px;border-radius:99px;
+  font:600 11px var(--sans);letter-spacing:.02em;white-space:nowrap;
+  border:1px solid transparent}
+.p-ok{background:var(--green-lo);color:var(--green);border-color:rgba(28,111,71,.22)}
+.p-no{background:var(--red-lo);color:var(--red);border-color:rgba(165,51,62,.22)}
+.p-wait{background:var(--foil-lo);color:var(--gold);border-color:rgba(201,150,47,.28)}
+.p-gray{background:rgba(146,116,52,.07);color:var(--mut);border-color:var(--rule)}
+
+/* ── Chiziqli progress ────────────────────────────────────── */
+.bar{height:5px;border-radius:4px;background:rgba(146,116,52,.14);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px;background:var(--foil-hi);
+  transition:width .6s cubic-bezier(.4,0,.2,1)}
+
+/* ── Tugmalar ─────────────────────────────────────────────── */
+a{color:var(--gold);text-decoration:none}
+button,.btn{display:inline-block;text-align:center;cursor:pointer;border:0;
+  padding:13px 20px;border-radius:13px;
+  font:600 14.5px var(--sans);letter-spacing:.005em;
+  background:var(--foil-hi);color:#241a05;
+  box-shadow:0 1px 0 rgba(255,255,255,.5) inset,
+             0 10px 22px -14px rgba(140,100,20,.9);
+  transition:transform .16s cubic-bezier(.4,0,.2,1),box-shadow .16s}
+button:active,.btn:active{transform:translateY(1px) scale(.992);
+  box-shadow:0 1px 0 rgba(255,255,255,.4) inset}
+.btn.ghost,button.ghost{background:transparent;color:var(--txt);
+  border:1px solid var(--rule-2);box-shadow:none}
+.wide{width:100%}
+
+/* ── Xabar ────────────────────────────────────────────────── */
+.flash{padding:12px 15px;border-radius:13px;margin-bottom:13px;
+  font:500 13.5px/1.5 var(--sans);border:1px solid transparent}
+.f-ok{background:var(--green-lo);color:var(--green);border-color:rgba(28,111,71,.22)}
+.f-err{background:var(--red-lo);color:var(--red);border-color:rgba(165,51,62,.22)}
+
+/* ── Ro'yxat qatori (darslar, vazifalar, reyting) ─────────── */
+.grow{flex:1;min-width:0}
+.row{display:flex;gap:13px;align-items:center;padding:13px 0;color:inherit;
+  border-bottom:1px solid var(--rule)}
+.row:last-child{border-bottom:0}
+
+.row b{display:block;font:500 14.5px/1.35 var(--sans);color:var(--txt)}
+.row .meta{font-size:12px;color:var(--dim);margin-top:3px}
+.row .idx{width:32px;flex:none;text-align:center;
+  font-family:var(--serif);font-weight:600;font-size:16px;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.row .idx.on{color:var(--green)}
+.row.mute{opacity:.5}
+
+/* ── Kirish animatsiyasi: bir marta, tartib bilan ──────────── */
+@keyframes rise{from{opacity:0;transform:translateY(14px)}
+                to{opacity:1;transform:none}}
+.body>*{animation:rise .5s cubic-bezier(.22,.68,.32,1) backwards}
+.body>*:nth-child(1){animation-delay:.03s}
+.body>*:nth-child(2){animation-delay:.10s}
+.body>*:nth-child(3){animation-delay:.17s}
+.body>*:nth-child(4){animation-delay:.24s}
+.body>*:nth-child(5){animation-delay:.31s}
+.body>*:nth-child(n+6){animation-delay:.36s}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
+/* ── Pastki panel ─────────────────────────────────────────── */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;
+  background:rgba(253,250,243,.97);
+  -webkit-backdrop-filter:blur(20px) saturate(1.15);
+  backdrop-filter:blur(20px) saturate(1.15);
+  border-top:1px solid var(--rule-2);
+  box-shadow:0 -10px 30px -22px rgba(84,64,18,.7);
+  padding:9px 4px calc(9px + env(safe-area-inset-bottom,0px))}
+.tabs a{flex:1;position:relative;display:flex;flex-direction:column;
+  align-items:center;gap:5px;padding:3px 2px;color:var(--dim);
+  font:600 10px var(--sans);letter-spacing:.03em;transition:color .2s}
+.tabs a.on{color:var(--gold)}
+/* faol bo'lim — ustidagi kichik folga nuqta */
+.tabs a::before{content:"";position:absolute;top:-4px;width:4px;height:4px;
+  border-radius:50%;background:var(--foil);opacity:0;transform:scale(.4);
+  transition:opacity .25s,transform .25s}
+.tabs a.on::before{opacity:1;transform:none}
+.tabs svg{width:21px;height:21px;fill:none;stroke:currentColor;
+  stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tabs a.on svg{stroke-width:2}
+
+/* ── Kurs almashtirgich (sarlavha ichida) ── */
+.cswitch{display:flex;gap:8px;overflow-x:auto;margin-top:16px;padding-bottom:2px;
+  -webkit-overflow-scrolling:touch;position:relative;z-index:1}
+.cswitch::-webkit-scrollbar{display:none}
+.cs{flex:none;max-width:210px;padding:8px 14px;border-radius:12px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);
+  transition:background .18s,border-color .18s}
+.cs b{display:block;font:600 12.5px var(--sans);color:#d7dbe6;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cs span{display:block;font:500 10px var(--sans);color:#7f8aa4;margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cs.on{background:rgba(201,150,47,.16);border-color:rgba(201,150,47,.45)}
+.cs.on b{color:#f2dcae}
+.cs.on span{color:#b9a06a}
+
+/* ── Yakuniy izoh ─────────────────────────────────────────── */
+.colophon{text-align:center;font-size:11.5px;line-height:1.65;color:var(--dim);
+  margin:22px 0 6px;padding-top:18px;position:relative}
+.colophon::before{content:"";position:absolute;top:0;left:50%;
+  transform:translateX(-50%);width:46px;height:1px;background:var(--rule-2)}
+</style>
+</head>
+<body>
+
+{% if d is defined and not d %}
+<header><div class="wrap">
+  <img class="logo" src="/static/icons/logo.svg" alt="Mfaktor">
+  <div class="brand">MFAKTOR<span>Biznes maktabi</span></div>
+</div></header>
+<div class="wrap body"><div class="card" style="text-align:center;padding:34px 22px">
+  <span class="kicker">Havola</span>
+  <h1>Topilmadi</h1>
+  <p class="sub" style="margin-top:10px">Bu havola eskirgan yoki to'liq
+    ko'chirilmagan. Kuratoringizdan yangisini so'rang.</p>
+</div></div>
+
+{% else %}
+<header><div class="wrap">
+  <img class="logo" src="/static/icons/logo.svg" alt="Mfaktor">
+  <div class="brand">MFAKTOR<span>Biznes maktabi</span></div>
+  <div class="who"><span>O'quvchi</span>
+    <b>{{ d.c.student.name.split()[0] }}</b></div>
+</div>
+{% if courses is defined and courses|length > 1 %}
+<div class="wrap"><div class="cswitch">
+  {% for c in courses %}
+  <a class="cs {{ 'on' if cur and c.id == cur.id }}"
+     href="/app/{{ token }}?k={{ c.id }}">
+    <b>{{ c.cohort.course.name[:24] }}</b>
+    <span>{{ c.cohort.name|replace('[namuna]','')|trim }}{% if c.status != 'active' %} · tugagan{% endif %}</span>
+  </a>
+  {% endfor %}
+</div></div>
+{% endif %}
+</header>
+
+<div class="wrap body">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in msgs %}
+    <div class="flash {{ 'f-err' if cat == 'err' else 'f-ok' }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+</div>
+
+<nav class="tabs">
+  <a class="{{ 'on' if tab == 'home' }}" href="{{ applink(token, '') }}">
+    <svg viewBox="0 0 24 24"><path d="M3.5 10.4 12 3.6l8.5 6.8"/><path d="M5.6 9.3V20.4h12.8V9.3"/></svg>Asosiy</a>
+  <a class="{{ 'on' if tab == 'lessons' }}" href="{{ applink(token, '/darslar') }}">
+    <svg viewBox="0 0 24 24"><rect x="2.6" y="4.6" width="18.8" height="12.8" rx="2.4"/><path d="M10.2 9.1 15 11.9l-4.8 2.8V9.1Z"/><path d="M8.4 20.6h7.2"/></svg>Darslar</a>
+  <a class="{{ 'on' if tab == 'tasks' }}" href="{{ applink(token, '/vazifalar') }}">
+    <svg viewBox="0 0 24 24"><path d="M9.2 4.2h5.6a1 1 0 0 1 1 1v1.1H8.2V5.2a1 1 0 0 1 1-1Z"/><rect x="4.2" y="6.3" width="15.6" height="14.4" rx="2.4"/><path d="M8.7 13.4l2 2 4.6-4.6"/></svg>Vazifalar</a>
+  <a class="{{ 'on' if tab == 'rank' }}" href="{{ applink(token, '/reyting') }}">
+    <svg viewBox="0 0 24 24"><path d="M8.4 20.8h7.2"/><path d="M12 17.2v3.6"/><path d="M6.4 4h11.2v4.8a5.6 5.6 0 0 1-11.2 0V4Z"/><path d="M6.4 6H4v1.4A3.4 3.4 0 0 0 6.6 10.7M17.6 6H20v1.4a3.4 3.4 0 0 1-2.6 3.3"/></svg>Reyting</a>
+</nav>
+{% endif %}
+</body>
+</html>

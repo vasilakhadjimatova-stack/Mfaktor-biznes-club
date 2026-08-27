@@ -1,0 +1,74 @@
+{% extends "app_base.html" %}
+{% block title %}Darslar — Mfaktor{% endblock %}
+{% block body %}
+<div class="card">
+  <span class="kicker">Video darslar</span>
+  {% if cc.total %}
+  <div class="ldx">
+    <div><span class="fig fig-lg">{{ cc.done }}</span><span class="of">/{{ cc.total }}</span></div>
+    <div class="grow">
+      <div class="bar"><i style="width:{{ cc.pct }}%"></i></div>
+      <span class="tiny" style="display:block;margin-top:7px">
+        {{ cc.pct|round|int }}% ko'rildi{% if cc.locked %} · {{ cc.locked }} ta yopiq{% endif %}</span>
+    </div>
+  </div>
+  {% else %}
+  <h1>Hozircha bo'sh</h1>
+  <p class="sub" style="margin-top:8px">Bu kurs uchun video darslar hali
+    joylanmagan. Kurator joylashi bilan shu yerda paydo bo'ladi.</p>
+  {% endif %}
+</div>
+
+{% for g in cc.modules %}
+<div class="card">
+  <div class="mhead">
+    <div class="grow">
+      <span class="kicker" style="margin-bottom:4px">{{ loop.index }}-modul</span>
+      <h2 style="margin:0">{{ g.m.title }}</h2>
+      {% if g.m.subtitle %}<p class="tiny" style="margin-top:4px">{{ g.m.subtitle }}</p>{% endif %}
+    </div>
+    <span class="mcount"><b>{{ g.done }}</b>/{{ g.total }}</span>
+  </div>
+
+  {% for r in g.lessons %}
+  {% if r.locked %}
+  <div class="row mute">
+    <span class="idx">🔒</span>
+    <div class="grow"><b>{{ r.l.title }}</b>
+      <div class="meta">{{ r.open_at.strftime('%d.%m.%Y') }} dan ochiladi</div></div>
+  </div>
+  {% else %}
+  <a class="row" href="{{ applink(token, '/dars/' ~ r.l.id) }}">
+    <span class="idx {{ 'on' if r.done }}">{% if r.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
+    <div class="grow">
+      <b>{{ r.l.title }}</b>
+      <div class="meta">
+        {% if r.minutes %}{{ r.minutes }} daqiqa{% else %}{{ r.n_items }} ta element{% endif %}
+        {% if r.has_quiz %} · test{% endif %}</div>
+      {% if r.pct and not r.done %}
+      <span class="seek"><i style="width:{{ r.pct }}%"></i></span>
+      {% endif %}
+    </div>
+    <span class="tail">{% if r.pct and not r.done %}{{ r.pct }}%{% else %}▸{% endif %}</span>
+  </a>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endfor %}
+
+<style>
+.ldx{display:flex;align-items:center;gap:18px;margin-top:4px}
+.ldx .of{font:600 17px var(--sans);color:var(--dim);margin-left:1px}
+.ldx .grow{flex:1;min-width:0}
+.mhead{display:flex;align-items:flex-start;gap:12px;
+  padding-bottom:12px;margin-bottom:2px;border-bottom:1px solid var(--rule-2)}
+.mcount{flex:none;font:500 12px var(--sans);color:var(--dim);
+  font-variant-numeric:tabular-nums;padding-top:14px}
+.mcount b{font-family:var(--serif);font-size:16px;color:var(--txt);font-weight:600}
+.seek{display:block;height:3px;border-radius:2px;margin-top:7px;max-width:190px;
+  background:rgba(146,116,52,.16);overflow:hidden}
+.seek i{display:block;height:100%;background:var(--foil)}
+.tail{flex:none;font:600 11.5px var(--sans);color:var(--dim);
+  font-variant-numeric:tabular-nums}
+</style>
+{% endblock %}

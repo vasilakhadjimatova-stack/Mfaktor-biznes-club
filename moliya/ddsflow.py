@@ -95,6 +95,41 @@ CLIENT_ARTICLES = {
     "поступление от клиента тбб": "ТББ",
 }
 
+# Kirim (kassaga tushadigan) canonical statyalar — CAT_MAP qiymatlaridan.
+# Yo'nalish (kirim/chiqim) AYNAN shu ro'yxatdan aniqlanadi, imlo bo'yicha
+# DDS_SPRAVOCHNIK'ga tayanmaymiz: CAT_MAP «ТББ» (kirill) yozadi, spravochnik
+# «TBB» (lotin) — bir-biriga mos kelmay, mijoz to'lovi xarajat bo'lib
+# ketardi. Endi statya tanilgach (category_for), yo'nalish shubhasiz.
+INCOME_CATS = {
+    "Поступление от клиента РОП",
+    "Поступление от клиента СМК",
+    "Поступление от клиента ТББ",
+    "Поступление Б2Б",
+    "Мфактор поступления",
+    "Доход — долг",
+    "Поступление кредитов и займов",
+    "Прочие поступления",
+    "Займ от собственника",
+    "Продажа ОС",
+}
+
+
+def flow_operation(row, cat):
+    """kirim/chiqim — tanilgan canonical statyaga qarab (imloga bardoshli).
+
+    O'tkazmada canonical nom yo'nalishni yo'qotadi (ikkalasi ham
+    «Перевод между счетами»), shuning uchun uni statya matnidan olamiz:
+    «Доход…» kirdi, «Расход…» chiqdi.
+    """
+    if cat == TRANSFER_CAT:
+        a = norm(row.article)
+        if a.startswith("доход"):
+            return "kirim"
+        if a.startswith("расход"):
+            return "chiqim"
+        return "kirim" if dds_group(row.article) == "Поступление" else "chiqim"
+    return "kirim" if cat in INCOME_CATS else "chiqim"
+
 
 def norm(s):
     """Solishtirish uchun bir xil ko'rinishga keltirish."""
@@ -163,8 +198,7 @@ def sync_row(row):
         return None
 
     (wcode, _wname), cat = parsed
-    flow = dds_group(row.article)
-    operation = "kirim" if flow == "Поступление" else "chiqim"
+    operation = flow_operation(row, cat)
     activity = {"Техническая операция": "tech",
                 "Финансовая": "finance",
                 "Инвестиционная": "invest"}.get(row.activity, "operating")

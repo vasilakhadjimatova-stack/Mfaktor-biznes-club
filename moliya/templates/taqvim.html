@@ -1,0 +1,873 @@
+{% extends "base.html" %}
+{% block body %}
+{% macro num(v) %}{% if v %}{{ v|grp }}{% endif %}{% endmacro %}
+
+<div class="xl-top">
+  <h1 style="margin:0">To'lov taqvimi</h1>
+  {% if view == 'table' %}
+  <button type="button" class="xl-fs" style="margin-left:auto" onclick="xlFull()"
+          title="Jadval butun ekranni oladi (Esc — chiqish)">⛶ Katta ekran</button>
+  {% endif %}
+</div>
+<p class="sub">Xarajatlar rejasi kun kesimida. Kunni bosib o'sha kunning
+  rejasini kiriting — <b>fakt</b> kassadan avtomatik tushadi, qo'lda
+  ko'chirilmaydi.</p>
+
+<div class="monthnav" style="flex-wrap:wrap">
+  {% if view != 'year' %}
+    {% set py, pm = (y-1, 12) if m == 1 else (y, m-1) %}
+    {% set ny, nm = (y+1, 1) if m == 12 else (y, m+1) %}
+    <a class="chip" href="/taqvim?y={{py}}&m={{pm}}&view={{view}}">← {{ oy[pm] }}</a>
+    <span class="chip on">{{ oy[m] }} {{ y }}</span>
+    <a class="chip" href="/taqvim?y={{ny}}&m={{nm}}&view={{view}}">{{ oy[nm] }} →</a>
+    <span class="vsw">
+      <a class="chip {{ 'on' if view == 'month' }}" href="/taqvim?y={{y}}&m={{m}}">Kalendar</a>
+      <a class="chip {{ 'on' if view == 'table' }}" href="/taqvim?y={{y}}&m={{m}}&view=table">Jadval</a>
+      <a class="chip" href="/taqvim?view=year&y={{y}}">Yillik</a>
+    </span>
+    <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+      <form method="post" action="/taqvim/fill?y={{y}}&m={{m}}">
+        <button class="btn ghost" title="Sozlamalardagi takrorlanuvchi to'lovlar (ijara, oyliklar...) reja bo'lib tushadi">
+          ⚡ Takrorlanuvchilardan</button></form>
+      <form method="post" action="/taqvim/copy?y={{y}}&m={{m}}">
+        <button class="btn ghost" title="O'tgan oy rejasini shu oyga ko'chirish">
+          ⧉ O'tgan oydan</button></form>
+      <form method="post" action="/taqvim/clear?y={{y}}&m={{m}}"
+            onsubmit="return confirm('{{ oy[m] }} {{ y }} rejasi butunlay o‘chirilsinmi? (Faktga tegilmaydi)')">
+        <button class="btn ghost">✕ Rejani tozalash</button></form>
+    </span>
+  {% else %}
+    <a class="chip" href="/taqvim?view=year&y={{y-1}}">← {{ y-1 }}</a>
+    <span class="chip on">{{ y }} yil</span>
+    <a class="chip" href="/taqvim?view=year&y={{y+1}}">{{ y+1 }} →</a>
+    <a class="chip" href="/taqvim?y={{y}}&m={{m}}">Oylik kalendar</a>
+  {% endif %}
+</div>
+
+{% if view == 'month' %}
+{# ═══════════ HAQIQIY KALENDAR: hafta × kun katakchalari ═══════════ #}
+<div class="grid g4 ckpi">
+  <div class="card kpi">
+    <div class="l">{{ 'Bugungi pul' if d.today_cash is not none else 'Oy oxiri qoldiq' }}</div>
+    <div class="v">{{ (d.today_cash if d.today_cash is not none else d.bal_end)|round|int|grp }}</div>
+    <div class="s">oy boshida {{ d.start_cash|round|int|grp }} edi</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Oy oxiriga prognoz</div>
+    <div class="v {{ 'neg' if d.bal_end < 0 }}">{{ d.bal_end|round|int|grp }}</div>
+    <div class="s">rejadagi chiqim va kutilgan kirim bilan</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Eng past nuqta</div>
+    <div class="v {{ 'neg' if d.bal_min < 0 }}">{{ d.bal_min|round|int|grp }}</div>
+    <div class="s">{{ d.bal_min_day }}-{{ oy[m]|lower }}</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Oyda kirim / chiqim</div>
+    <div class="v"><span class="pos">{{ (d.total_in / 1000000)|round|int }}</span>
+      <span class="sl">/</span>
+      <span class="neg">{{ (d.total_f / 1000000)|round|int }}</span>
+      <span class="sl">mln</span></div>
+    <div class="s">sof {{ (d.total_in - d.total_f)|round|int|grp }}</div>
+  </div>
+</div>
+{% if d.gap_day %}
+<div class="card gapwarn">⚠ <b>{{ d.gap_day }}-{{ oy[m]|lower }}</b> kuni kassa
+  qoldig'i manfiyga tushadi — rejadagi chiqimlarni ko'chirish yoki kirimni
+  tezlashtirish kerak.
+  {% if not d.exp_in_total %}<i>Diqqat: bu davrga kutilayotgan kirim
+  kiritilmagan (shartnoma to'lov grafiklari bo'sh), shuning uchun prognoz
+  faqat chiqimni hisobga oladi.</i>{% endif %}</div>
+{% endif %}
+<div class="gfilt">
+  <span class="gf-l">Guruh:</span>
+  <a class="chip {{ 'on' if not grp }}" href="/taqvim?y={{y}}&m={{m}}">Hammasi</a>
+  {% for gn in d.group_names %}
+  <a class="chip {{ 'on' if grp == gn }}"
+     href="/taqvim?y={{y}}&m={{m}}&g={{ gn|urlencode }}">{{ gn }}</a>
+  {% endfor %}
+</div>
+<div class="card pcal-card">
+  <div class="pcal-head">
+    {% for w in ['Du','Se','Cho','Pa','Ju','Sha','Ya'] %}
+    <span class="{{ 'we' if loop.index0 >= 5 }}">{{ w }}</span>
+    {% endfor %}
+    <span class="wkh">Hafta</span>
+  </div>
+  <div class="pcal">
+    {% for _ in range(first_wd) %}<div class="pcal-cell empty"></div>{% endfor %}
+    {% for day in d.days %}
+    {% set i = loop.index0 %}
+    {% set pos = first_wd + i %}
+    {% set p, f = d.day_p[i], d.day_f[i] %}
+    <div class="pcal-cell {{ 'we' if day.we }} {{ 'hol' if day.hol }}
+                {{ 'today' if today.year == y and today.month == m and today.day == day.d }}"
+         style="--ht:{{ '%.3f'|format(d.heat[i]) }}"
+         data-d="{{ day.d }}" tabindex="0" role="button"
+         title="{{ day.d }}-{{ oy[m]|lower }}{% if day.hol %} ({{ day.hol }} — dam olish){% endif %}: chiqim {{ f|round|int|grp }}{% if p %} (reja {{ p|round|int|grp }}){% endif %}{% if d.day_in[i] %} · kirim {{ d.day_in[i]|round|int|grp }}{% endif %} · qoldiq {{ d.bal[i]|round|int|grp }}"
+         onclick="openDay({{ day.d }})"
+         onkeydown="if(event.key==='Enter')openDay({{ day.d }})">
+      <span class="pd">{{ day.d }}{% if day.hol %}<i class="hb" title="{{ day.hol }}">◆</i>{% endif %}{% if d.day_in[i] %}<i class="pin">+{{ (d.day_in[i] / 1000000)|round|int }}</i>{% endif %}</span>
+      <span class="pp" data-pp="{{ day.d }}">{% if p %}R {{ p|grp }}{% endif %}</span>
+      <span class="pf {{ 'ov' if p and f > p }}{{ ' exp' if not f and d.exp_out[i] }}">{% if f %}F {{ f|grp }}{% elif d.exp_out[i] %}≈ {{ d.exp_out[i]|grp }}{% endif %}</span>
+      <i class="pbar" data-pb="{{ day.d }}">{% if p %}<b class="{{ 'ov' if f > p }}"
+        style="width:{{ [100, (f / p * 100)|round|int]|min }}%"></b>{% endif %}</i>
+    </div>
+    {% if (pos + 1) % 7 == 0 or loop.last %}
+      {% if loop.last and (pos + 1) % 7 != 0 %}
+        {% for _ in range(7 - (pos + 1) % 7) %}<div class="pcal-cell empty"></div>{% endfor %}
+      {% endif %}
+      {% set wk = d.weeks[pos // 7] %}
+      <div class="pcal-wk" title="{{ wk.d1 }}–{{ wk.d2 }}-kunlar">
+        <span class="wl">{{ wk.d1 }}–{{ wk.d2 }}</span>
+        <b class="wf">{{ wk.f|round|int|grp if wk.f else '—' }}</b>
+        {% if wk.p %}<i class="wp">reja {{ wk.p|round|int|grp }}</i>{% endif %}
+      </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="pcal-sum">
+    {% if d.filtered %}<span class="gf-note">Faqat «{{ grp }}»</span>{% endif %}
+    <span>Oy rejasi: <b id="pcal-tp">{{ d.total_p|grp }}</b></span>
+    <span>Fakt: <b>{{ d.total_f|grp }}</b></span>
+    <span>Farq: <b class="{{ 'neg2' if d.total_diff > 0 }}">{{ d.total_diff|grp }}</b></span>
+  </div>
+</div>
+
+{# ── kassa qoldig'i: bugungacha haqiqiy, keyin prognoz ── #}
+<div class="card pburn">
+  <div class="pb-h">
+    <b>Kassa qoldig'i</b>
+    <span class="pb-leg">
+      <i class="lf"></i> haqiqiy
+      <i class="lp"></i> prognoz
+      {% if d.gap_day %}<i class="lz"></i> nol chizig'i{% endif %}
+    </span>
+  </div>
+  <svg class="burn" viewBox="0 0 600 150" preserveAspectRatio="none"
+       role="img" aria-label="Kassa qoldig'ining oy davomidagi harakati">
+    {% if d.today_x is not none %}
+    <line class="tdl" x1="{{ d.today_x }}" y1="4" x2="{{ d.today_x }}" y2="150"
+          vector-effect="non-scaling-stroke"/>
+    {% endif %}
+    {% if d.bal_real_pts %}
+    <polygon class="ba" points="{{ d.bal_real_pts }} {{ d.today_x or 600 }},{{ d.bal_zero_y }} 0,{{ d.bal_zero_y }}"/>
+    {% endif %}
+    <line class="zl" x1="0" y1="{{ d.bal_zero_y }}" x2="600" y2="{{ d.bal_zero_y }}"
+          vector-effect="non-scaling-stroke"/>
+    {% if d.bal_fc_pts %}<polyline class="bp" points="{{ d.bal_fc_pts }}"
+       vector-effect="non-scaling-stroke"/>{% endif %}
+    {% if d.bal_real_pts %}<polyline class="bf" points="{{ d.bal_real_pts }}"
+       vector-effect="non-scaling-stroke"/>{% endif %}
+  </svg>
+  <div class="pb-ax">
+    {% for k in [1, 5, 10, 15, 20, 25, d.ndays] %}<span>{{ k }}</span>{% endfor %}
+  </div>
+  <p class="hint" style="margin:8px 0 0">{% if d.filtered %}<b>Qoldiq guruh
+    filtriga bog'liq emas</b> — pul bo'limlarga bo'linmaydi, shuning uchun bu
+    yerda butun kassa ko'rsatiladi. {% endif %}Bugungacha — kassadagi haqiqiy harakat.
+    Bugundan keyin — taqvimga kiritilgan reja va shartnoma grafigidagi
+    kutilayotgan to'lovlar asosidagi prognoz.</p>
+</div>
+
+{# kun paneli: shu kunning statya kesimi + reja kiritish #}
+<div class="card pcal-panel" id="pcal-panel" hidden>
+  <div class="pcal-p-head">
+    <b id="pp-title"></b>
+    <button type="button" class="pclose" onclick="closeDay()">✕</button>
+  </div>
+  <div class="pp-grid pp-h"><span>Statya</span><span class="r">Reja</span><span class="r">Fakt</span></div>
+  <div id="pp-rows"></div>
+  <div id="pp-exp" hidden></div>
+  <div class="pp-add">
+    <select id="pp-cat">
+      {% for g in d.groups %}<optgroup label="{{ g.name }}">
+        {% for r in g.rows %}<option>{{ r.cat }}</option>{% endfor %}
+      </optgroup>{% endfor %}
+    </select>
+    <input id="pp-sum" placeholder="reja summasi" inputmode="numeric" autocomplete="off">
+    <button type="button" class="btn" onclick="addPlan()">+ Reja</button>
+  </div>
+  <p class="hint" style="margin:8px 0 0">Reja kiritilsa shu kunga yoziladi; 0 — o'chiradi.
+    Fakt kassadan avtomatik keladi, bu yerda o'zgartirilmaydi.</p>
+</div>
+
+<script>
+var GROUPS = {{ d.groups|tojson }};
+var EXP_OUT = {{ d.exp_out_rows|tojson }};   /* takroriy to'lovlar (prognoz) */
+var EXP_IN  = {{ d.exp_in_rows|tojson }};    /* shartnoma grafigidan kutilgan kirim */
+var Y = {{ y }}, M = {{ m }}, OYNOMI = {{ oy[m]|tojson }};
+var curD = null;
+function pfmt(v){
+  v = Math.round(v);
+  return v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "";
+}
+/* katak ichida joy tor — ixcham ko'rinish (to'lig'i kun panelida) */
+function pshort(v){
+  v = Math.round(v);
+  var a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toFixed(1).replace(".0", "").replace(".", ",") + " mlrd";
+  if (a >= 1e6) return (v / 1e6).toFixed(1).replace(".0", "").replace(".", ",") + " mln";
+  if (a >= 1e4) return Math.round(v / 1e3) + " ming";
+  return String(v);
+}
+document.querySelectorAll(".pcal .pp, .pcal .pf").forEach(function(el){
+  var m = el.textContent.trim().match(/^([RF]) ([\d\s ]+)$/);
+  if (!m) return;
+  el.textContent = m[1] + " " + pshort(parseInt(m[2].replace(/[\s ]/g, ""), 10));
+});
+function dayRows(dd){
+  var out = [];
+  GROUPS.forEach(function(g){ g.rows.forEach(function(r){
+    if ((r.p[dd - 1] || 0) || (r.f[dd - 1] || 0))
+      out.push({cat: r.cat, p: r.p[dd - 1] || 0, f: r.f[dd - 1] || 0, ref: r});
+  }); });
+  return out;
+}
+function openDay(dd){
+  curD = dd;
+  var panel = document.getElementById("pcal-panel");
+  panel.hidden = false;
+  document.getElementById("pp-title").textContent = dd + "-" + OYNOMI + " " + Y;
+  var rows = dayRows(dd);
+  document.getElementById("pp-rows").innerHTML = rows.length ? rows.map(function(r){
+    // statya matni ekranlanadi (innerHTML'ga xom qo'yilmaydi) va data-cat
+    // orqali uzatiladi — apostrofli statya onchange'ni buzmaydi
+    var c = esc(r.cat);
+    return '<div class="pp-grid">' +
+      '<span class="pp-cat" title="' + c + '">' + c +
+        (r.p ? '<button type="button" class="mvb" title="Boshqa kunga ko\'chirish" ' +
+               'data-cat="' + c + '" onclick="askMove(this)">↦</button>' : "") +
+        '</span>' +
+      '<input class="pp-in" inputmode="numeric" value="' + (r.p ? pfmt(r.p) : "") + '" ' +
+        'placeholder="—" data-cat="' + c + '" onchange="savePlan(this)">' +
+      '<span class="r ppf' + (r.p && r.f > r.p ? " ov" : "") + '">' + (pfmt(r.f) || "—") + '</span></div>';
+  }).join("") : '<div class="hint" style="margin:6px 0">Bu kunga hali reja ham, fakt ham yo\'q</div>';
+  renderExpected(dd);
+  document.querySelectorAll(".pcal-cell").forEach(function(c){
+    c.classList.toggle("sel", +c.dataset.d === dd);
+  });
+  panel.scrollIntoView({block: "nearest", behavior: "smooth"});
+}
+/* Kutilayotganlar — bazaga yozilmagan prognoz qatori. «Rejaga o'tkazish»
+   bosilsa oddiy reja katagi bo'lib yoziladi (keyin tahrirlash mumkin). */
+function renderExpected(dd){
+  var host = document.getElementById("pp-exp");
+  var out = EXP_OUT[dd] || [], inn = EXP_IN[dd] || [];
+  if (!out.length && !inn.length) { host.innerHTML = ""; host.hidden = true; return; }
+  host.hidden = false;
+  var h = '<div class="pp-exp-t">Kutilmoqda <i>— hali kassaga tushmagan</i></div>';
+  inn.forEach(function(r){
+    h += '<div class="pp-grid pp-e"><span class="pp-cat">↓ ' + esc(r.n) +
+         '</span><span></span><span class="r ppf">' + pfmt(r.s) + '</span></div>';
+  });
+  out.forEach(function(r){
+    h += '<div class="pp-grid pp-e"><span class="pp-cat">↑ ' + esc(r.n) +
+         '<i class="ec">' + esc(r.c) + '</i></span>' +
+         '<span class="r"><button type="button" class="toplan" ' +
+           'data-cat="' + esc(r.c) + '" data-sum="' + r.s +
+           '" onclick="expToPlan(this)">rejaga</button></span>' +
+         '<span class="r ppf ov">' + pfmt(r.s) + '</span></div>';
+  });
+  host.innerHTML = h;
+}
+/* Rejani boshqa kunga surish — tanqislik kunini yengillatishning oddiy yo'li */
+function askMove(btn){
+  var to = prompt("Qaysi kunga ko'chirilsin? (1–{{ d.ndays }})", "");
+  if (to === null) return;
+  to = parseInt(String(to).trim(), 10);
+  if (!to || to < 1 || to > {{ d.ndays }} || to === curD) return;
+  var body = new URLSearchParams({y: Y, m: M, d: curD, to: to,
+                                  cat: btn.dataset.cat});
+  fetch("/taqvim/kochir", {method: "POST", body: body})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ if (j.ok) location.reload(); else alert(j.xato || "Xato"); });
+}
+function expToPlan(btn){
+  var body = new URLSearchParams({y: Y, m: M, d: curD,
+    cat: btn.dataset.cat, amount: btn.dataset.sum});
+  fetch("/taqvim/set", {method: "POST", body: body})
+    .then(function(r){ return r.json(); })
+    .then(function(){ location.reload(); });
+}
+function closeDay(){
+  document.getElementById("pcal-panel").hidden = true;
+  document.querySelectorAll(".pcal-cell.sel").forEach(function(c){ c.classList.remove("sel"); });
+  curD = null;
+}
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(ch){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+  });
+}
+function savePlan(inp){
+  var cat = inp.dataset.cat;
+  var raw = String(inp.value).replace(/[\s ]/g, "").replace(",", ".");
+  var val = parseFloat(raw) || 0;
+  var body = new URLSearchParams({y: Y, m: M, d: curD, cat: cat, amount: val});
+  fetch("/taqvim/set", {method: "POST", body: body})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (!j.ok) return;
+      GROUPS.forEach(function(g){ g.rows.forEach(function(r){
+        if (r.cat === cat) r.p[curD - 1] = val;
+      }); });
+      // katakni yangilash
+      var p = 0, f = 0;
+      GROUPS.forEach(function(g){ g.rows.forEach(function(r){
+        p += r.p[curD - 1] || 0; f += r.f[curD - 1] || 0;
+      }); });
+      var pp = document.querySelector('[data-pp="' + curD + '"]');
+      if (pp) pp.textContent = p ? "R " + pshort(p) : "";
+      var pb = document.querySelector('[data-pb="' + curD + '"]');
+      if (pb) pb.innerHTML = p ? '<b class="' + (f > p ? "ov" : "") +
+        '" style="width:' + Math.min(100, Math.round(f / p * 100)) + '%"></b>' : "";
+      var tp = document.getElementById("pcal-tp");
+      if (tp) tp.textContent = pfmt(j.total_p) || "0";
+      openDay(curD);
+    });
+}
+function addPlan(){
+  var cat = document.getElementById("pp-cat").value;
+  var inp = document.getElementById("pp-sum");
+  var raw = String(inp.value).replace(/[\s ]/g, "").replace(",", ".");
+  var val = parseFloat(raw) || 0;
+  if (!val || !curD) return;
+  var fake = {value: val};
+  savePlan(fake, cat);
+  inp.value = "";
+}
+</script>
+
+<style>
+.pcal-card{padding:14px 14px 12px}
+.pcal-head{display:grid;grid-template-columns:repeat(7,1fr) 84px;gap:6px;
+  margin-bottom:6px;font:600 10px var(--sans);text-transform:uppercase;
+  letter-spacing:.07em;color:var(--dim);text-align:center}
+.pcal-head .we{color:var(--gold)}
+.pcal{display:grid;grid-template-columns:repeat(7,1fr) 84px;gap:6px}
+/* katak fonining to'qligi — o'sha kunning xarajati (eng og'ir kunga nisbatan) */
+.pcal-cell::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:var(--gold);opacity:calc(var(--ht,0) * .17);pointer-events:none}
+.pcal-cell.empty::before{display:none}
+.pcal-wk{display:flex;flex-direction:column;justify-content:center;gap:2px;
+  padding:6px 8px;border-radius:11px;background:var(--card-faint);
+  border:1px solid var(--line);min-width:0}
+.pcal-wk .wl{font:600 9px var(--sans);letter-spacing:.05em;color:var(--dim);
+  text-transform:uppercase}
+.pcal-wk .wf{font:700 12px var(--sans);color:var(--txt);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.pcal-wk .wp{font-style:normal;font-size:9px;color:var(--dim);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.pcal-head .wkh{font-size:9px}
+
+/* ── jamg'arma grafigi ── */
+.pburn{margin-top:14px}
+.pb-h{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  flex-wrap:wrap;margin-bottom:10px}
+.pb-h b{font-size:14px}
+.pb-leg{font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.pb-leg b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:600}
+.pb-leg i{display:inline-block;width:12px;height:0;border-top:2px solid var(--gold)}
+.pb-leg .lp{border-top:2px dashed var(--mut)}
+.burn{width:100%;height:180px;display:block}
+.pb-ax{display:flex;justify-content:space-between;margin-top:5px;
+  font:500 10.5px var(--sans);color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.burn .tdl{stroke:var(--gold);stroke-width:1;stroke-dasharray:3 3;opacity:.55}
+.burn .bp{fill:none;stroke:var(--mut);stroke-width:2;stroke-dasharray:5 4;
+  stroke-linejoin:round}
+.burn .zl{stroke:var(--red);stroke-width:1;opacity:.45}
+.pb-leg .lz{border-top:2px solid var(--red)}
+.ckpi{margin-bottom:14px}
+.ckpi .kpi .s{font-size:11px;color:var(--dim);margin-top:4px}
+.ckpi .kpi .sl{color:var(--dim);font-weight:400;font-size:14px}
+.gapwarn{margin-bottom:14px;border-color:var(--red);font-size:13px;
+  color:var(--txt);padding:12px 15px}
+.gapwarn b{color:var(--red)}
+.gapwarn i{display:block;margin-top:6px;font-style:normal;
+  font-size:11.5px;color:var(--dim)}
+.pin{float:right;font-style:normal;font-size:9px;color:var(--green);
+  font-weight:600}
+.burn .bf{fill:none;stroke:var(--gold);stroke-width:2.5;stroke-linejoin:round;
+  stroke-linecap:round}
+.burn .ba{fill:var(--gold);opacity:.13}
+
+.pcal-cell{min-height:74px;min-width:0;overflow:hidden;
+  border:1px solid var(--line);border-radius:11px;
+  background:var(--ink3);padding:6px 7px;display:flex;flex-direction:column;
+  gap:1px;cursor:pointer;position:relative;transition:border-color .15s}
+.pcal-cell:hover{border-color:var(--gold)}
+.pcal-cell.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.pcal-cell.empty{background:transparent;border-color:transparent;cursor:default}
+.pcal-cell.we{background:var(--card-faint)}
+.pcal-cell.hol{background:var(--card-faint);box-shadow:inset 2px 0 0 var(--red)}
+.hb{font-style:normal;font-size:7px;color:var(--red);vertical-align:super;
+  margin-left:2px}
+.pcal-cell.today .pd{background:var(--gold);color:#1b1405;border-radius:7px;
+  padding:0 6px}
+.pd{font:700 12px var(--sans);color:var(--mut);align-self:flex-start}
+.pp{font-size:9.5px;color:var(--gold);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.pf{font-size:9.5px;color:var(--green);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.pf.ov{color:var(--red)}
+.pf.exp{color:var(--dim)}
+.pp-exp-t{margin:12px 0 4px;font:600 10px var(--sans);text-transform:uppercase;
+  letter-spacing:.07em;color:var(--gold)}
+.pp-exp-t i{font-style:normal;color:var(--dim);text-transform:none;
+  letter-spacing:0;font-weight:400}
+.pp-e .pp-cat{color:var(--dim)}
+.pp-e .ec{display:block;font-style:normal;font-size:9.5px;color:var(--line2)}
+.toplan{padding:3px 9px;font-size:10.5px;background:transparent;
+  border:1px solid var(--line2);color:var(--mut);box-shadow:none;
+  border-radius:7px;cursor:pointer}
+.toplan:hover{border-color:var(--gold);color:var(--gold)}
+.mvb{margin-left:6px;padding:0 5px;font-size:11px;background:transparent;
+  border:1px solid var(--line2);color:var(--dim);box-shadow:none;
+  border-radius:6px;cursor:pointer;line-height:16px}
+.mvb:hover{border-color:var(--gold);color:var(--gold)}
+.pbar{position:absolute;left:7px;right:7px;bottom:5px;height:3px;
+  border-radius:3px;background:var(--track);overflow:hidden}
+.pbar b{display:block;height:100%;background:var(--green);border-radius:3px}
+.pbar b.ov{background:var(--red)}
+.pcal-sum{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;
+  font-size:12px;color:var(--mut)}
+.pcal-sum b{color:var(--txt)}
+.pcal-sum .neg2{color:var(--red)}
+.pcal-panel{margin-top:14px;padding:14px 16px}
+.pcal-p-head{display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:9px}
+.pcal-p-head b{font-size:14.5px}
+.pclose{padding:2px 10px;background:transparent;border:1px solid var(--line2);
+  color:var(--mut);box-shadow:none;border-radius:8px}
+.pp-grid{display:grid;grid-template-columns:1fr 110px 96px;gap:8px;
+  align-items:center;padding:4px 0;border-bottom:1px dashed var(--line)}
+.pp-grid.pp-h{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--dim);border-bottom:1px solid var(--line2)}
+.pp-cat{font-size:12px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.pp-in{width:100%;background:var(--ink3);border:1px solid var(--line);
+  border-radius:8px;padding:6px 8px;color:var(--txt);font-size:12.5px;
+  text-align:right;font-variant-numeric:tabular-nums}
+.pp-in:focus{outline:0;border-color:var(--gold)}
+.ppf{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--green)}
+.ppf.ov{color:var(--red)}
+.pp-add{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pp-add select{flex:1;min-width:200px;background:var(--ink3);
+  border:1px solid var(--line);border-radius:9px;padding:8px;color:var(--txt)}
+.pp-add input{width:140px;background:var(--ink3);border:1px solid var(--line);
+  border-radius:9px;padding:8px;color:var(--txt);text-align:right}
+.vsw{display:flex;gap:6px}
+.gfilt{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.gfilt .chip{font-size:11.5px;padding:5px 11px}
+.gf-l{font:600 10px var(--sans);text-transform:uppercase;letter-spacing:.07em;
+  color:var(--dim);margin-right:2px}
+.gf-note{color:var(--gold);font-weight:600}
+
+@media(max-width:700px){
+  /* telefonda 8-ustun tor qoladi — hafta jami kalendar ostiga tushadi */
+  .pcal,.pcal-head{grid-template-columns:repeat(7,1fr)}
+  .pcal{gap:4px}
+  .pcal-wk{grid-column:1 / -1;flex-direction:row;align-items:baseline;gap:8px;
+    padding:5px 9px}
+  .pcal-wk .wf{margin-left:auto}
+  .pcal-head .wkh{display:none}
+  .burn{height:130px}
+  .pcal-cell{min-height:62px;padding:4px 5px;border-radius:9px}
+  .pp,.pf{font-size:8.5px}
+  .pd{font-size:11px}
+  .pp-grid{grid-template-columns:1fr 92px 70px}
+  .pp-add input,.pp-add select{font-size:16px}
+  .pp-in{font-size:16px}
+}
+</style>
+
+{% elif view == 'table' %}
+{# ═══════════ JADVAL (Sheets ko'rinishi): statya × kun ═══════════ #}
+<div class="xl-wrap">
+<table class="xl x3">
+  <thead>
+    <tr>
+      <th class="rn cat" rowspan="2">Xarajat statyasi</th>
+      <th colspan="4" class="tot">Oy jami</th>
+      {% for day in d.days %}
+      <th colspan="2" class="{{ 'we' if day.we }}">{{ day.d }} {{ day.wd }}</th>
+      {% endfor %}
+    </tr>
+    <tr>
+      <th class="tot">Reja</th><th class="tot">Fakt</th>
+      <th class="tot">Farq</th><th class="tot">Baj%</th>
+      {% for day in d.days %}
+      <th class="{{ 'we' if day.we }}">R</th><th class="{{ 'we' if day.we }}">F</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for g in d.groups %}
+    <tr class="grp">
+      <td class="rn cat">{{ g.name }}</td>
+      <td class="r">{{ num(g.tp) }}</td><td class="r">{{ num(g.tf) }}</td>
+      <td class="r" colspan="2"></td>
+      <td colspan="{{ d.days|length * 2 }}"></td>
+    </tr>
+    {% for r in g.rows %}
+    <tr data-cat="{{ r.cat }}">
+      <td class="rn cat">{{ r.cat }}</td>
+      <td class="r tp">{{ num(r.tp) }}</td>
+      <td class="r tf">{{ num(r.tf) }}</td>
+      <td class="r td {{ ('bad' if r.diff > 0 else 'good') if r.tp else 'nop' }}">{{ num(r.diff|abs) if r.diff }}</td>
+      <td class="r tpc">{% if r.pct is not none %}{{ r.pct|round|int }}%{% endif %}</td>
+      {% for day in d.days %}
+      {% set i = loop.index0 %}
+      <td class="r plc {{ 'we' if day.we }}" tabindex="0"
+          data-d="{{ day.d }}" data-v="{{ r.p[i] or '' }}">{{ num(r.p[i]) }}</td>
+      <td class="r fc {{ 'we' if day.we }} {{ 'has' if r.f[i] }}">{{ num(r.f[i]) }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="sum">
+      <td class="rn cat">JAMI</td>
+      <td class="r" id="sum-p">{{ num(d.total_p) }}</td>
+      <td class="r">{{ num(d.total_f) }}</td>
+      <td class="r" id="sum-d">{{ num(d.total_diff|abs) if d.total_diff }}</td>
+      <td class="r">{% if d.total_pct is not none %}{{ d.total_pct|round|int }}%{% endif %}</td>
+      {% for day in d.days %}
+      {% set i = loop.index0 %}
+      <td class="r dp {{ 'we' if day.we }}" data-d="{{ day.d }}">{{ num(d.day_p[i]) }}</td>
+      <td class="r {{ 'we' if day.we }}">{{ num(d.day_f[i]) }}</td>
+      {% endfor %}
+    </tr>
+  </tfoot>
+</table>
+</div>
+<p class="hint" style="margin-top:10px">«R» — reja (bosib tahrirlanadi),
+  «F» — fakt (kassadan avtomatik). Qizil farq — rejadan oshib ketgan,
+  yashil — tejalgan. Shanba-yakshanba ustunlari xira.
+  Reja tez to'lsin uchun: «⚡ Takrorlanuvchilardan» — Sozlamalardagi ijara,
+  oylik kabi doimiy to'lovlarni o'z kuniga qo'yib chiqadi.</p>
+
+<script>
+(function(){
+  var Y = {{ y }}, M = {{ m }};
+  function fmt(v){
+    v = Math.round(v);
+    return v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "";
+  }
+  function save(cell, val){
+    var row = cell.closest("tr");
+    var body = new URLSearchParams({
+      y: Y, m: M, d: cell.dataset.d, cat: row.dataset.cat, amount: val
+    });
+    fetch("/taqvim/set", {method: "POST", body: body})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (!j.ok) return;
+        cell.dataset.v = val > 0 ? val : "";
+        cell.textContent = fmt(val);
+        row.querySelector(".tp").textContent = fmt(j.row_p);
+        var td = row.querySelector(".td");
+        td.textContent = fmt(Math.abs(j.row_diff));
+        td.classList.toggle("bad", j.row_p > 0 && j.row_diff > 0);
+        td.classList.toggle("good", j.row_p > 0 && j.row_diff <= 0);
+        td.classList.toggle("nop", !j.row_p);
+        row.querySelector(".tpc").textContent =
+          j.row_pct == null ? "" : Math.round(j.row_pct) + "%";
+        var dayCell = document.querySelector('tfoot .dp[data-d="' + cell.dataset.d + '"]');
+        if (dayCell) dayCell.textContent = fmt(j.day_p);
+        document.getElementById("sum-p").textContent = fmt(j.total_p);
+        document.getElementById("sum-d").textContent = fmt(Math.abs(j.total_diff));
+      });
+  }
+  function edit(cell){
+    if (cell.querySelector("input")) return;
+    var cur = cell.dataset.v || "";
+    var inp = document.createElement("input");
+    inp.type = "text"; inp.inputMode = "numeric"; inp.value = cur;
+    inp.className = "plc-in";
+    cell.textContent = ""; cell.appendChild(inp);
+    inp.focus(); inp.select();
+    var done = false;
+    function finish(saveIt){
+      if (done) return; done = true;
+      var raw = inp.value.replace(/[\s ]/g, "").replace(",", ".");
+      var val = parseFloat(raw) || 0;
+      cell.removeChild(inp);
+      if (saveIt && String(val) !== String(cur || 0)) save(cell, val);
+      else cell.textContent = fmt(parseFloat(cell.dataset.v) || 0);
+    }
+    inp.addEventListener("keydown", function(e){
+      if (e.key === "Enter") finish(true);
+      else if (e.key === "Escape") finish(false);
+    });
+    inp.addEventListener("blur", function(){ finish(true); });
+  }
+  document.querySelectorAll(".plc").forEach(function(c){
+    c.addEventListener("click", function(){ edit(c); });
+    c.addEventListener("keydown", function(e){
+      if (e.key === "Enter") { e.preventDefault(); edit(c); }
+    });
+  });
+})();
+</script>
+
+{% else %}
+{# ═══════════ YILLIK HISOBOT: xulosa + grafik + jadval ═══════════ #}
+<style>
+/* ══ Yillik hisobot ══ */
+.yk{margin-bottom:14px}
+.yk .kpi .s{font-size:11px;color:var(--dim);margin-top:4px}
+.yk .kpi .v.dim{color:var(--dim);font-size:18px}
+.ychart{margin-bottom:14px}
+.yc-h{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.yc-h b{font-size:14px}
+.yc-leg{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:5px}
+.yc-leg i{display:inline-block;width:9px;height:9px;border-radius:2px}
+.yc-leg .lf{background:var(--gold)}
+.yc-leg .lp{background:transparent;border-top:2px dashed var(--mut);
+  height:0;width:14px;border-radius:0}
+.yc-bars{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;
+  align-items:end}
+.yc-col{display:flex;flex-direction:column;align-items:center;gap:5px;
+  border-radius:9px;padding:4px 2px}
+.yc-col.now{background:var(--card-faint)}
+.yc-v{font:600 10px var(--sans);color:var(--mut);
+  font-variant-numeric:tabular-nums;height:13px;white-space:nowrap}
+.yc-track{position:relative;width:100%;height:132px;background:var(--track);
+  border-radius:7px;display:flex;align-items:flex-end;overflow:visible}
+.yc-f{width:100%;background:linear-gradient(180deg,var(--gold),#b8860b);
+  border-radius:7px;min-height:2px;transition:height .3s ease}
+.yc-col.now .yc-f{background:linear-gradient(180deg,#ffd66b,var(--gold))}
+.yc-p{position:absolute;left:-2px;right:-2px;height:0;
+  border-top:2px dashed var(--mut)}
+.yc-m{font:600 10.5px var(--sans);color:var(--dim);text-transform:uppercase}
+.yc-col.now .yc-m{color:var(--gold)}
+
+.yshare{margin-bottom:14px}
+.yshare b{font-size:14px}
+.ys-rows{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.ys-r{display:grid;grid-template-columns:minmax(120px,1.3fr) 1fr 38px auto;
+  gap:10px;align-items:center;font-size:12.5px}
+.ys-n{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ys-bar{height:7px;background:var(--track);border-radius:4px;overflow:hidden}
+.ys-bar i{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--gold),#b8860b)}
+.ys-p{text-align:right;color:var(--txt);font-weight:600;
+  font-variant-numeric:tabular-nums}
+.ys-s{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums;
+  font-size:11.5px;min-width:88px}
+
+/* o'z scroll maydoni — sarlavha va JAMI qatori ko'z oldida qoladi */
+.ytwrap{max-height:72vh;overflow:auto}
+.ytbl{border-collapse:separate;border-spacing:0;width:100%;
+  font-variant-numeric:tabular-nums}
+.ytbl th{position:sticky;top:0;z-index:2;background:var(--ink2);
+  font:600 10px var(--sans);text-transform:uppercase;letter-spacing:.06em;
+  color:var(--dim);text-align:right;padding:8px 9px;
+  border-bottom:1px solid var(--line2);white-space:nowrap}
+.ytbl th.ct{text-align:left;left:0;z-index:3;min-width:190px}
+.ytbl th.now{color:var(--gold)}
+.ytbl td{padding:7px 9px;font-size:12.5px;border-bottom:1px solid var(--line);
+  white-space:nowrap}
+.ytbl td.r{text-align:right}
+.ytbl td.ct{position:sticky;left:0;background:var(--ink2);z-index:1;
+  text-align:left;color:var(--mut);max-width:230px;overflow:hidden;
+  text-overflow:ellipsis}
+.ytbl td.ct.sub{padding-left:22px;font-size:12px}
+.ytbl td.now{background:var(--card-faint)}
+.ytbl tr.ygrp{cursor:pointer}
+.ytbl tr.ygrp td{background:var(--card-faint);font-weight:700;color:var(--txt);
+  border-bottom:1px solid var(--line2)}
+.ytbl tr.ygrp:hover td{background:var(--ink3)}
+.ytbl .caret{display:inline-block;width:14px;color:var(--dim);font-size:10px}
+.ytbl td.tt{font-weight:700;color:var(--txt);border-left:1px solid var(--line2)}
+.ytbl tfoot td{position:sticky;bottom:0;background:var(--ink2);font-weight:700;
+  color:var(--txt);border-top:1px solid var(--line2);font-size:13px}
+.ytbl .z{color:var(--line2)}
+.ytbl .over{color:var(--red)}
+.ytbl .under{color:var(--green)}
+.ytbl .pl{display:block;font-style:normal;font-size:9.5px;color:var(--dim)}
+{% for i in range(12) %}
+#ytbl.fold{{ i }} tr.yrow.g{{ i }}{display:none}
+{% endfor %}
+.btn.sm{padding:5px 10px;font-size:11.5px}
+.yt-acts{display:flex;gap:7px;align-items:center}
+.yc-s{display:none}
+@media(max-width:900px){
+  /* telefonda «474.2 mln» yorlig'i 12 ustunni ekrandan chiqarib yuboradi —
+     uning o'rniga oy nomi ostida qisqa raqam (mln) turadi */
+  .yc-track{height:96px}
+  .yc-v{display:none}
+  .yc-s{display:block;font:600 9.5px var(--sans);color:var(--mut);
+    font-variant-numeric:tabular-nums;height:12px}
+  .yc-col.now .yc-s{color:var(--gold)}
+  .yc-m{font-size:9px}
+  .yc-col{padding:4px 0}
+  .yc-bars{gap:3px}
+  .ys-r{grid-template-columns:minmax(90px,1fr) 1fr 34px;font-size:12px}
+  .ys-s{display:none}
+  .ytbl th.ct,.ytbl td.ct{min-width:140px;max-width:150px}
+}
+</style>
+
+{% macro mln(v) %}{{ (v / 1000000)|round(1) }} mln{% endmacro %}
+
+<div class="grid g4 yk">
+  <div class="card kpi">
+    <div class="l">Yil bo'yicha fakt</div>
+    <div class="v neg">{{ d.total_f|grp }}</div>
+    <div class="s">{{ d.live_months }} oyda harakat bo'lgan</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">O'rtacha oylik</div>
+    <div class="v">{{ d.avg_month|round|int|grp }}</div>
+    <div class="s">faktli oylar bo'yicha</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Eng qimmat oy</div>
+    <div class="v">{% if d.peak_month is not none %}{{ oy[d.peak_month + 1] }}{% else %}—{% endif %}</div>
+    <div class="s">{% if d.peak_month is not none %}{{ d.peak_sum|round|int|grp }} so'm{% endif %}</div>
+  </div>
+  <div class="card kpi">
+    {% if d.has_plan %}
+      <div class="l">Rejaga nisbatan</div>
+      <div class="v {{ 'neg' if d.diff > 0 else 'pos' }}">{{ d.pct|round|int }}%</div>
+      <div class="s">reja {{ d.total_p|grp }} · farq
+        {{ '+' if d.diff > 0 }}{{ d.diff|round|int|grp }}</div>
+    {% else %}
+      <div class="l">Reja</div>
+      <div class="v dim">kiritilmagan</div>
+      <div class="s">oylik kalendarda kunlar bo'yicha kiritiladi</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card ychart">
+  <div class="yc-h">
+    <b>Oylar kesimida</b>
+    <span class="yc-leg"><i class="lf"></i> fakt{% if d.has_plan %}
+      <i class="lp"></i> reja{% endif %}</span>
+  </div>
+  <div class="yc-bars">
+    {% for mi in range(12) %}
+    {% set f, p = d.month_f[mi], d.month_p[mi] %}
+    <div class="yc-col {{ 'now' if today.year == y and today.month == mi + 1 }}"
+         title="{{ oy[mi + 1] }}: fakt {{ f|round|int|grp }}{% if p %} · reja {{ p|round|int|grp }}{% endif %}">
+      <div class="yc-v">{% if f %}{{ mln(f) }}{% endif %}</div>
+      <div class="yc-track">
+        <div class="yc-f" style="height:{{ (f / d.max_month * 100)|round(1) }}%"></div>
+        {% if p %}<div class="yc-p" style="bottom:{{ (p / d.max_month * 100)|round(1) }}%"></div>{% endif %}
+      </div>
+      <div class="yc-m">{{ oy[mi + 1][:3] }}</div>
+      <div class="yc-s">{% if f %}{{ (f / 1000000)|round|int }}{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if d.top_groups and d.total_f %}
+<div class="card yshare">
+  <b>Pul qayerga ketdi</b>
+  <div class="ys-rows">
+    {% for g in d.top_groups %}{% if g.tf %}
+    <div class="ys-r">
+      <span class="ys-n">{{ g.name }}</span>
+      <span class="ys-bar"><i style="width:{{ g.share|round(1) }}%"></i></span>
+      <span class="ys-p">{{ g.share|round|int }}%</span>
+      <span class="ys-s">{{ g.tf|round|int|grp }}</span>
+    </div>
+    {% endif %}{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card ytbl-card">
+  <div class="yc-h">
+    <b>Statyalar bo'yicha</b>
+    <span class="yt-acts">
+      <button type="button" class="btn ghost sm" onclick="ytFold()">Guruhlarni yig'ish</button>
+      <a class="btn ghost sm" href="/taqvim/eksport?y={{ y }}">⬇ CSV</a>
+    </span>
+  </div>
+  <div class="tablewrap ytwrap">
+  <table class="ytbl" id="ytbl">
+    <thead>
+      <tr>
+        <th class="ct">Statya</th>
+        {% for mi in range(1, 13) %}
+        <th class="{{ 'now' if today.year == y and today.month == mi }}">{{ oy[mi][:3] }}</th>
+        {% endfor %}
+        <th class="tt">Yil jami</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in d.groups %}
+      {% set gi = loop.index0 %}
+      <tr class="ygrp" data-g="{{ gi }}" onclick="ytToggle({{ gi }})">
+        <td class="ct"><span class="caret">▾</span>{{ g.name }}</td>
+        {% for mi in range(12) %}
+        <td class="r {{ 'now' if today.year == y and today.month == mi + 1 }}">{{ num(g.f[mi]|round|int) }}</td>
+        {% endfor %}
+        <td class="r tt">{{ num(g.tf|round|int) }}</td>
+      </tr>
+      {% for r in g.rows %}
+      <tr class="yrow g{{ gi }}">
+        <td class="ct sub">{{ r.cat }}</td>
+        {% for mi in range(12) %}
+        {% set p, f = r.p[mi], r.f[mi] %}
+        <td class="r {{ 'now' if today.year == y and today.month == mi + 1 }}"
+            {% if p %}title="reja {{ p|round|int|grp }} · fakt {{ f|round|int|grp }}"{% endif %}>
+          {% if f %}<span class="{{ 'over' if p and f > p else ('under' if p and f < p) }}">{{ f|round|int|grp }}</span>{% else %}<span class="z">·</span>{% endif %}
+          {% if p %}<i class="pl">{{ p|round|int|grp }}</i>{% endif %}
+        </td>
+        {% endfor %}
+        <td class="r tt">{{ num(r.tf|round|int) }}</td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td class="ct">JAMI</td>
+        {% for mi in range(12) %}
+        <td class="r {{ 'now' if today.year == y and today.month == mi + 1 }}">{{ num(d.month_f[mi]|round|int) }}</td>
+        {% endfor %}
+        <td class="r tt">{{ num(d.total_f|round|int) }}</td>
+      </tr>
+    </tfoot>
+  </table>
+  </div>
+</div>
+
+<p class="hint" style="margin-top:10px">Fakt kassadan avtomatik keladi —
+  qo'lda ko'chirilmaydi. Reja kiritilgan bo'lsa, katak ostida kichkina
+  ko'rsatiladi: <span class="over">qizil</span> — rejadan oshgan,
+  <span class="under">yashil</span> — reja ichida qolgan.
+  Reja oylik kalendarda kunlar bo'yicha kiritiladi.</p>
+
+<script>
+function ytToggle(gi){
+  var t = document.getElementById("ytbl");
+  var open = !t.classList.toggle("fold" + gi);
+  var row = t.querySelector('.ygrp[data-g="' + gi + '"] .caret');
+  if (row) row.textContent = open ? "▾" : "▸";
+}
+function ytFold(){
+  var t = document.getElementById("ytbl");
+  var n = t.querySelectorAll(".ygrp").length;
+  var anyOpen = false;
+  for (var i = 0; i < n; i++) if (!t.classList.contains("fold" + i)) anyOpen = true;
+  for (var i = 0; i < n; i++){
+    t.classList.toggle("fold" + i, anyOpen);
+    var c = t.querySelector('.ygrp[data-g="' + i + '"] .caret');
+    if (c) c.textContent = anyOpen ? "▸" : "▾";
+  }
+}
+</script>
+{% endif %}
+{% endblock %}

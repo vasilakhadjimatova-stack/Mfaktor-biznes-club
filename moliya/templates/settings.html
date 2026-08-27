@@ -1,24 +1,188 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Sozlamalar</h1>
-<p class="sub">Hamyonlar va takrorlanuvchi to'lovlar</p>
+<p class="sub">Kirish kodlari, hamyonlar va takrorlanuvchi to'lovlar</p>
+
+{# ── Rollar va kirish kodlari ── #}
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Kirish kodlari</h2>
+  {% if not locked %}
+  <p class="hint">Bu nusxada qulf o'chiq (APP_PIN o'rnatilmagan) — kod
+    so'ralmaydi. Kodlar faqat serverda, APP_PIN bor bo'lganda ishlaydi.</p>
+  {% else %}
+  <p class="sub">Har rolga alohida kod. Kuratorga kod berganingizda u kassani,
+    ДДС ni va KPI ni ko'rmaydi — faqat o'quv bo'limi va o'quvchilarning
+    to'lov holati ochiq bo'ladi.</p>
+  {% endif %}
+
+  <div class="tablewrap" style="margin-top:12px">
+  <table>
+    <tr><th>Rol</th><th>Nima ko'radi</th><th>Holati</th><th>Kod</th></tr>
+    {% for r in ROLES %}
+    <tr>
+      <td><b>{{ ROLE_LABELS[r] }}</b></td>
+      <td class="sub" style="font-size:12.5px">{{ ROLE_HINTS[r] }}</td>
+      <td>
+        {% if r == 'direktor' and locked %}
+          <span class="badge b-green">APP_PIN</span>
+        {% elif pins[r] %}
+          <span class="badge b-green">O'rnatilgan</span>
+        {% else %}
+          <span class="badge b-gray">Yo'q</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if r == 'direktor' and locked %}
+          <span class="sub" style="font-size:12px">Railway sozlamalaridan</span>
+        {% else %}
+        <form class="inline" method="post" action="/settings/kod"
+              style="gap:6px;align-items:flex-end">
+          <input type="hidden" name="role" value="{{ r }}">
+          <div><input name="pin" inputmode="numeric" pattern="[0-9]*"
+                      minlength="6" maxlength="12" required
+                      placeholder="6 raqam" style="width:110px"></div>
+          <button class="chip">Saqlash</button>
+        </form>
+        {% if pins[r] %}
+        <form method="post" action="/settings/kod" style="margin-top:5px"
+              onsubmit="return confirm('{{ ROLE_LABELS[r] }} kodi bekor qilinsinmi? Bu rol tizimga kira olmay qoladi.')">
+          <input type="hidden" name="role" value="{{ r }}">
+          <input type="hidden" name="act" value="clear">
+          <button class="chip">Bekor qilish</button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p class="hint" style="margin-top:10px">Kod almashtirilsa yoki bekor
+    qilinsa, o'sha rolda ochiq turgan barcha sessiyalar darhol uziladi —
+    telefonida ochiq qolgan bo'lsa ham qaytadan kod so'raladi. Xodim ishdan
+    ketganda shu yetarli.</p>
+  {% if not edu %}
+  <p class="hint" style="margin-top:8px">Bu nusxada <b>faqat moliya</b>
+    ishlaydi. O'quv bo'limi va o'quvchi ilovasi o'chirilgan, shuning uchun
+    kurator roli ham ko'rsatilmayapti — bo'lim yoqilganda o'zi paydo bo'ladi.</p>
+  {% endif %}
+</div>
+
+{# ── Namunaviy shartnomalar (vaqtinchalik) ── #}
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Namunaviy shartnomalar
+    {% if demo.contracts %}<span class="badge b-gold">{{ demo.contracts }} ta faol</span>{% endif %}
+  </h2>
+  <p class="sub" style="margin-top:-4px">Haqiqiy shartnomalar hali kiritilmagan.
+    Shartnomalar, oqimlar va qarzdorlik sahifalari qanday ishlashini ko'rish
+    uchun vaqtincha namunaviy ma'lumot qo'yish mumkin.</p>
+
+  <div class="hint" style="margin:12px 0">
+    <b>Haqiqiy pulga tegmaydi:</b> kassa yozuvi yaratilmaydi, hamyon qoldiqlari
+    va ДДС o'zgarmaydi. Avtomatik moslash bu shartnomalarni ko'rmaydi —
+    haqiqiy to'lov namunaviy o'quvchiga bog'lanib qolmaydi. Nomlarida
+    «namuna» so'zi turadi.
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <form method="post" action="/settings/demo">
+      <input type="hidden" name="act" value="add">
+      <button>{{ 'Qaytadan yaratish' if demo.contracts else 'Namunaviy shartnomalar qo‘shish' }}</button>
+    </form>
+    {% if demo.contracts %}
+    <form method="post" action="/settings/demo"
+          onsubmit="return confirm('Namunaviy shartnomalar butunlay o‘chiriladi. Davom etamizmi?')">
+      <input type="hidden" name="act" value="clear">
+      <button class="ghost">Namunaviy ma'lumotni o'chirish</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if demo.contracts %}
+  <p class="hint warn" style="margin-top:12px">Hozir {{ demo.cohorts }} ta namunaviy
+    oqim va {{ demo.contracts }} ta shartnoma turibdi. Ular «Tahlillar» va «KPI»
+    sahifalaridagi shartnoma raqamlariga qo'shilib ko'rinadi — haqiqiy
+    shartnomalarni kiritishdan oldin o'chirib tashlang.</p>
+  {% endif %}
+</div>
 
 <div class="card" style="margin-bottom:14px">
-  <h2 style="margin-top:0">Excel'dan import (Mbm_2026.xlsx)</h2>
-  <p class="sub" style="margin-top:-4px">Google Sheets'dagi faylni
-    (Fayl → Yuklab olish → .xlsx) shu yerga yuklang. «ДДС данные» to'liq
-    almashtiriladi, hamyon qoldiqlari yangilanadi, kassa qayta quriladi va
-    to'lovlar shartnomalarga o'zi taqqoslanadi. Bir necha soniya davom etadi.</p>
-  <form class="inline" method="post" action="/settings/import"
-        enctype="multipart/form-data"
-        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Yuklanmoqda…'">
-    <div style="flex:1;min-width:240px"><label>Excel fayl</label>
-      <input type="file" name="xlsx" accept=".xlsx,.xlsm" required></div>
-    <div><button>Import qilish</button></div>
+  <h2 style="margin-top:0">AI yordamchi
+    {% if ai_key %}<span class="badge b-gold">ulangan</span>{% endif %}
+  </h2>
+  <p class="sub" style="margin-top:-4px">«AI yordamchi» sahifasi moliya
+    ma'lumotlari bo'yicha savollarga javob beradi (hamyonlar, oy oqimi,
+    qarzdorlik, shartnomalar). Ishlashi uchun Anthropic API kaliti kerak —
+    <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
+    saytidan olinadi.</p>
+  {% if ai_env %}
+  <p class="hint" style="margin:12px 0">Kalit serverning
+    <b>ANTHROPIC_API_KEY</b> muhit o'zgaruvchisidan olinmoqda — quyidagi
+    maydon shart emas (muhit o'zgaruvchisi ustun turadi).</p>
+  {% endif %}
+  <form class="inline" method="post" action="/settings/ai-kalit">
+    <div style="flex:1;min-width:260px"><label>API kalit</label>
+      <input type="password" name="kalit" placeholder="sk-ant-…"
+             autocomplete="off" {% if not ai_key %}required{% endif %}></div>
+    <div><button>{{ 'Yangilash' if ai_key else 'Saqlash' }}</button></div>
   </form>
-  <p class="hint warn" style="margin-top:10px">Diqqat: bu amal «ДДС данные»dagi
-    hozirgi qatorlarni fayl bilan to'liq almashtiradi. Saytda qo'lda kiritilgan
-    qatorlar bo'lsa, avval CSV eksport qilib oling.</p>
+  {% if ai_key and not ai_env %}
+  <form method="post" action="/settings/ai-kalit" style="margin-top:10px"
+        onsubmit="return confirm('AI kalit o‘chiriladi — yordamchi ishlamay qoladi. Davom etamizmi?')">
+    <input type="hidden" name="act" value="clear">
+    <button class="ghost">Kalitni o'chirish</button>
+  </form>
+  {% endif %}
+  <p class="hint" style="margin-top:10px">Kalit bazada saqlanadi va faqat
+    server ichida ishlatiladi. Yordamchi ma'lumotni faqat o'qiydi —
+    kassaga hech narsa yozmaydi.</p>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Google Sheets / Excel'dan import</h2>
+  <p class="sub" style="margin-top:-4px">Jadval havolasini bir marta kiriting —
+    keyingi safar faqat «Yangilash» bosiladi: server .xlsx ni o'zi yuklab oladi.
+    «ДДС данные» to'liq almashtiriladi, hamyon qoldiqlari yangilanadi, kassa
+    qayta quriladi va to'lovlar shartnomalarga o'zi taqqoslanadi. Saytda qo'lda
+    kiritilgan qatorlar va qo'lda bog'langan to'lovlar saqlanib qoladi.</p>
+  <form class="inline" method="post" action="/settings/sheets"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Yuklanmoqda…'">
+    <div style="flex:1;min-width:260px"><label>Google Sheets havolasi</label>
+      <input type="url" name="url" value="{{ sheets_url }}" required
+             placeholder="https://docs.google.com/spreadsheets/d/…"></div>
+    <div><button>{{ 'Sheets\'dan yangilash' if sheets_url else 'Sheets\'dan import' }}</button></div>
+  </form>
+  <p class="hint" style="margin-top:8px">Ishlashi uchun jadvalda «Ulashish» →
+    «Havolaga ega bo'lganlar — ko'ruvchi» yoqilgan bo'lishi kerak. Yopiq qolsin
+    desangiz — pastdagi fayl usulidan foydalaning.</p>
+  <form class="inline" method="post" action="/settings/import"
+        enctype="multipart/form-data" style="margin-top:12px"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Yuklanmoqda…'">
+    <div style="flex:1;min-width:240px"><label>Yoki Excel fayl (Fayl → Yuklab olish → .xlsx)</label>
+      <input type="file" name="xlsx" accept=".xlsx,.xlsm" required></div>
+    <div><button>Fayldan import</button></div>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Bazani ko'chirish (oflayn ↔ server)</h2>
+  <p class="sub" style="margin-top:-4px">Oflayn nusxada to'g'irlangan moliya
+    ma'lumotini serverga o'tkazish: oflaynda «Eksport» bosiladi, chiqqan fayl
+    serverdagi shu sahifada «Import» qilinadi. Faqat moliya jadvallari
+    ko'chadi (hamyon, ДДС, kassa, shartnoma) — o'quv bo'limi kirmaydi.</p>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+    <a class="btn ghost" href="/settings/eksport">⬇ Eksport (.dump.gz)</a>
+    <form class="inline" method="post" action="/settings/toliq-import"
+          enctype="multipart/form-data" style="flex:1;min-width:280px"
+          onsubmit="return confirm('DIQQAT: bu bazadagi hozirgi moliya ma\'lumoti fayl bilan TO\'LIQ almashtiriladi. Davom etamizmi?')">
+      <div style="flex:1;min-width:200px"><label>Eksport fayli</label>
+        <input type="file" name="dump" accept=".gz,.json" required></div>
+      <div><button>Import qilish</button></div>
+    </form>
+  </div>
+  <p class="hint warn" style="margin-top:10px">Import eskisini o'chirib,
+    fayldagini yozadi. Xato faylni ko'rsatsangiz — hech narsa o'zgarmaydi,
+    tekshiruv bor.</p>
 </div>
 
 <div class="grid g2">

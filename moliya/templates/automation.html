@@ -6,7 +6,7 @@
 <div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
   <div style="flex:1;min-width:220px">
     <h2 style="margin:0 0 4px">Kunni yopish</h2>
-    <p class="sub" style="margin:0;font-size:12.5px">Bitta tugma: muddati o'tganlarga eslatma matnlari + bugungi takroriy to'lovlar + 7 kunlik prognoz + kunlik xulosa</p>
+    <p class="sub" style="margin:0;font-size:12.5px">Bitta tugma: muddati o'tganlarga eslatma matnlari + bugungi takroriy to'lovlar + kunlik xulosa</p>
   </div>
   <form method="post" action="/automation/close-day">
     <button style="display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>Kunni yopish</button>
@@ -18,9 +18,6 @@
   <div class="card kpi"><div class="l">Bugun kirim</div><div class="v pos">{{ day.inc|grp }}</div></div>
   <div class="card kpi"><div class="l">Bugun chiqim</div><div class="v neg">{{ day.exp|grp }}</div></div>
   <div class="card kpi"><div class="l">Sof</div><div class="v {{ 'pos' if day.net>=0 else 'neg' }}">{{ day.net|grp }}</div></div>
-  <div class="card kpi"><div class="l">7 kunda kutilmoqda</div>
-    <div class="v">{{ day.upcoming|sum(attribute='rest')|grp }}</div>
-    <div class="h">{{ day.upcoming|length }} ta to'lov</div></div>
 </div>
 
 <div class="card" style="margin-top:14px">
@@ -51,6 +48,7 @@
 <div class="card" style="margin-top:14px">
   <h2>Bugungi takroriy to'lovlar — {{ day.rec_due|length }} ta</h2>
   {% if day.rec_due %}
+  <div class="tablewrap">
   <table>
     <tr><th>Nomi</th><th class="r">Summa</th><th>Statya</th><th style="width:280px"></th></tr>
     {% for r in day.rec_due %}
@@ -67,6 +65,7 @@
     </tr>
     {% endfor %}
   </table>
+  </div>
   {% else %}<div class="empty">Bugun muddati kelgan takroriy to'lov yo'q</div>{% endif %}
 </div>
 {% endif %}
@@ -74,6 +73,7 @@
 <div class="card" style="margin-top:14px">
   <h2>Avtomatika jurnali</h2>
   {% if feed %}
+  <div class="tablewrap">
   <table>
     <tr><th style="width:130px">Vaqt</th><th style="width:110px">Turi</th><th>Voqea va zanjir</th></tr>
     {% for e in feed %}
@@ -89,6 +89,7 @@
     </tr>
     {% endfor %}
   </table>
+  </div>
   {% else %}<div class="empty">Jurnal hozircha bo'sh — to'lov kiriting yoki kunni yoping</div>{% endif %}
 </div>
 

@@ -111,8 +111,8 @@ def autofill(card):
     filled = []
     for it in card.items:
         if it.auto_key == "sales_month":
-            cf = core.month_cashflow(card.year, card.month)
-            it.fact = round(cf["income_total"])
+            # faqat o'quvchi to'lovlari — qarz/kredit/Б2Б reja faktini shishirmaydi
+            it.fact = round(core.sales_income(card.year, card.month))
             filled.append(it.name)
         elif it.auto_key == "new_students":
             ue = core.unit_economics(card.year, card.month)
@@ -138,10 +138,11 @@ def compute(card):
                      "wfact": (idx or 0) * it.weight})
     # bonus
     if card.bonus_mode == "pct":
-        base = core.month_cashflow(card.year, card.month)["income_total"]
+        # bonus bazasi ham faqat sotuvdan — qarz/kredit nohaq bonus bermaydi
+        base = core.sales_income(card.year, card.month)
         rate = next(r for lim, r in PCT_TIERS if total <= lim)
         bonus = base * rate
-        bonus_note = f"tushum {core_short(base)} × {rate*100:.1f}%"
+        bonus_note = f"sotuv {core_short(base)} × {rate*100:.1f}%"
     else:
         bonus = next(b for lim, b in FIXED_TIERS if total <= lim)
         bonus_note = "qat'iy shkala bo'yicha"

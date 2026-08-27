@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Juftlanmagan o'tkazmalar</h1>
+<p class="sub">Hisobvaraqlar orasidagi har bir o'tkazma ДДС'da <b>ikkita</b>
+  qator bo'lishi kerak: bir hamyondan chiqdi, ikkinchisiga kirdi. Ikkinchi
+  qator yozilmay qolsa — pul chiqib, hech qayerga kirmaydi va hamyon qoldig'i
+  kamayib ketadi. Foyda hisobotiga ta'sir qilmaydi, faqat qoldiqni buzadi.</p>
+
+{% if d.negatives %}
+<div class="card warn">
+  <div class="wtop">
+    <span class="wicon">!</span>
+    <div>
+      <b>{{ d.negatives|length }} ta hamyon qoldig'i manfiy</b>
+      <p class="wnote">Naqd pul manfiy bo'lolmaydi — demak yozuv tushib qolgan.</p>
+    </div>
+  </div>
+  <div class="wgrid">
+    {% for n in d.negatives %}
+    <div class="wcell">
+      <span class="wname">{{ n.wallet.name }}</span>
+      <b class="num neg">{{ n.balance|grp }}</b>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="card kpi">
+    <div class="l">O'tkazma qatorlari</div>
+    <div class="v">{{ d.n_rows|grp }}</div>
+    <div class="h">{{ d.n_pairs|grp }} juft topildi</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Juftsiz chiqim</div>
+    <div class="v neg">{{ d.lone_out|length }}</div>
+    <div class="h">{{ d.sum_out|grp }} so'm</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Juftsiz kirim</div>
+    <div class="v">{{ d.lone_in|length }}</div>
+    <div class="h">{{ d.sum_in|grp }} so'm</div>
+  </div>
+  <div class="card kpi">
+    <div class="l">Qoldiqdagi tafovut</div>
+    <div class="v neg">{{ d.gap|grp }}</div>
+    <div class="h">shuncha so'm «yo'qolgan»</div>
+  </div>
+</div>
+
+{% if not d.rows %}
+<div class="card"><div class="empty">Hamma o'tkazma juftlangan 🎉</div></div>
+{% else %}
+
+<p class="sub" style="margin:0 0 14px">Quyidagi qatorlarning juftini topib
+  bo'lmadi. «Juftini qo'shish» bilan tushib qolgan qatorni yozing — hamyon
+  qoldig'i shu zahoti tuzaladi. Tizim yaqin summali qatorlarni taklif
+  qiladi, lekin o'zi bog'lamaydi.</p>
+
+<div class="card" style="padding:0;overflow:hidden">
+<div class="tablewrap">
+<table class="trf">
+  <thead><tr>
+    <th>Sana</th><th>№</th><th>Yo'nalish</th><th class="r">Summa</th>
+    <th>Hamyon</th><th>Izoh</th><th></th>
+  </tr></thead>
+  <tbody>
+  {% for it in d.rows %}
+  {% set r = it.row %}
+  <tr class="{{ 'row-exp' if it.dir == 'out' else 'row-inc' }}">
+    <td class="nw">{{ r.ddate.strftime('%d.%m.%Y') }}</td>
+    <td class="rn">{{ r.rownum }}</td>
+    <td>{% if it.dir == 'out' %}<span class="badge b-red">chiqdi</span>
+        {% else %}<span class="badge b-green">kirdi</span>{% endif %}</td>
+    <td class="r"><b>{{ r.amount|grp }}</b></td>
+    <td class="nw">{{ r.wallet }}</td>
+    <td class="pu">{{ r.purpose }}</td>
+    <td class="r">
+      <button class="btn ghost sm" onclick="openFix(this)"
+        data-rid="{{ r.id }}" data-amt="{{ r.amount|round|int }}"
+        data-date="{{ r.ddate.isoformat() }}" data-dir="{{ it.dir }}"
+        data-purpose="{{ r.purpose }}">Juftini qo'shish</button>
+    </td>
+  </tr>
+  {% if it.near %}
+  <tr class="sug {{ 'row-exp' if it.dir == 'out' else 'row-inc' }}">
+    <td></td><td></td>
+    <td colspan="5">
+      <span class="sgl">Ehtimoliy juft:</span>
+      {% for s in it.near %}
+      <span class="chip-s">№{{ s.rownum }} · {{ s.ddate.strftime('%d.%m') }} ·
+        {{ s.amount|grp }} · {{ s.wallet }}</span>
+      {% endfor %}
+    </td>
+  </tr>
+  {% endif %}
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</div>
+{% endif %}
+
+{# ── Juft qo'shish oynasi ── #}
+<div id="fixbg" class="modalbg" onclick="if(event.target===this)closeFix()">
+  <form id="fixform" method="post" class="modalbox">
+    <h2 style="margin:0 0 5px">Tushib qolgan qatorni qo'shish</h2>
+    <p class="wnote" id="fixhint"></p>
+    <label>Qaysi hamyonga <span id="dirword">kirdi</span>
+      <select name="wallet" required>
+        <option value="">— tanlang —</option>
+        {% for w in wallets %}<option>{{ w }}</option>{% endfor %}
+      </select></label>
+    <label>Summa
+      <input name="amount" id="fixamt" inputmode="numeric" required>
+      <span class="wnote">Komissiya ushlangan bo'lsa — kelgan summani yozing</span>
+    </label>
+    <label>Sana <input name="ddate" id="fixdate" type="date" required></label>
+    <label>Izoh <input name="purpose" id="fixpur" placeholder="ixtiyoriy"></label>
+    <div class="mact">
+      <button type="button" class="btn ghost" onclick="closeFix()">Bekor</button>
+      <button class="btn">Qo'shish</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function openFix(b){
+  var f = document.getElementById('fixform');
+  f.action = '/transfers/' + b.dataset.rid + '/juft';
+  document.getElementById('fixamt').value  = b.dataset.amt;
+  document.getElementById('fixdate').value = b.dataset.date;
+  document.getElementById('fixpur').value  = b.dataset.purpose || '';
+  var out = b.dataset.dir === 'out';
+  document.getElementById('dirword').textContent = out ? 'kirdi' : 'chiqdi';
+  document.getElementById('fixhint').textContent = out
+    ? 'Pul chiqqan, lekin qayerga kirgani yozilmagan.'
+    : 'Pul kirgan, lekin qayerdan chiqqani yozilmagan.';
+  document.getElementById('fixbg').classList.add('on');
+}
+function closeFix(){ document.getElementById('fixbg').classList.remove('on'); }
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') closeFix();
+});
+</script>
+
+<style>
+.card.warn{border-color:var(--red);background:var(--red-dim);margin-bottom:16px}
+.wtop{display:flex;gap:12px;align-items:flex-start}
+.wicon{flex:none;width:26px;height:26px;border-radius:50%;display:grid;
+  place-items:center;background:var(--red);color:#fff;font-weight:700;
+  font-size:15px}
+.wnote{font-size:12px;color:var(--mut);margin-top:3px}
+.wgrid{display:flex;flex-wrap:wrap;gap:10px;margin-top:13px}
+.wcell{padding:9px 13px;border-radius:12px;background:var(--ink2);
+  border:1px solid var(--line);min-width:172px}
+.wname{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;
+  letter-spacing:.07em}
+.wcell b{font-size:15.5px;display:block;margin-top:3px}
+.trf .nw{white-space:nowrap}
+.trf .rn{color:var(--dim);font-size:12px}
+.trf .pu{color:var(--mut);font-size:12.5px;max-width:260px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+tr.sug td{padding-top:0;border-bottom:1px solid var(--line)}
+.sgl{font-size:11px;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.07em;margin-right:5px}
+.chip-s{display:inline-block;margin:2px 4px 2px 0;padding:2px 9px;
+  border-radius:99px;font-size:11.5px;background:var(--ink2);
+  border:1px solid var(--line2);color:var(--mut);white-space:nowrap}
+.btn.sm{padding:5px 11px;font-size:12px}
+.modalbg{display:none;position:fixed;inset:0;z-index:60;
+  background:rgba(10,12,18,.55);backdrop-filter:blur(3px)}
+.modalbg.on{display:grid;place-items:center}
+.modalbox{width:min(430px,92vw);background:var(--ink2);border-radius:18px;
+  padding:24px;border:1px solid var(--line2);
+  box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.modalbox label{display:block;margin-top:14px;font-size:11px;color:var(--mut);
+  text-transform:uppercase;letter-spacing:.07em}
+.modalbox input,.modalbox select{width:100%;margin-top:6px;padding:9px 11px;
+  border-radius:11px;border:1px solid var(--line2);background:var(--ink3);
+  color:var(--txt);font:400 14px var(--sans);text-transform:none;
+  letter-spacing:normal}
+.mact{display:flex;gap:9px;justify-content:flex-end;margin-top:22px}
+</style>
+{% endblock %}

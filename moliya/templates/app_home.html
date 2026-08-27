@@ -1,0 +1,150 @@
+{% extends "app_base.html" %}
+{% block title %}Mfaktor — {{ d.c.student.name }}{% endblock %}
+{% block body %}
+{% set c = d.c %}
+
+{# ── Kurs va progress halqasi ── #}
+<div class="card hero">
+  <span class="kicker">Kursingiz</span>
+  <h1>{{ d.ch.course.name }}</h1>
+  <p class="sub" style="margin-top:4px">{{ d.ch.name|replace('[namuna]','')|trim }}</p>
+
+  {% if cc.total %}
+  {% set pct = cc.pct|round|int %}
+  <div class="hero-ring">
+    <svg viewBox="0 0 120 120" width="118" height="118" aria-hidden="true">
+      <defs><linearGradient id="foil" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#f0d79a"/><stop offset=".6" stop-color="#c9962f"/>
+        <stop offset="1" stop-color="#a97c1f"/></linearGradient></defs>
+      <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(146,116,52,.15)" stroke-width="8"/>
+      <circle cx="60" cy="60" r="52" fill="none" stroke="url(#foil)" stroke-width="8"
+              stroke-linecap="round" transform="rotate(-90 60 60)"
+              stroke-dasharray="326.7"
+              style="stroke-dashoffset:{{ 326.7 - 326.7 * pct / 100 }};
+                     transition:stroke-dashoffset 1.1s cubic-bezier(.22,.68,.32,1)"/>
+    </svg>
+    <div class="hero-ring-in">
+      <span class="pctwrap"><span class="fig fig-xl">{{ pct }}</span><span
+        class="pctsign">%</span></span>
+    </div>
+    <div class="hero-side">
+      <div class="fig fig-md">{{ cc.done }}<span class="of">/{{ cc.total }}</span></div>
+      <span class="tiny">dars ko'rildi</span>
+      {% if cc.locked %}
+      <div class="lockline">🔒 {{ cc.locked }} ta dars keyinroq ochiladi</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if cc.next %}
+  <a class="btn wide" style="margin-top:16px"
+     href="{{ applink(token, '/dars/' ~ cc.next.l.id) }}">
+    Davom etish — {{ cc.next.l.title[:34] }}{% if cc.next.l.title|length > 34 %}…{% endif %}</a>
+  {% else %}
+  <p class="done-note">Barcha ochiq darslar ko'rib bo'lindi</p>
+  {% endif %}
+  {% else %}
+  <p class="empty">Video darslar hali joylanmagan</p>
+  {% endif %}
+</div>
+
+{# ── Natijalar ── #}
+<div class="card">
+  <span class="kicker">Natijalaringiz</span>
+  <div class="stats">
+    <div><div class="l">Davomat</div>
+      <div class="v {{ 'g' if d.prog.att_pct and d.prog.att_pct >= 80 else ('r' if d.prog.att_pct is not none and d.prog.att_pct < 60 else 'gold') }}">
+        {% if d.prog.att_pct is not none %}{{ d.prog.att_pct|round|int }}%{% else %}—{% endif %}</div></div>
+    <div><div class="l">Vazifalar</div>
+      <div class="v">{{ d.prog.assign_done }}<span style="color:var(--dim)">/{{ d.prog.assign_total }}</span></div></div>
+    <div><div class="l">O'rt. ball</div>
+      <div class="v gold">{% if d.prog.avg_score is not none %}{{ d.prog.avg_score|round|int }}{% else %}—{% endif %}</div></div>
+  </div>
+
+  {% if d.rank %}
+  <a class="rankcard" href="{{ applink(token, '/reyting') }}">
+    <span class="fig fig-lg">{{ d.rank.place }}</span>
+    <div class="grow"><b>Guruhdagi o'rningiz</b>
+      <div class="meta">{{ d.rank.of }} ta o'quvchi orasida</div></div>
+    <span class="arw">→</span>
+  </a>
+  {% endif %}
+</div>
+
+{# ── Yaqin vazifalar ── #}
+{% set open_tasks = d.tasks|rejectattr('graded')|list %}
+{% if open_tasks %}
+<div class="card">
+  <span class="kicker">Bajarilishi kerak</span>
+  {% for t in open_tasks[:3] %}
+  <a class="row" href="{{ applink(token, '/vazifalar') }}#v{{ t.a.id }}">
+    <div class="grow"><b>{{ t.a.title }}</b>
+      <div class="meta">
+        {% if t.a.due_date %}Muddat: {{ t.a.due_date.strftime('%d.%m.%Y') }}
+        {% else %}Muddat belgilanmagan{% endif %}</div>
+    </div>
+    {% if t.done %}<span class="pill p-wait">Tekshirilmoqda</span>
+    {% elif t.overdue %}<span class="pill p-no">Muddati o'tdi</span>
+    {% else %}<span class="pill p-gray">Topshirish</span>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── To'lov ── #}
+<div class="card">
+  <span class="kicker">To'lov holati</span>
+  <div class="stats">
+    <div><div class="l">Shartnoma</div>
+      <div class="v">{{ '{:,.0f}'.format(c.net_price).replace(',', ' ') }}</div></div>
+    <div><div class="l">To'landi</div>
+      <div class="v g">{{ '{:,.0f}'.format(d.paid).replace(',', ' ') }}</div></div>
+    <div><div class="l">Qoldiq</div>
+      <div class="v {{ 'r' if d.due else 'g' }}">{{ '{:,.0f}'.format(d.due).replace(',', ' ') }}</div></div>
+  </div>
+  {% if d.overdue %}
+  <div class="flash f-err" style="margin:14px 0 0">
+    Muddati o'tgan to'lov: {{ '{:,.0f}'.format(d.overdue).replace(',', ' ') }} so'm —
+    kurator bilan bog'laning.</div>
+  {% elif d.next_pay %}
+  <p class="sub" style="margin-top:13px">Keyingi to'lov —
+    <b class="gold">{{ '{:,.0f}'.format(d.next_pay.amount).replace(',', ' ') }} so'm</b>,
+    {{ d.next_pay.date.strftime('%d.%m.%Y') }}
+    <span class="tiny">({{ d.next_pay.days }} kundan keyin)</span></p>
+  {% elif not d.due %}
+  <p class="done-note">To'lov to'liq amalga oshirilgan</p>
+  {% endif %}
+</div>
+
+<p class="colophon">
+  Ilovani telefonga o'rnatish: brauzer menyusidan «Ekranga qo'shish».<br>
+  Havola shaxsiy — boshqalarga bermang.</p>
+
+<style>
+.hero{position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(80% 60% at 100% 0%,rgba(201,150,47,.10),transparent 60%)}
+.hero-ring{display:flex;align-items:center;gap:18px;margin-top:18px;position:relative}
+.hero-ring svg{flex:none}
+.hero-ring-in{position:absolute;left:0;width:118px;height:118px;
+  display:grid;place-items:center;color:var(--txt);pointer-events:none}
+.pctwrap{display:flex;align-items:baseline}
+.pctsign{font:600 14px var(--sans);color:var(--dim);margin-left:2px}
+.hero-side{flex:1;min-width:0}
+.hero-side .of{color:var(--dim);font-size:.62em}
+.hero-side .tiny{display:block;margin-top:5px}
+.lockline{margin-top:11px;padding-top:11px;border-top:1px solid var(--rule);
+  font-size:11.5px;color:var(--dim)}
+.done-note{margin-top:14px;padding:11px 14px;border-radius:12px;
+  background:var(--green-lo);border:1px solid rgba(28,111,71,.2);
+  color:var(--green);font:600 13px var(--sans);text-align:center}
+.rankcard{display:flex;align-items:center;gap:14px;margin-top:16px;
+  padding:13px 15px;border-radius:14px;color:inherit;
+  background:linear-gradient(135deg,rgba(201,150,47,.13),rgba(201,150,47,.03));
+  border:1px solid rgba(201,150,47,.26)}
+.rankcard .fig{color:var(--gold)}
+.rankcard b{font:600 14px var(--sans)}
+.rankcard .meta{font-size:12px;color:var(--mut);margin-top:2px}
+.rankcard .arw{color:var(--foil);font-size:16px}
+</style>
+{% endblock %}

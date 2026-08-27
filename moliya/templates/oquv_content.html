@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="pghead">
+  <div>
+    <h1>Video darsliklar</h1>
+    <p class="sub">Dars — elementlar ketma-ketligi: video, matn, material va
+      test. Kurator xohlagan tartibda teradi. Video o'z serverimizda
+      saqlanmaydi — YouTube (yashirin), Vimeo yoki Drive havolasi qo'yiladi.</p>
+  </div>
+</div>
+
+<div class="monthnav" style="flex-wrap:wrap">
+  {% for c in courses %}
+  <a class="chip {{ 'on' if c.id == course.id }}"
+     href="/oquv/kurs/{{ c.id }}/darsliklar">{{ c.name }}</a>
+  {% endfor %}
+</div>
+
+{% for m in mods %}
+<div class="card" style="margin-top:14px">
+  <div class="mhead">
+    <div class="grow">
+      <span class="kick">{{ loop.index }}-modul</span>
+      <h2 style="margin:2px 0 0">{{ m.title }}</h2>
+      {% if m.subtitle %}<p class="tsub">{{ m.subtitle }}</p>{% endif %}
+    </div>
+    <div class="ordbtns">
+      {% if not loop.first %}
+      <form method="post" action="/oquv/modul/{{ m.id }}/kochirish">
+        <input type="hidden" name="dir" value="up">
+        <button class="chip" title="Yuqoriga">▲</button></form>{% endif %}
+      {% if not loop.last %}
+      <form method="post" action="/oquv/modul/{{ m.id }}/kochirish">
+        <input type="hidden" name="dir" value="down">
+        <button class="chip" title="Pastga">▼</button></form>{% endif %}
+      <button class="chip" type="button"
+              onclick="tog('em{{ m.id }}')">Modulni tahrirlash</button>
+    </div>
+  </div>
+
+  <details class="adder plain" id="em{{ m.id }}">
+    <summary style="display:none"></summary>
+    <div class="body">
+    <form class="inline" method="post" action="/oquv/modul/{{ m.id }}/tahrir">
+      <div style="flex:1"><label>Modul nomi</label>
+        <input name="title" required value="{{ m.title }}"></div>
+      <div style="flex:1"><label>Qisqa izoh</label>
+        <input name="subtitle" value="{{ m.subtitle or '' }}"></div>
+      <div><button>Saqlash</button></div>
+    </form>
+    <form method="post" action="/oquv/modul/{{ m.id }}/ochirish" style="margin-top:10px"
+          onsubmit='return confirm({{ ("«" ~ m.title ~ "» moduli va uning barcha darslari oʻchirilsinmi? Oʻquvchilarning koʻrish tarixi ham yoʻqoladi.")|tojson }})'>
+      <button class="chip">Modulni o'chirish</button></form>
+    </div>
+  </details>
+
+  {# ── Darslar ── #}
+  {% for l in m.lessons %}
+  <div class="lsn">
+    <div class="lsn-h">
+      <span class="lsn-n">{{ loop.index }}</span>
+      <div class="grow">
+        <b>{{ l.title }}</b>
+        <div class="tsub">
+          {{ l.items|length }} ta element
+          {% set vm = l.items|selectattr('kind','equalto','video')|sum(attribute='minutes') %}
+          {% if vm %} · {{ vm }} daqiqa{% endif %}
+          {% if l.open_day %} · oqim boshlanganidan {{ l.open_day }} kun keyin ochiladi{% endif %}
+        </div>
+      </div>
+      <div class="ordbtns">
+        {% if not loop.first %}
+        <form method="post" action="/oquv/dars/{{ l.id }}/kochirish">
+          <input type="hidden" name="dir" value="up">
+          <button class="chip" title="Yuqoriga">▲</button></form>{% endif %}
+        {% if not loop.last %}
+        <form method="post" action="/oquv/dars/{{ l.id }}/kochirish">
+          <input type="hidden" name="dir" value="down">
+          <button class="chip" title="Pastga">▼</button></form>{% endif %}
+        <button class="chip" type="button" onclick="tog('el{{ l.id }}')">Dars sozlamasi</button>
+      </div>
+    </div>
+
+    <details class="adder plain" id="el{{ l.id }}">
+      <summary style="display:none"></summary>
+      <div class="body">
+      <form class="inline" method="post" action="/oquv/dars/{{ l.id }}/tahrir">
+        <div style="grid-column:1/-1"><label>Dars nomi</label>
+          <input name="title" required value="{{ l.title }}"></div>
+        <div><label>Ochilish kuni</label>
+          <input name="open_day" type="number" min="0" value="{{ l.open_day or 0 }}"
+                 title="Oqim boshlanganidan necha kun keyin ochiladi. 0 — darhol"></div>
+        <div><label>Modul</label>
+          <select name="module_id">
+            {% for mm in mods %}
+            <option value="{{ mm.id }}" {{ 'selected' if mm.id == l.module_id }}>
+              {{ mm.title }}</option>
+            {% endfor %}
+          </select></div>
+        <div><button>Saqlash</button></div>
+      </form>
+      <form method="post" action="/oquv/dars/{{ l.id }}/ochirish" style="margin-top:10px"
+            onsubmit='return confirm({{ ("«" ~ l.title ~ "» darsi va uning barcha elementlari oʻchirilsinmi? Oʻquvchilarning koʻrish tarixi ham yoʻqoladi.")|tojson }})'>
+        <button class="chip">Darsni o'chirish</button></form>
+      </div>
+    </details>
+
+    {# ── Elementlar ── #}
+    <div class="items">
+      {% for it in l.items %}
+      {% set w = watch.get(it.id) %}
+      <div class="itm">
+        <span class="itk k-{{ it.kind }}">
+          {% if it.kind == 'video' %}▶{% elif it.kind == 'matn' %}¶
+          {% elif it.kind == 'fayl' %}⇩{% else %}?{% endif %}</span>
+        <div class="grow">
+          <b>{{ it.label }}</b>
+          <div class="tsub">
+            {{ KINDS.get(it.kind, it.kind) }}
+            {% if it.kind == 'video' %}
+              {% if it.minutes %} · {{ it.minutes }} daqiqa{% endif %}
+              {% if embed(it.url) %} · <span class="pos">pleyerda ochiladi</span>
+              {% else %} · <span class="gold">tashqi havola</span>{% endif %}
+            {% elif it.kind == 'test' and it.quiz %}
+              · {{ it.quiz.questions|length }} savol · o'tish {{ it.quiz.pass_score }}
+            {% elif it.kind == 'matn' %}
+              · {{ (it.body or '')|length }} belgi
+            {% endif %}
+          </div>
+        </div>
+        {% if it.kind == 'video' and w %}
+        <div class="itw"><b>{{ w.avg|round }}%</b><span>{{ w.started }} o'quvchi</span></div>
+        {% endif %}
+        <div class="ordbtns">
+          {% if not loop.first %}
+          <form method="post" action="/oquv/element/{{ it.id }}/kochirish">
+            <input type="hidden" name="dir" value="up">
+            <button class="chip" title="Yuqoriga">▲</button></form>{% endif %}
+          {% if not loop.last %}
+          <form method="post" action="/oquv/element/{{ it.id }}/kochirish">
+            <input type="hidden" name="dir" value="down">
+            <button class="chip" title="Pastga">▼</button></form>{% endif %}
+          {% if it.kind == 'video' %}
+          <a class="chip" href="/oquv/element/{{ it.id }}/analitika">Tahlil</a>
+          {% endif %}
+          <button class="chip" type="button" onclick="tog('ei{{ it.id }}')">Tahrir</button>
+        </div>
+      </div>
+
+      <details class="adder plain nested" id="ei{{ it.id }}">
+        <summary style="display:none"></summary>
+        <div class="body">
+        <form class="inline" method="post" action="/oquv/element/{{ it.id }}/tahrir">
+          <div style="grid-column:1/-1"><label>Sarlavha</label>
+            <input name="title" value="{{ it.title or '' }}"
+                   placeholder="{{ KINDS.get(it.kind, it.kind) }}"></div>
+          {% if it.kind in ('video', 'fayl') %}
+          <div style="grid-column:1/-1"><label>Havola</label>
+            <input name="url" value="{{ it.url or '' }}" required
+                   placeholder="https://youtu.be/..."></div>
+          {% endif %}
+          {% if it.kind == 'video' %}
+          <div><label>Davomiyligi (daqiqa)</label>
+            <input name="minutes" type="number" min="0" value="{{ it.minutes or 0 }}"></div>
+          {% endif %}
+          {% if it.kind == 'matn' %}
+          <div style="grid-column:1/-1"><label>Matn</label>
+            <textarea name="body" rows="5" style="width:100%">{{ it.body or '' }}</textarea></div>
+          {% endif %}
+          <div><button>Saqlash</button></div>
+        </form>
+
+        {% if it.kind == 'test' and it.quiz %}
+        {% set q = it.quiz %}
+        <div class="qzbox">
+          <form class="inline" method="post" action="/oquv/test/{{ q.id }}/sozlama">
+            <div style="flex:1"><label>Test nomi</label>
+              <input name="title" value="{{ q.title }}"></div>
+            <div><label>O'tish bali (%)</label>
+              <input name="pass" type="number" min="0" max="100" value="{{ q.pass_score }}"></div>
+            <div><button class="chip">Saqlash</button></div>
+          </form>
+          {% for qq in q.questions %}
+          <div class="qrow">
+            <div class="grow">
+              <b>{{ loop.index }}. {{ qq.text }}</b>
+              <div class="tsub">
+                {% for o in qq.options %}<span class="{{ 'pos' if o.is_correct }}">{{ o.text }}</span>{% if not loop.last %} · {% endif %}{% endfor %}</div>
+            </div>
+            <form method="post" action="/oquv/savol/{{ qq.id }}/ochirish">
+              <button class="chip">✕</button></form>
+          </div>
+          {% endfor %}
+          <details class="adder plain" style="margin-top:8px">
+            <summary class="chip" style="display:inline-block">Savol qo'shish</summary>
+            <div class="body" style="padding:10px 0 0">
+            <form class="inline" method="post" action="/oquv/test/{{ q.id }}/savol">
+              <div style="grid-column:1/-1"><label>Savol matni</label>
+                <input name="text" required placeholder="Sovuq qo'ng'iroqda birinchi nima qilinadi?"></div>
+              {% for i in range(1, 5) %}
+              <div><label>{{ i }}-variant{% if i > 2 %} (ixtiyoriy){% endif %}</label>
+                <input name="opt{{ i }}" {{ 'required' if i <= 2 }}></div>
+              {% endfor %}
+              <div><label>To'g'ri javob</label>
+                <select name="right">
+                  {% for i in range(1, 5) %}<option value="{{ i }}">{{ i }}-variant</option>{% endfor %}
+                </select></div>
+              <div><button class="chip">Qo'shish</button></div>
+            </form>
+            </div>
+          </details>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/oquv/element/{{ it.id }}/ochirish" style="margin-top:10px"
+              onsubmit="return confirm('Bu element o‘chirilsinmi? Video bo‘lsa, uning ko‘rish tarixi ham yo‘qoladi.')">
+          <button class="chip">Elementni o'chirish</button></form>
+        </div>
+      </details>
+      {% else %}
+      <p class="tsub" style="padding:8px 0 4px">Bu darsda hali element yo'q</p>
+      {% endfor %}
+    </div>
+
+    {# ── Element qo'shish ── #}
+    <div class="addrow">
+      {% for k, lbl in KINDS.items() %}
+      <button class="chip" type="button" onclick="tog('ni{{ l.id }}{{ k }}')">
+        + {{ lbl }}</button>
+      {% endfor %}
+    </div>
+    {% for k, lbl in KINDS.items() %}
+    <details class="adder plain nested" id="ni{{ l.id }}{{ k }}">
+      <summary style="display:none"></summary>
+      <div class="body">
+      <form class="inline" method="post" action="/oquv/dars/{{ l.id }}/element">
+        <input type="hidden" name="kind" value="{{ k }}">
+        <div style="grid-column:1/-1"><label>Sarlavha{% if k != 'test' %} (ixtiyoriy){% endif %}</label>
+          <input name="title" placeholder="{{ lbl }}"></div>
+        {% if k in ('video', 'fayl') %}
+        <div style="grid-column:1/-1"><label>Havola</label>
+          <input name="url" required
+                 placeholder="{{ 'https://youtu.be/...' if k == 'video' else 'PDF yoki Drive havolasi' }}"></div>
+        {% endif %}
+        {% if k == 'video' %}
+        <div><label>Davomiyligi (daqiqa)</label>
+          <input name="minutes" type="number" min="0" placeholder="12"></div>
+        {% endif %}
+        {% if k == 'matn' %}
+        <div style="grid-column:1/-1"><label>Matn</label>
+          <textarea name="body" rows="4" style="width:100%" required></textarea></div>
+        {% endif %}
+        <div><button>{{ lbl }} qo'shish</button></div>
+      </form>
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="tsub" style="margin-top:10px">Bu modulda hali dars yo'q</p>
+  {% endfor %}
+
+  <details class="adder" style="margin-top:12px">
+    <summary>Dars qo'shish</summary>
+    <div class="body">
+    <form class="inline" method="post" action="/oquv/modul/{{ m.id }}/dars">
+      <div style="grid-column:1/-1"><label>Dars nomi</label>
+        <input name="title" required placeholder="Ehtiyojni aniqlash texnikasi"></div>
+      <div style="grid-column:1/-1"><label>Birinchi video havolasi (ixtiyoriy)</label>
+        <input name="video_url" placeholder="https://youtu.be/..."></div>
+      <div><label>Davomiyligi (daqiqa)</label>
+        <input name="minutes" type="number" min="0" placeholder="12"></div>
+      <div><label>Ochilish kuni</label>
+        <input name="open_day" type="number" min="0" placeholder="0"></div>
+      <div><button>Qo'shish</button></div>
+    </form>
+    <p class="hint" style="margin-top:10px">Dars yaratilgach, ichiga xohlagancha
+      video, matn, material va test qo'shasiz — tartibini ham o'zingiz belgilaysiz.</p>
+    </div>
+  </details>
+</div>
+{% else %}
+<div class="card" style="margin-top:14px"><div class="empty">
+  «{{ course.name }}» uchun hali modul yo'q — quyida birinchisini yarating</div></div>
+{% endfor %}
+
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">Yangi modul</h2>
+  <form class="inline" method="post" action="/oquv/kurs/{{ course.id }}/modul">
+    <div style="flex:1"><label>Modul nomi</label>
+      <input name="title" required placeholder="1-modul. Sotuvga kirish"></div>
+    <div style="flex:1"><label>Qisqa izoh</label>
+      <input name="subtitle" placeholder="Asosiy tushunchalar va tayyorgarlik"></div>
+    <div><button>Modul yaratish</button></div>
+  </form>
+</div>
+
+<style>
+.kick{font:600 9.5px var(--sans);letter-spacing:.2em;text-transform:uppercase;
+  color:var(--dim)}
+.ordbtns{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.ordbtns form{display:flex;margin:0}
+.ordbtns .chip{padding:4px 9px;line-height:1.1}
+.mhead{display:flex;align-items:flex-start;gap:12px;
+  padding-bottom:12px;border-bottom:1px solid var(--line2)}
+
+/* ── Dars bloki ── */
+.lsn{margin-top:14px;padding:13px 15px;border-radius:13px;
+  border:1px solid var(--line);background:var(--card-faint)}
+.lsn-h{display:flex;align-items:flex-start;gap:12px}
+.lsn-n{flex:none;width:26px;height:26px;border-radius:8px;display:grid;
+  place-items:center;font:700 12px var(--sans);
+  background:var(--gold-dim);color:var(--gold)}
+.lsn-h b{font-size:14.5px}
+
+/* ── Elementlar ── */
+.items{margin-top:10px;padding-left:38px}
+.itm{display:flex;align-items:center;gap:11px;padding:9px 0;
+  border-bottom:1px solid var(--line)}
+.itm:last-of-type{border-bottom:0}
+.itk{flex:none;width:24px;height:24px;border-radius:7px;display:grid;
+  place-items:center;font-size:11px;
+  background:rgba(150,150,150,.12);color:var(--mut)}
+.k-video{background:var(--gold-dim);color:var(--gold)}
+.k-test{background:var(--green-dim);color:var(--green)}
+.itm b{font-size:13.5px}
+.itw{flex:none;text-align:center;min-width:64px}
+.itw b{display:block;font-size:14px;font-variant-numeric:tabular-nums}
+.itw span{font-size:10px;color:var(--dim)}
+.addrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-left:38px}
+
+details.plain:not([open]){display:none}
+details.plain{margin-top:10px}
+details.nested{margin-left:38px}
+.qzbox{margin-top:14px;padding:12px;border-radius:12px;
+  border:1px dashed var(--line2);background:var(--card-faint)}
+.qrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;
+  border-bottom:1px solid var(--line)}
+.qrow:last-of-type{border-bottom:0}
+.qrow form{margin:0}
+@media(max-width:700px){
+  .items,.addrow{padding-left:0}
+  details.nested{margin-left:0}
+}
+</style>
+<script>
+function tog(id){ var d = document.getElementById(id); if (d) d.open = !d.open; }
+</script>
+{% endblock %}

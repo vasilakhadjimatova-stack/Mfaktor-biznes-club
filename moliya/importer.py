@@ -7,8 +7,15 @@ Sozlamalar sahifasidagi «Excel'dan import» formasi shu modulni chaqiradi:
   4. To'lovlar shartnomalarga qayta taqqoslanadi (matching.run_all)
 
 Hammasi bitta tranzaksiyada — xato bo'lsa hech narsa o'zgarmaydi.
+
+Google Sheets havolasi berilsa (import_from_sheets) fayl serverning o'zida
+yuklab olinadi — qo'lda .xlsx eksport qilish shart emas. Buning uchun jadval
+«Havolaga ega bo'lganlar — ko'ruvchi» bo'lishi kerak.
 """
+import io
+import re
 import unicodedata
+import urllib.request
 
 import openpyxl
 
@@ -52,12 +59,43 @@ def _num(v):
         return 0.0
 
 
+# Havoladan faqat jadval ID'si olinadi — yuklash manzilini o'zimiz quramiz,
+# shunda forma orqali boshqa saytga so'rov yuborib bo'lmaydi.
+_SHEETS_ID = re.compile(r"docs\.google\.com/spreadsheets/d/([A-Za-z0-9_-]{20,})")
+
+
+def import_from_sheets(link):
+    """Google Sheets havolasidan .xlsx ni yuklab olib, importni bajaradi."""
+    m = _SHEETS_ID.search(link or "")
+    if not m:
+        return {"error": "Havola noto'g'ri — u docs.google.com/spreadsheets/"
+                         "d/… ko'rinishida bo'lishi kerak (jadvalning o'z "
+                         "manzilini nusxalang)."}
+    url = (f"https://docs.google.com/spreadsheets/d/{m.group(1)}"
+           f"/export?format=xlsx")
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            data = resp.read(60 * 1024 * 1024)
+    except Exception as e:                              # noqa: BLE001
+        return {"error": f"Google Sheets'dan yuklab bo'lmadi: {e}"}
+    # Yopiq jadvalda Google xlsx o'rniga HTML kirish sahifasini qaytaradi
+    if not data.startswith(b"PK"):
+        return {"error": "Jadval yopiq ko'rinadi. Google Sheets'da «Ulashish» "
+                         "→ «Havolaga ega bo'lganlar — ko'ruvchi» qilib "
+                         "qo'ying, yoki .xlsx yuklab olib, fayl orqali "
+                         "import qiling."}
+    return import_workbook(io.BytesIO(data))
+
+
 def import_workbook(stream):
     """Yuklangan xlsx oqimini o'qib butun zanjirni bajaradi.
 
     Qaytaradi: xulosa dict (sahifada ko'rsatiladi).
     """
-    wb = openpyxl.load_workbook(stream, data_only=True)
+    # read_only: katta fayl (Google butun jadvalni eksport qiladi) xotirani
+    # yeb qo'ymasligi uchun — varaqlar diskdan oqim bo'lib o'qiladi.
+    wb = openpyxl.load_workbook(stream, data_only=True, read_only=True)
     if SHEET_DATA not in wb.sheetnames:
         return {"error": f"Faylda «{SHEET_DATA}» varag'i topilmadi. "
                          f"Mavjud varaqlar: {', '.join(wb.sheetnames[:8])}…"}
@@ -72,25 +110,31 @@ def import_workbook(stream):
         keep[(row.ddate, round(row.amount or 0, 2),
               (row.purpose or "").strip().lower())] = (row.match_status,
                                                        row.contract_id)
-    # eski qatorlarning kassa izlarini tozalaymiz
-    for row in DdsRow.query.all():
+    # Faqat EXCEL'dan kelgan qatorlarni almashtiramiz. Dasturda qo'lda
+    # kiritilganlar (origin="app": o'tkazma tuzatishi, kofe-break va h.k.)
+    # Excel'da yo'q — ularni o'chirsak, buxgalter kiritgan tuzatishlar
+    # har importda yo'qolib ketardi. Shuning uchun ularга tegmaymiz.
+    excel_rows = DdsRow.query.filter(DdsRow.origin != "app")
+    for row in excel_rows.all():
         ddsflow.unsync_row(row)
-    DdsRow.query.delete()
+    excel_rows.delete(synchronize_session=False)
     db.session.flush()
 
     added = 0
-    for r in range(3, ws.max_row + 1):
-        d = ws.cell(r, 3).value
+    # read_only rejimida katakka birma-bir murojaat sekin — qatorlab o'qiymiz
+    for r, vals in enumerate(
+            ws.iter_rows(min_row=3, max_col=8, values_only=True), start=3):
+        d = vals[2]
         if d is None:
             continue
         db.session.add(DdsRow(
             rownum=r,
             ddate=d.date() if hasattr(d, "date") else d,
-            amount=_num(ws.cell(r, 4).value),
-            wallet=(ws.cell(r, 5).value or ""),
-            wallet2=(ws.cell(r, 6).value or ""),
-            purpose=str(ws.cell(r, 7).value or "").strip(),
-            article=(ws.cell(r, 8).value or ""),
+            amount=_num(vals[3]),
+            wallet=(vals[4] or ""),
+            wallet2=(vals[5] or ""),
+            purpose=str(vals[6] or "").strip(),
+            article=(vals[7] or ""),
         ))
         added += 1
         if added % 500 == 0:
@@ -104,8 +148,9 @@ def import_workbook(stream):
         ddsflow.ensure_wallets()
         ys = wb[year_sheet]
         in_bal = False
-        for r in range(1, min(ys.max_row, 40) + 1):
-            label = _norm(ys.cell(r, 1).value)
+        for vals in ys.iter_rows(min_row=1, max_row=40, max_col=2,
+                                 values_only=True):
+            label = _norm(vals[0])
             if not label:
                 continue
             if label.startswith("остаток дс на начало"):
@@ -116,7 +161,7 @@ def import_workbook(stream):
                 if code:
                     w = Wallet.query.filter_by(code=code).first()
                     if w:
-                        w.opening = _num(ys.cell(r, 2).value)
+                        w.opening = _num(vals[1])
                         openings += 1
                 elif label.startswith(("операционная", "поступления")):
                     break

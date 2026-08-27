@@ -19,6 +19,10 @@ Har bir asosiy amal zanjir ishga tushiradi:
 """
 from datetime import date, datetime, timedelta
 
+import localtime
+
+from sqlalchemy import func
+
 from database import db
 from models import (AutoEvent, Contract, InstallmentLine, RecurringPayment,
                     ReminderLog, Transaction)
@@ -145,9 +149,14 @@ def reminder_text(item):
             f"raqamga yozing. Rahmat!").replace(",", " ")
 
 
-def close_day(today=None):
-    """Kunlik avtomatika. Qaytadi: dict (eslatmalar, takroriylar, xulosa)."""
-    today = today or date.today()
+def close_day(today=None, write_event=True):
+    """Kunlik avtomatika. Qaytadi: dict (eslatmalar, takroriylar, xulosa).
+
+    write_event=False — faqat holatni hisoblaydi, jurnalga yozmaydi (sahifa
+    ochilganда ko'rsatish uchun). Aks holda «Kun yopildi» hodisasi kuniga
+    bir marta yoziladi (takror bosish/yangilashda spam bo'lmaydi).
+    """
+    today = today or localtime.today()
 
     # 1) muddati o'tganlar — bugun hali eslatilmaganlar
     overdue = core.overdue_lines(today)
@@ -172,10 +181,7 @@ def close_day(today=None):
         if not exists:
             rec_due.append(r)
 
-    # 3) 7 kunlik prognoz
-    upcoming = core.upcoming_lines(7, today)
-
-    # 4) kunlik xulosa
+    # 3) kunlik xulosa
     day_txs = (Transaction.query
                .filter(Transaction.tdate == today,
                        Transaction.is_transfer.is_(False),
@@ -183,17 +189,23 @@ def close_day(today=None):
     inc = sum(t.amount for t in day_txs if t.operation == "kirim")
     exp = sum(t.amount for t in day_txs if t.operation == "chiqim")
 
-    log_event("day",
-              f"Kun yopildi: {today.strftime('%d.%m.%Y')}",
-              f"Kirim {_n(inc)} · Chiqim {_n(exp)} · "
-              f"{len(reminders)} eslatma tayyorlandi · "
-              f"{len(rec_due)} takroriy to'lov kutilmoqda")
+    if write_event:
+        # kuniga bitta «Kun yopildi» — o'sha kun uchun bori bo'lsa qaytamiz
+        exists = AutoEvent.query.filter(
+            AutoEvent.kind == "day",
+            func.date(AutoEvent.created_at) == today).first()
+        if not exists:
+            log_event("day",
+                      f"Kun yopildi: {today.strftime('%d.%m.%Y')}",
+                      f"Kirim {_n(inc)} · Chiqim {_n(exp)} · "
+                      f"{len(reminders)} eslatma tayyorlandi · "
+                      f"{len(rec_due)} takroriy to'lov kutilmoqda")
     return {"today": today, "reminders": reminders, "rec_due": rec_due,
-            "upcoming": upcoming, "inc": inc, "exp": exp, "net": inc - exp}
+            "inc": inc, "exp": exp, "net": inc - exp}
 
 
 def mark_reminded(line_id, channel="manual", today=None):
-    today = today or date.today()
+    today = today or localtime.today()
     if not ReminderLog.query.filter_by(line_id=line_id, sent_date=today).first():
         db.session.add(ReminderLog(line_id=line_id, sent_date=today,
                                    channel=channel))
@@ -208,10 +220,20 @@ def mark_reminded(line_id, channel="manual", today=None):
 
 def book_recurring(rec_id, wallet_code, today=None):
     """Takrorlanuvchi to'lovni bir bosishda kassaga yozish."""
-    today = today or date.today()
+    today = today or localtime.today()
     r = db.session.get(RecurringPayment, rec_id)
     if not r:
         return None
+    if not (wallet_code or "").strip():
+        return None                        # hamyonsiz yozuv «osilib» qolardi
+    # ikki marta bosish/qayta yuborishda o'sha kun ikkinchi yozuv bo'lmasin
+    exists = (Transaction.query
+              .filter(Transaction.category == r.category,
+                      Transaction.operation == "chiqim",
+                      Transaction.tdate == today,
+                      Transaction.counterparty == r.name).first())
+    if exists:
+        return r
     db.session.add(Transaction(
         tdate=today, wallet_code=wallet_code, operation="chiqim",
         amount=r.amount, category=r.category, counterparty=r.name,

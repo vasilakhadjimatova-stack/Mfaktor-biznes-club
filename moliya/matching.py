@@ -35,6 +35,35 @@ STOPWORDS = {
     "поступление", "клиент", "оплата",
 }
 
+# Yuqoridagi ro'yxat faqat AYNAN mos kelgan izohni ushlaydi. Amalda izohlar
+# xato yoziladi («prixod klientt rop», «prixod klietn», «klienty») va bunday
+# qator ism deb qabul qilinib qolardi. Shuning uchun har bir so'z alohida,
+# o'zak bo'yicha tekshiriladi.
+JARGON_STEMS = (
+    "prix", "prih", "приход", "klien", "kliyen", "kleint", "klietn", "клиент",
+    "oplat", "оплат", "tolov", "tulov", "inkass", "инкасс", "perevod", "перевод",
+    "postup", "поступ", "depozit", "депозит", "ostatok", "остаток",
+    "vozvrat", "возврат", "dogovor", "договор", "shartnoma", "avans", "аванс",
+    "predoplat", "chastich", "summa", "сумма", "obmen", "обмен",
+    # to'lov kanali va ichki xarajat izohlari — bular ham ism emas
+    "edinn", "едины", "gonorar", "гонорар", "spiker", "спикер",
+    "qaytar", "kaytar", "chiqaril", "ortiqch",
+)
+# to'liq so'z sifatida uchrasa jargon (o'zak sifatida ismga tegib ketmasin)
+JARGON_WORDS = {
+    "rop", "smk", "tbb", "twb", "tvv", "mbm", "mfaktor", "click", "payme",
+    "uzum", "mchj", "yatt", "ooo", "мчж", "naqd", "karta", "kartaga",
+    "schet", "schetdan", "bank", "bankdan", "dolg", "qarz", "kurs", "seminar",
+}
+
+# Bitta qatorda bir nechta odamning ismi sanalgan bo'lishi mumkin (to'plam
+# to'lov). Bunday qator bitta shartnomaga tegishli emas — chetlab o'tiladi.
+MAX_NAME_WORDS = 4
+
+
+def _is_jargon(word):
+    return word in JARGON_WORDS or any(word.startswith(s) for s in JARGON_STEMS)
+
 # lotin ↔ kirill: ismlarni bir alifboga keltiramiz
 _CYR = {
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
@@ -64,6 +93,24 @@ def norm_name(s):
     return " ".join(sorted(parts))
 
 
+def strong_name_match(a, b):
+    """Avtomat bog'lash uchun — ismlar chinakam bir xilmi.
+
+    Fuzzy o'xshashlik yetarli emas: «Karimov»/«Karimova» (erkak/ayol) bir
+    harf bilan farq qiladi-yu, boshqa odam — SequenceMatcher ularni 0.92+
+    baholaydi. Shu sabab avtomatga normallashtirilgan so'z to'plamlari
+    mos kelishini talab qilamiz: biri ikkinchisini qamrasin va ortiqcha
+    so'z ko'pi bilan bitta bo'lsin (otasining ismi qo'shilishi mumkin).
+    Aks holda to'lov navbatga tushadi — odam tasdiqlaydi.
+    """
+    sa = set(norm_name(a).split())
+    sb = set(norm_name(b).split())
+    if not sa or not sb:
+        return False
+    small, big = (sa, sb) if len(sa) <= len(sb) else (sb, sa)
+    return small <= big and (len(big) - len(small)) <= 1
+
+
 def looks_like_name(purpose):
     """Izohda haqiqiy ism bormi?"""
     n = norm_name(purpose)
@@ -74,6 +121,11 @@ def looks_like_name(purpose):
         return False
     parts = n.split()
     if len(parts) < 2:
+        return False
+    if len(parts) > MAX_NAME_WORDS:
+        return False                      # to'plam to'lov: ko'p ism sanalgan
+    # jargon so'z qatnashsa — bu ism emas, to'lov izohi
+    if any(_is_jargon(p) for p in parts):
         return False
     # har bir bo'lak stop-so'z bo'lsa — ism emas
     if all(p in STOPWORDS for p in parts):
@@ -121,7 +173,11 @@ def candidates(row, limit=5):
         return []
     direction = ddsflow.direction_for(row.article)
     out = []
-    for c in Contract.query.filter(Contract.status != "refunded").all():
+    # Namunaviy (vaqtinchalik) shartnomalar chetlab o'tiladi — haqiqiy to'lov
+    # hech qachon uydirma o'quvchiga bog'lanib qolmasligi kerak.
+    for c in (Contract.query
+              .filter(Contract.status != "refunded")
+              .filter(~Contract.note.like("%[namuna]%")).all()):
         sc = similarity(row.purpose, c.student.name)
         reasons = [f"ism {int(sc * 100)}%"]
         if _course_matches(c, direction):
@@ -204,6 +260,27 @@ def unapply(row):
         row.match_status = "none"
 
 
+def _manual_twin(row, contract):
+    """Xuddi shu to'lov saytdan qo'lda ham kiritilganga o'xshaydimi.
+
+    Shartnoma sahifasidan qo'lda to'lov yozilib, keyin o'sha pul Google
+    Sheets orqali ham kelsa, avtomat bog'lash uni IKKINCHI marta grafikka
+    yozib yuborardi. Shu holat (o'sha shartnoma, o'sha summa, ±3 kun,
+    ДДСsiz qo'lda kirim) ko'rinsa — avtomat to'xtab, navbatga qo'yadi.
+    """
+    if not row.ddate:
+        return False
+    from datetime import timedelta
+    lo, hi = row.ddate - timedelta(days=3), row.ddate + timedelta(days=3)
+    return db.session.query(Transaction.id).filter(
+        Transaction.contract_id == contract.id,
+        Transaction.dds_row_id.is_(None),
+        Transaction.operation == "kirim",
+        Transaction.amount == float(row.amount or 0),
+        Transaction.tdate >= lo, Transaction.tdate <= hi,
+    ).first() is not None
+
+
 def auto_match(row):
     """Ishonch yetsa — o'zi bog'laydi. Aks holda navbatda qoladi.
 
@@ -223,8 +300,15 @@ def auto_match(row):
         return "none"
     top = cands[0]
     second = cands[1]["score"] if len(cands) > 1 else 0
-    # yagona va ishonchli bo'lsagina avtomat
-    if top["score"] >= AUTO_THRESHOLD and top["score"] - second >= 0.08:
+    # yagona, ishonchli VA ismi chinakam mos bo'lsagina avtomat — aks holda
+    # o'xshash familiya (erkak/ayol) boshqa odamga bog'lanib ketardi
+    if (top["score"] >= AUTO_THRESHOLD and top["score"] - second >= 0.08
+            and strong_name_match(row.purpose, top["contract"].student.name)):
+        # ehtimoliy dublikat (qo'lda kiritilgan egizak) — odam hal qilsin
+        if _manual_twin(row, top["contract"]):
+            row.match_status = "none"
+            row.match_score = top["score"]
+            return "none"
         apply(row, top["contract"], status="auto", score=top["score"])
         return "auto"
     row.match_status = "none"
@@ -257,8 +341,12 @@ def run_all(commit=True):
 # ══════════════════════════════════════════════════════════════════
 #  Navbat («Tanilmagan to'lovlar»)
 # ══════════════════════════════════════════════════════════════════
-def inbox(limit=200, show="open"):
-    """Navbatdagi qatorlar + har biriga tayyor takliflar."""
+def inbox(limit=300, show="open", art="", month=""):
+    """Navbatdagi qatorlar + har biriga tayyor takliflar.
+
+    art   — kurs belgisi bo'yicha filtr (РОП / СМК / ТББ)
+    month — oy bo'yicha filtr («2026-06» ko'rinishida)
+    """
     q = DdsRow.query.filter(DdsRow.article.in_(_client_article_names()))
     if show == "open":
         q = q.filter(db.or_(DdsRow.contract_id.is_(None),
@@ -268,14 +356,61 @@ def inbox(limit=200, show="open"):
         q = q.filter(DdsRow.match_status == "skipped")
     elif show == "matched":
         q = q.filter(DdsRow.contract_id.isnot(None))
-    rows = q.order_by(DdsRow.ddate.desc(), DdsRow.rownum.desc()).limit(limit).all()
+    if art:
+        q = q.filter(DdsRow.article.like(f"%{art}%"))
+    rows = q.order_by(DdsRow.ddate.desc(), DdsRow.rownum.desc()).all()
+    if month:
+        rows = [r for r in rows if r.ddate and r.ddate.strftime("%Y-%m") == month]
     out = []
-    for r in rows:
+    for r in rows[:limit]:
         out.append({"row": r,
                     "direction": ddsflow.direction_for(r.article),
                     "named": looks_like_name(r.purpose),
                     "cands": candidates(r, limit=3) if show != "matched" else []})
     return out
+
+
+def inbox_months(show="open"):
+    """Filtr chiplari uchun: qaysi oylarda nechta qator bor."""
+    from collections import Counter
+    q = DdsRow.query.filter(DdsRow.article.in_(_client_article_names()))
+    if show == "open":
+        q = q.filter(DdsRow.contract_id.is_(None),
+                     DdsRow.match_status.notin_(["skipped", "new"]))
+    elif show == "skipped":
+        q = q.filter(DdsRow.match_status == "skipped")
+    elif show == "matched":
+        q = q.filter(DdsRow.contract_id.isnot(None))
+    c = Counter(r.ddate.strftime("%Y-%m") for r in q.all() if r.ddate)
+    return sorted(c.items())
+
+
+def bulk_skip(ids, reason=""):
+    """Bir nechta qatorni birdan chetlatish (sabab bilan)."""
+    n = 0
+    for rid in ids:
+        row = db.session.get(DdsRow, rid)
+        if row is None:
+            continue
+        unapply(row)
+        row.match_status = "skipped"
+        row.skip_note = (reason or "").strip()[:200]
+        n += 1
+    db.session.commit()
+    return n
+
+
+def bulk_restore(ids):
+    """Chetlatilganlarni navbatga qaytarish."""
+    n = 0
+    for rid in ids:
+        row = db.session.get(DdsRow, rid)
+        if row is not None and row.match_status == "skipped":
+            row.match_status = "none"
+            row.skip_note = ""
+            n += 1
+    db.session.commit()
+    return n
 
 
 def _client_article_names():

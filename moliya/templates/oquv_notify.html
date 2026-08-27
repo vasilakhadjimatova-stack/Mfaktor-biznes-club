@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Xabarnoma</h1>
+<p class="sub">To'lov, dars va vazifa eslatmalari — Telegram orqali</p>
+
+<div class="monthnav"><a class="chip" href="/oquv">← O'quv bo'limi</a></div>
+
+{% if can('oquv_notify_bot') %}
+<div class="card" style="margin-bottom:14px">
+  <h2 style="margin-top:0">Bot sozlamasi
+    {% if on %}<span class="badge b-green">ulangan{% if bot %} · @{{ bot }}{% endif %}</span>
+    {% else %}<span class="badge b-gray">ulanmagan</span>{% endif %}</h2>
+  <p class="sub">Telegramda <b>@BotFather</b> ga <code>/newbot</code> yozing,
+    u bergan tokenni shu yerga qo'ying. Token maxfiy — uni hech kimga
+    bermang.</p>
+  <form class="inline" method="post" action="/oquv/xabarnoma/bot" style="margin-top:10px">
+    <div style="flex:2;min-width:240px"><label>Bot tokeni</label>
+      <input name="token" placeholder="123456:AA..." autocomplete="off"></div>
+    <div style="flex:1"><label>Bot nomi (ixtiyoriy)</label>
+      <input name="username" placeholder="mfaktor_bot"></div>
+    <div><button>Saqlash va tekshirish</button></div>
+  </form>
+  {% if on %}
+  <p class="hint" style="margin-top:12px">O'quvchilar o'zi ulanishi uchun
+    Telegramda botga quyidagi manzilni «webhook» qilib qo'yish kerak. Bu
+    faqat internetdan ochiladigan serverda ishlaydi:<br>
+    <code style="word-break:break-all">{{ hook }}</code></p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if not on %}
+<div class="card"><div class="empty">
+  Bot ulanmagan — eslatma yuborib bo'lmaydi.
+  {% if not can('oquv_notify_bot') %}Direktordan botni ulashni so'rang.{% endif %}
+</div></div>
+{% else %}
+
+<form method="post" action="/oquv/xabarnoma/yuborish">
+<div class="card">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <h2 style="margin:0;flex:1">Bugun yuborilishi kerak
+      <span class="sub" style="font-weight:400">· {{ items|length }} ta</span></h2>
+    {% if items %}
+    <button type="button" class="chip" onclick="hammasi(true)">Hammasini belgilash</button>
+    <button type="button" class="chip" onclick="hammasi(false)">Bekor qilish</button>
+    <button>Belgilanganlarni yuborish</button>
+    {% endif %}
+  </div>
+  <p class="sub" style="margin-top:6px">Hech narsa avtomatik ketmaydi —
+    matnni ko'rib, o'zingiz tanlab yuborasiz. Bir xil eslatma bir kunda
+    ikki marta ketmaydi.</p>
+
+  {% if items %}
+  <div class="tablewrap" style="margin-top:12px">
+  <table>
+    <tr><th style="width:34px"></th><th>O'quvchi</th><th>Turi</th>
+        <th>Xabar matni</th><th>Telegram</th></tr>
+    {% for it in items %}
+    {% set ulangan = (it.c.tg_chat_id or '')|trim %}
+    <tr>
+      <td>{% if ulangan %}
+        <input type="checkbox" name="key" value="{{ it.key }}" checked
+               style="width:auto">{% endif %}</td>
+      <td><b>{{ it.c.student.name }}</b>
+        <div class="sub" style="font-size:12px">{{ it.c.cohort.name|replace('[namuna]','')|trim }}</div></td>
+      <td><span class="badge b-gold">{{ KINDS.get(it.kind, it.kind) }}</span></td>
+      <td class="sub" style="font-size:12.5px;max-width:420px">
+        {{ it.text|replace('<b>','')|replace('</b>','')|replace('\n',' ')|truncate(150) }}</td>
+      <td>{% if ulangan %}<span class="badge b-green">ulangan</span>
+          {% else %}<span class="badge b-gray">ulanmagan</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p class="hint" style="margin-top:10px">«Ulanmagan» o'quvchiga xabar
+    ketmaydi. Ular botni bir marta ochishi kerak — havolani oqim
+    sahifasidagi «Telegram havolasi» tugmasidan oling.</p>
+  {% else %}
+  <div class="empty">Bugun yuboriladigan eslatma yo'q</div>
+  {% endif %}
+</div>
+</form>
+
+{% if log %}
+<div class="card" style="margin-top:14px">
+  <h2 style="margin-top:0">Oxirgi yuborilganlar</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Vaqt</th><th>O'quvchi</th><th>Turi</th><th>Holat</th></tr>
+    {% for m in log %}
+    <tr>
+      <td class="sub">{{ m.sent_at.strftime('%d.%m %H:%M') if m.sent_at }}</td>
+      <td>{{ m.contract.student.name if m.contract else '—' }}</td>
+      <td class="sub">{{ KINDS.get(m.kind, m.kind) }}</td>
+      <td>{% if m.ok %}<span class="badge b-green">yuborildi</span>
+          {% else %}<span class="badge b-red">{{ m.error or 'xato' }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function hammasi(v){
+  document.querySelectorAll('input[name=key]').forEach(function(i){ i.checked = v; });
+}
+</script>
+{% endif %}
+{% endblock %}

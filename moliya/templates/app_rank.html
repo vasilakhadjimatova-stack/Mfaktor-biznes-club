@@ -1,0 +1,49 @@
+{% extends "app_base.html" %}
+{% block title %}Reyting — Mfaktor{% endblock %}
+{% block body %}
+<div class="card">
+  <span class="kicker">Guruh reytingi</span>
+  <h1>Kim qanday boryapti</h1>
+  <p class="sub" style="margin-top:8px">Ball o'rtacha baho va davomat asosida
+    hisoblanadi. To'lov holati reytingga ta'sir qilmaydi.</p>
+</div>
+
+<div class="card">
+  {% for r in board %}
+  <div class="row rk {{ 'me' if r.c.id == me }}">
+    <span class="pos {{ 'gold' if r.place == 1 else ('silver' if r.place <= 3 else '') }}">
+      {{ r.place }}</span>
+    <div class="grow">
+      <b>{{ r.name }}{% if r.c.id == me %} <span class="you">siz</span>{% endif %}</b>
+      <div class="meta">
+        {% if r.avg is not none %}o'rt. {{ r.avg|round|int }} ball<span class="dot">·</span>{% endif %}
+        {% if r.att is not none %}davomat {{ r.att|round|int }}%<span class="dot">·</span>{% endif %}
+        {{ r.done }}/{{ r.total }} vazifa</div>
+    </div>
+    <span class="fig fig-md score">{{ r.score }}</span>
+  </div>
+  {% else %}
+  <p class="empty">Reyting uchun hali natija yo'q</p>
+  {% endfor %}
+</div>
+
+<style>
+.rk{padding:14px 0}
+.rk.me{margin:0 -18px;padding-left:18px;padding-right:18px;
+  background:linear-gradient(90deg,rgba(201,150,47,.13),rgba(201,150,47,.03));
+  border-bottom-color:transparent}
+.pos{flex:none;width:31px;height:31px;border-radius:50%;display:grid;
+  place-items:center;font-family:var(--serif);font-weight:600;font-size:14px;
+  font-variant-numeric:tabular-nums;
+  background:rgba(146,116,52,.08);color:var(--mut);
+  border:1px solid var(--rule)}
+.pos.silver{background:var(--foil-lo);color:var(--gold);
+  border-color:rgba(201,150,47,.3)}
+.pos.gold{background:var(--foil-hi);color:#241a05;border-color:transparent;
+  box-shadow:0 4px 12px -6px rgba(160,115,25,.9)}
+.you{font:600 9.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold);vertical-align:1px;margin-left:4px}
+.rk .meta .dot{margin:0 6px;color:var(--rule-2)}
+.score{flex:none;color:var(--gold)}
+</style>
+{% endblock %}

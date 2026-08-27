@@ -1,0 +1,327 @@
+{% extends "app_base.html" %}
+{% block title %}{{ les.title }} — Mfaktor{% endblock %}
+{% block body %}
+
+<div class="card">
+  <span class="kicker">{{ les.module.title }}</span>
+  <h1>{{ les.title }}</h1>
+  <p class="lmeta">
+    {{ st.rows|length }} ta element
+    {% if st.required %}<span class="dot">·</span>
+      {{ st.done_required }}/{{ st.required }} bajarildi{% endif %}
+  </p>
+  {% if st.required %}
+  <div class="bar" style="margin-top:12px"><i
+    style="width:{{ (100 * st.done_required / st.required)|round }}%"></i></div>
+  {% endif %}
+</div>
+
+{% for row in st.rows %}
+{% set it = row.it %}
+
+{# ── VIDEO ── #}
+{% if it.kind == 'video' %}
+{% set e = embed(it.url) %}
+<div class="card flush vitem" data-item="{{ it.id }}"
+     data-resume="{{ row.resume|round|int }}">
+  {% if e %}
+  <div class="stage">
+    {% if e.endswith('.mp4') or e.endswith('.webm') %}
+    <video class="vid" src="{{ e }}" controls playsinline></video>
+    {% else %}
+    <iframe class="vid" src="{{ e }}" id="yt{{ it.id }}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
+            allowfullscreen></iframe>
+    {% endif %}
+  </div>
+  <div class="wprog"><i class="wbar" style="width:{{ row.pct }}%"></i></div>
+  {% endif %}
+  <div class="ibody">
+    <div class="ihead">
+      <span class="ityp {{ 'ok' if row.done }}">{{ '✓' if row.done else '▶' }}</span>
+      <div class="grow">
+        <b>{{ it.title or 'Video dars' }}</b>
+        <div class="meta">
+          {% if it.minutes %}{{ it.minutes }} daqiqa<span class="dot">·</span>{% endif %}
+          <span class="wpct">{{ row.pct }}</span>% ko'rildi</div>
+      </div>
+    </div>
+    {% if not e and it.url %}
+    <a class="btn ghost wide" style="margin-top:12px" href="{{ it.url }}"
+       target="_blank" rel="noopener">Videoni ochish</a>
+    {% endif %}
+    {% if row.resume > 20 and not row.done %}
+    <p class="tiny resume-note">{{ fmt(row.resume) }} da to'xtagansiz —
+      shu yerdan davom etadi</p>
+    {% endif %}
+  </div>
+</div>
+
+{# ── MATN ── #}
+{% elif it.kind == 'matn' %}
+<div class="card">
+  <div class="ihead">
+    <span class="ityp">¶</span>
+    <div class="grow"><b>{{ it.title or 'Konspekt' }}</b></div>
+  </div>
+  <div class="notes">{{ it.body }}</div>
+</div>
+
+{# ── MATERIAL ── #}
+{% elif it.kind == 'fayl' %}
+<div class="card">
+  <div class="ihead">
+    <span class="ityp">⇩</span>
+    <div class="grow"><b>{{ it.title or 'Qo\'shimcha material' }}</b>
+      <div class="meta">yuklab olish yoki alohida oynada ochish</div></div>
+  </div>
+  <a class="btn ghost wide" style="margin-top:12px" href="{{ it.url }}"
+     target="_blank" rel="noopener">Ochish</a>
+</div>
+
+{# ── TEST ── #}
+{% elif it.kind == 'test' and row.quiz and row.quiz.questions %}
+{% set q = row.quiz %}
+<div class="card" id="t{{ q.id }}">
+  <div class="ihead">
+    <span class="ityp {{ 'ok' if row.done }}">{{ '✓' if row.done else '?' }}</span>
+    <div class="grow"><b>{{ q.title }}</b>
+      <div class="meta">{{ q.questions|length }} ta savol ·
+        o'tish uchun {{ q.pass_score }} ball</div></div>
+    {% if row.best %}
+    <div class="qscore {{ 'ok' if row.best.passed else 'no' }}">
+      <span class="fig fig-lg">{{ row.best.score }}</span>
+      <span class="qlab">{{ 'o‘tdi' if row.best.passed else 'o‘tmadi' }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <form method="post" action="{{ applink(token, '/test/' ~ q.id) }}">
+    {% for qq in q.questions %}
+    <div class="qz">
+      <div class="qz-t"><span class="qz-n">{{ loop.index }}</span>{{ qq.text }}</div>
+      {% for o in qq.options %}
+      <label class="qz-o">
+        <input type="radio" name="q{{ qq.id }}" value="{{ o.id }}" required>
+        <span class="qz-mark"></span><span>{{ o.text }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <button class="wide" style="margin-top:4px">
+      {{ 'Qayta topshirish' if row.best else 'Javoblarni yuborish' }}</button>
+  </form>
+</div>
+{% endif %}
+{% endfor %}
+
+{% if not st.rows %}
+<div class="card"><p class="empty">Bu darsga hali mazmun joylanmagan</p></div>
+{% endif %}
+
+<div class="card">
+  <form method="post" action="{{ applink(token, '/dars/' ~ les.id ~ '/belgilash') }}">
+    {% if done %}
+      <input type="hidden" name="undo" value="1">
+      <button class="ghost wide">✓ Ko'rildi — bekor qilish</button>
+    {% else %}
+      {% if nxt %}<input type="hidden" name="next" value="{{ nxt.id }}">{% endif %}
+      <button class="wide">Darsni tugatdim{% if nxt %} va keyingisiga o'tish{% endif %}</button>
+    {% endif %}
+  </form>
+</div>
+
+<div class="nav2">
+  {% if prev %}<a class="btn ghost" href="{{ applink(token, '/dars/' ~ prev.id) }}">← Oldingi</a>{% endif %}
+  {% if nxt %}<a class="btn ghost" href="{{ applink(token, '/dars/' ~ nxt.id) }}">Keyingi →</a>{% endif %}
+</div>
+<p class="colophon"><a href="{{ applink(token, '/darslar') }}">Barcha darslar</a></p>
+
+<style>
+.stage{position:relative;width:100%;padding-top:56.25%;background:#0d0f16}
+.stage>*{position:absolute;inset:0;width:100%;height:100%;border:0}
+.wprog{height:3px;background:rgba(146,116,52,.16)}
+.wprog i{display:block;height:100%;background:var(--foil-hi);
+  transition:width .6s cubic-bezier(.4,0,.2,1)}
+.ibody{padding:15px 18px 18px}
+.lmeta{margin-top:7px;font-size:12.5px;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.dot{margin:0 7px;color:var(--rule-2)}
+.ihead{display:flex;align-items:flex-start;gap:12px}
+.ityp{flex:none;width:28px;height:28px;border-radius:9px;display:grid;
+  place-items:center;font-size:13px;font-weight:600;
+  background:rgba(146,116,52,.09);color:var(--mut)}
+.ityp.ok{background:var(--green-lo);color:var(--green)}
+.ihead b{font:600 15px var(--sans);display:block}
+.ihead .meta{font-size:12px;color:var(--dim);margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.resume-note{margin-top:10px}
+.notes{margin-top:12px;padding-top:12px;border-top:1px solid var(--rule);
+  white-space:pre-wrap;font-size:14px;line-height:1.7;color:var(--mut)}
+
+.qscore{flex:none;text-align:center;line-height:1}
+.qscore.ok .fig{color:var(--green)} .qscore.no .fig{color:var(--red)}
+.qlab{display:block;margin-top:5px;font:600 9.5px var(--sans);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.qz{padding:16px 0;border-bottom:1px solid var(--rule)}
+.qz:last-of-type{border-bottom:0}
+.qz-t{display:flex;gap:10px;font:500 14.5px/1.45 var(--sans);margin-bottom:11px}
+.qz-n{flex:none;font-family:var(--serif);font-weight:600;color:var(--dim)}
+.qz-o{display:flex;align-items:flex-start;gap:11px;padding:11px 13px;
+  border:1px solid var(--rule);border-radius:12px;margin-bottom:8px;
+  cursor:pointer;font-size:14px;line-height:1.45;background:var(--card);
+  transition:border-color .18s,background .18s}
+.qz-o:last-child{margin-bottom:0}
+.qz-o input{position:absolute;opacity:0;pointer-events:none}
+.qz-mark{flex:none;width:17px;height:17px;margin-top:2px;border-radius:50%;
+  border:1.5px solid var(--rule-2);position:relative;transition:border-color .18s}
+.qz-mark::after{content:"";position:absolute;inset:3px;border-radius:50%;
+  background:var(--foil);opacity:0;transform:scale(.4);
+  transition:opacity .18s,transform .18s}
+.qz-o:has(input:checked){border-color:rgba(201,150,47,.55);background:var(--foil-lo)}
+.qz-o:has(input:checked) .qz-mark{border-color:var(--foil)}
+.qz-o:has(input:checked) .qz-mark::after{opacity:1;transform:none}
+
+.nav2{display:flex;gap:11px;margin-bottom:2px}
+.nav2 .btn{flex:1}
+</style>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   Ko'rish kuzatuvchisi — endi darsda bir nechta video bo'lishi mumkin,
+   shuning uchun har element o'zining hisobini yuritadi.
+
+   Video boshqa saytda tursa ham, u shu sahifa ichida ochilgani uchun
+   pleyerdan «hozir nechinchi soniyada» deb so'ray olamiz. Har soniyada
+   holatni o'qib, KO'RILGAN ORALIQLARNI yig'amiz va har 15 soniyada
+   serverga yuboramiz.
+
+   Nega oxirgi nuqta emas, oraliq: o'quvchi tugmani oxiriga sudrasa,
+   oxirgi nuqta bo'yicha 100% chiqib ketardi.
+════════════════════════════════════════════════════════════════ */
+(function(){
+  var TOKEN_PATH = {{ applink(token, '')|tojson }};
+  var blocks = [].slice.call(document.querySelectorAll(".vitem"));
+  if (!blocks.length) return;
+
+  function Tracker(el){
+    var id = el.dataset.item;
+    var url = "/app/{{ token }}/element/" + id + "/vaqt";
+    var bar = el.querySelector(".wbar"), lbl = el.querySelector(".wpct");
+    var spans = [], cur = null, dur = 0, last = null, opened = true;
+
+    this.tick = function(pos, duration, playing){
+      if (duration > 0) dur = duration;
+      if (!playing || pos == null || isNaN(pos)) { cur = null; last = null; return; }
+      if (cur && last != null && Math.abs(pos - last) < 2.5) {
+        cur[1] = pos;                      // uzluksiz davom etyapti
+      } else {
+        if (cur && cur[1] - cur[0] >= 0.5) spans.push(cur);
+        cur = [pos, pos];                  // sakrab o'tdi — yangi oraliq
+      }
+      last = pos;
+    };
+
+    this.flush = function(sync){
+      var out = spans.slice();
+      if (cur && cur[1] - cur[0] >= 0.5) out.push([cur[0], cur[1]]);
+      if (!out.length && !opened) return;
+      spans = [];
+      if (cur) cur = [cur[1], cur[1]];
+      var body = JSON.stringify({ spans: out, duration: dur,
+                                  pos: last || 0, opened: opened });
+      opened = false;
+      if (sync && navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([body], {type: "application/json"}));
+        return;
+      }
+      fetch(url, { method: "POST", headers: {"Content-Type": "application/json"},
+                   body: body, keepalive: true })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if (d && d.pct != null) {
+            if (bar) bar.style.width = Math.round(d.pct) + "%";
+            if (lbl) lbl.textContent = Math.round(d.pct);
+          }
+        }).catch(function(){});
+    };
+  }
+
+  var all = [];
+  blocks.forEach(function(el){
+    var t = new Tracker(el);
+    all.push(t);
+    var resume = parseInt(el.dataset.resume || "0", 10) || 0;
+    var v = el.querySelector("video.vid");
+
+    /* ── 1) O'z serverimizdagi fayl ── */
+    if (v) {
+      if (resume > 20) v.addEventListener("loadedmetadata", function(){
+        if (resume < v.duration - 10) v.currentTime = resume;
+      });
+      v.addEventListener("timeupdate", function(){
+        t.tick(v.currentTime, v.duration, !v.paused);
+      });
+      return;
+    }
+
+    var f = el.querySelector("iframe.vid");
+    if (!f) return;
+    var src = f.getAttribute("src") || "";
+
+    /* ── 2) YouTube ── */
+    if (src.indexOf("youtube.com/embed/") > -1) {
+      el._yt = { id: f.id, resume: resume, t: t };
+      return;
+    }
+    /* ── 3) Vimeo ── */
+    if (src.indexOf("player.vimeo.com") > -1) {
+      var vs = document.createElement("script");
+      vs.src = "https://player.vimeo.com/api/player.js";
+      vs.onload = function(){
+        var p = new Vimeo.Player(f), playing = false;
+        if (resume > 20) p.setCurrentTime(resume).catch(function(){});
+        p.on("play", function(){ playing = true; });
+        p.on("pause", function(){ playing = false; });
+        p.on("ended", function(){ playing = false; });
+        p.on("timeupdate", function(d){ t.tick(d.seconds, d.duration, playing); });
+      };
+      document.head.appendChild(vs);
+      return;
+    }
+    /* ── 4) Google Drive: pleyeri ma'lumot bermaydi ──
+       Faqat «ochdi» faktini yozamiz. Analitika kerak bo'lsa YouTube
+       yoki Vimeo havolasi qo'yish tavsiya etiladi. */
+    t.flush(false);
+  });
+
+  var yts = blocks.filter(function(el){ return el._yt; });
+  if (yts.length) {
+    var s = document.createElement("script");
+    s.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(s);
+    window.onYouTubeIframeAPIReady = function(){
+      yts.forEach(function(el){
+        var cfg = el._yt;
+        var p = new YT.Player(cfg.id, { events: { onReady: function(){
+          if (cfg.resume > 20) { try { p.seekTo(cfg.resume, true); p.pauseVideo(); } catch(e){} }
+          setInterval(function(){
+            try {
+              cfg.t.tick(p.getCurrentTime(), p.getDuration(),
+                         p.getPlayerState() === YT.PlayerState.PLAYING);
+            } catch(e){}
+          }, 1000);
+        }}});
+      });
+    };
+  }
+
+  function flushAll(sync){ all.forEach(function(t){ t.flush(sync); }); }
+  setInterval(function(){ flushAll(false); }, 15000);
+  addEventListener("pagehide", function(){ flushAll(true); });
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "hidden") flushAll(true);
+  });
+})();
+</script>
+{% endblock %}

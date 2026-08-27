@@ -1,32 +1,104 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>{{ ch.course.name }} — {{ ch.name }}</h1>
-<p class="sub"><a href="/oquv">← O'quv bo'limi</a> ·
-  {{ ch.start_date|dmy }} – {{ ch.end_date|dmy }} ·
-  {{ contracts|selectattr('status','equalto','active')|list|length }} faol o'quvchi</p>
+{% set actives = contracts|selectattr('status','equalto','active')|list %}
+{% set held = sessions|selectattr('held')|list %}
+{% set pend_n = sub_stats.values()|map(attribute=1)|sum %}
+{% set risky = actives|selectattr('risk_score','ge',30)|list %}
+{% set due_next = sessions|rejectattr('held')|list %}
+
+<div class="pghead">
+  <div>
+    <p class="crumb"><a href="/oquv">← O'quv bo'limi</a></p>
+    <h1>{{ ch.course.name }}</h1>
+    <p class="sub">{{ ch.name|replace('[namuna]','')|trim }} ·
+      {{ ch.start_date|dmy }} – {{ ch.end_date|dmy }}
+      {% if '[namuna]' in ch.name %}
+      <span class="badge b-gold">NAMUNA</span>{% endif %}</p>
+  </div>
+  <div class="pgacts">
+    <form method="post" action="/oquv/cohort/{{ ch.id }}/links">
+      <button class="chip" title="Havolasi yo'q o'quvchilarga ilova havolasi yaratadi">
+        🔗 Hammaga ilova havolasi</button></form>
+  </div>
+</div>
+
+<div class="grid g4">
+  <div class="card kpi"><div class="l">Faol o'quvchi</div>
+    <div class="v">{{ actives|length }}</div>
+    <div class="kpi-x">shartnomasi ochiq turganlar</div></div>
+  <div class="card kpi"><div class="l">Dars o'tkazildi</div>
+    <div class="v">{{ held|length }}<span class="of">/{{ sessions|length }}</span></div>
+    <div class="kpi-x">{% if due_next %}{{ due_next|length }} tasida davomat olinmagan
+      {% else %}hammasi belgilangan{% endif %}</div></div>
+  <div class="card kpi"><div class="l">Tekshirilmagan javob</div>
+    <div class="v {{ 'neg' if pend_n else '' }}">{{ pend_n }}</div>
+    <div class="kpi-x">o'quvchi bahoni kutmoqda</div></div>
+  <div class="card kpi"><div class="l">Xavf ostida</div>
+    <div class="v {{ 'neg' if risky else 'pos' }}">{{ risky|length }}</div>
+    <div class="kpi-x">tashlab ketishi mumkin</div></div>
+</div>
 
 {# ── O'quvchilar ─────────────────────────────────────────────── #}
 <div class="card">
   <h2 style="margin-top:0">O'quvchilar</h2>
+  <p class="hint" style="margin:0 0 12px">Xavf balli uchta signaldan yig'iladi:
+    darsga kelmaslik, vazifa topshirmaslik va to'lov kechikishi.
+    Sabablari ism ostida yozib turiladi.</p>
+  <div class="tablewrap edu-st">
   <table>
-    <tr><th>O'quvchi</th><th>Holat</th><th class="r">Qoldiq to'lov</th>
-        <th>Risk</th><th>Sabab</th><th></th></tr>
+    <tr><th>O'quvchi</th><th class="r">Davomat</th><th class="r">Vazifa</th>
+        <th class="r">O'rt. ball</th><th class="r">Qoldiq to'lov</th>
+        <th style="width:170px">Tashlab ketish xavfi</th><th></th></tr>
     {% for c in contracts %}
+    {% set p = prog.get(c.id) %}
     <tr>
-      <td><a href="/contracts/{{ c.id }}">{{ c.student.name }}</a>
-        <div style="font-size:12px;color:var(--mut)">{{ c.student.phone }}</div>
-        {% if c.certificate %}<div style="font-size:12px" class="pos">🎓 {{ c.certificate.serial }}</div>{% endif %}</td>
-      <td><span class="status-pill {{ 'b-green' if c.status=='active' else ('b-gray' if c.status=='completed' else 'b-red') }}">{{ c.status }}</span></td>
-      <td class="r {{ 'neg' if c.due_total() > 0 }}">{{ c.due_total()|grp }}</td>
-      <td>{% if c.status == 'active' %}
-        <span class="badge {{ 'b-red' if c.risk_score >= 60 else ('b-gold' if c.risk_score >= 30 else 'b-green') }}">{{ c.risk_score or 0 }}</span>
-        {% else %}—{% endif %}</td>
-      <td style="font-size:12px;color:var(--mut)">{{ c.risk_reasons or '—' }}</td>
-      <td>
+      <td><a href="/contracts/{{ c.id }}"><b>{{ c.student.name }}</b></a>
+        <div style="font-size:12px;color:var(--mut)">
+          {% if c.student.phone %}<a href="tel:{{ c.student.phone|replace(' ','') }}">{{ c.student.phone }}</a>
+          {% else %}—{% endif %}</div>
+        {% if c.certificate %}<div style="font-size:12px" class="pos">🎓 {{ c.certificate.serial }}</div>{% endif %}
+        {% if c.risk_reasons and c.status == 'active' %}
+        <div style="margin-top:3px">
+          {% for why in c.risk_reasons.split(';') %}
+          {% if why|trim %}<span class="why">{{ why|trim }}</span>{% endif %}
+          {% endfor %}</div>{% endif %}</td>
+      <td data-l="Davomat" class="r">
+        {% if p.att_pct is not none %}
+          <b class="{{ 'neg' if p.att_pct < 60 else ('gold' if p.att_pct < 80 else 'pos') }}">{{ p.att_pct|round|int }}%</b>
+          <div style="font-size:11px;color:var(--mut)">{{ p.came }}/{{ p.counted }} dars</div>
+        {% else %}<span style="color:var(--dim)">—</span>{% endif %}</td>
+      <td data-l="Vazifa" class="r">{% if p.assign_total %}{{ p.assign_done }}/{{ p.assign_total }}
+        {% else %}<span style="color:var(--dim)">—</span>{% endif %}</td>
+      <td data-l="O'rt. ball" class="r">{% if p.avg_score is not none %}{{ p.avg_score|round|int }}
+        {% else %}<span style="color:var(--dim)">—</span>{% endif %}</td>
+      <td data-l="Qoldiq" class="r {{ 'neg' if c.due_total() > 0 }}">{{ c.due_total()|grp }}</td>
+      <td data-l="Xavf">{% if c.status == 'active' %}
+        {% set lv, word = rlevel(c.risk_score) %}
+        <div class="rmeter">
+          <span class="rbar r-{{ lv }}"><i style="width:{{ c.risk_score or 0 }}%"></i></span>
+          <b class="r-t-{{ lv }}">{{ c.risk_score or 0 }}</b>
+          <span class="rword">{{ word }}</span>
+        </div>
+        {% else %}<span class="badge b-gray">{{ STATUSES.get(c.status, c.status) }}</span>{% endif %}</td>
+      <td style="white-space:nowrap">
+        {% if c.status == 'active' %}
+          {% if c.portal_token %}
+          <button type="button" class="chip" title="Ilova havolasini nusxalash"
+                  onclick="copyLink(this,'{{ c.portal_token }}')">Havola</button>
+          {% else %}
+          <form method="post" action="/oquv/contract/{{ c.id }}/link" style="display:inline">
+            <button class="chip" title="O'quvchiga shaxsiy ilova havolasini berish">+ Havola</button>
+          </form>
+          {% endif %}
+        {% endif %}
+        {% if c.status == 'active' and c.risk_score >= 30 and c.student.phone %}
+        <a class="chip" target="_blank" title="Tayyor xabar bilan yozish"
+           href="https://t.me/share/url?url=&text={{ msg(c)|urlencode }}">Yozish</a>
+        {% endif %}
         {% if not c.certificate and c.status == 'active' %}
-        <form method="post" action="/oquv/contract/{{ c.id }}/certificate"
-              onsubmit="return confirm('{{ c.student.name }} — bitirdi deb belgilab, sertifikat berilsinmi?')">
-          <button class="chip">🎓 Sertifikat</button>
+        <form method="post" action="/oquv/contract/{{ c.id }}/certificate" style="display:inline"
+              onsubmit='return confirm({{ (c.student.name ~ " — bitirdi deb belgilab, sertifikat berilsinmi?")|tojson }})'>
+          <button class="chip" title="Bitirdi deb belgilab, sertifikat berish">🎓 Sertifikat</button>
         </form>
         {% elif c.certificate %}
         <a class="chip" href="/cert/{{ c.certificate.token }}" target="_blank">Ko'rish →</a>
@@ -34,46 +106,79 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="6" class="sub">Bu oqimda hali shartnoma yo'q — «Shartnomalar» bo'limida qo'shiladi</td></tr>
+    <tr><td colspan="7" class="sub">Bu oqimda hali shartnoma yo'q — «Shartnomalar» bo'limida qo'shiladi</td></tr>
     {% endfor %}
   </table>
+  </div>
 </div>
 
 <div class="grid g2" style="margin-top:14px">
-  {# ── Darslar va davomat ────────────────────────────────────── #}
+{# ── Darslar va davomat ────────────────────────────────────── #}
   <div class="card">
     <h2 style="margin-top:0">Darslar va davomat</h2>
+    {% set actives = contracts|selectattr('status','equalto','active')|list %}
     {% for s in sessions %}
-    <details style="margin-bottom:8px" {% if not s.held %}open{% endif %}>
-      <summary style="cursor:pointer;padding:6px 0">
+    <details class="ses" style="margin-bottom:8px" {% if not s.held %}open{% endif %}>
+      <summary>
         <b>{{ s.date|dmy }}</b> — {{ s.topic or 'mavzu belgilanmagan' }}
         {% if s.held %}<span class="pos" style="font-size:12px">✓ o'tkazildi</span>
         {% else %}<span class="gold" style="font-size:12px">davomat kutilmoqda</span>{% endif %}
       </summary>
-      <form method="post" action="/oquv/session/{{ s.id }}/attendance" style="margin:8px 0 4px">
-        <table>
-          {% for c in contracts if c.status == 'active' %}
-          <tr>
-            <td>{{ c.student.name }}</td>
-            <td style="width:150px">
-              <select name="st_{{ c.id }}">
-                {% for k, lbl in att_statuses.items() %}
-                <option value="{{ k }}" {% if att.get((s.id, c.id), 'present')==k %}selected{% endif %}>{{ lbl }}</option>
-                {% endfor %}
-              </select>
-            </td>
-          </tr>
-          {% endfor %}
-        </table>
-        <button style="margin-top:8px">Davomatni saqlash</button>
+      <form method="post" action="/oquv/session/{{ s.id }}/attendance"
+            class="attf" style="margin:8px 0 4px">
+        <div class="att-bulk">
+          <button type="button" class="chip" onclick="attAll(this,'present')">Hammasi keldi</button>
+          <button type="button" class="chip" onclick="attAll(this,'absent')">Hammasi kelmadi</button>
+        </div>
+        {% for c in actives %}
+        {% set cur = att.get((s.id, c.id), 'present') %}
+        <div class="att-row">
+          <span class="att-nm">{{ c.student.name }}</span>
+          <input type="hidden" name="st_{{ c.id }}" value="{{ cur }}">
+          <span class="att-opts">
+            {% for k, lbl in att_statuses.items() %}
+            <button type="button" class="att-b a-{{ k }} {{ 'on' if cur == k }}"
+                    onclick="attPick(this,'{{ k }}')">{{ lbl }}</button>
+            {% endfor %}
+          </span>
+        </div>
+        {% else %}
+        <p class="sub">Bu oqimda faol o'quvchi yo'q</p>
+        {% endfor %}
+        {% if actives %}<button style="margin-top:10px">Davomatni saqlash</button>{% endif %}
       </form>
     </details>
     {% else %}
-    <p class="sub">Hali dars qo'shilmagan</p>
+    <p class="sub">Hali dars qo'shilmagan — quyida butun jadvalni bir marta yarating</p>
     {% endfor %}
 
     <details class="adder" style="margin-top:10px">
-      <summary>Dars qo'shish</summary>
+      <summary>Darslar jadvalini yaratish</summary>
+      <div class="body">
+      <form method="post" action="/oquv/cohort/{{ ch.id }}/schedule">
+        <label style="display:block;margin-bottom:6px">Haftaning qaysi kunlari</label>
+        <div class="wdays">
+          {% for i, d in [(0,'Du'),(1,'Se'),(2,'Cho'),(3,'Pa'),(4,'Ju'),(5,'Sha'),(6,'Yak')] %}
+          <label class="wd"><input type="checkbox" name="wd" value="{{ i }}">{{ d }}</label>
+          {% endfor %}
+        </div>
+        <div class="inline" style="margin-top:10px">
+          <div><label>Boshlanish</label>
+            <input type="date" name="start" value="{{ ch.start_date.isoformat() }}"></div>
+          <div><label>Nechta dars</label>
+            <input type="number" name="count" value="12" min="1" max="60"></div>
+          <div><label>Mavzu (raqamlanadi)</label>
+            <input name="topic" placeholder="Dars"></div>
+          <div><button>Jadvalni yaratish</button></div>
+        </div>
+        <p class="hint" style="margin-top:10px">Masalan: Se + Pa, 12 ta dars —
+          tizim sanalarni o'zi qo'yib chiqadi. Mavjud sanalar takrorlanmaydi.</p>
+      </form>
+      </div>
+    </details>
+
+    <details class="adder" style="margin-top:8px">
+      <summary>Bitta dars qo'shish</summary>
       <div class="body">
       <form class="inline" method="post" action="/oquv/cohort/{{ ch.id }}/session/add">
         <div><label>Sana</label><input type="date" name="date" required></div>
@@ -109,6 +214,8 @@
         <div><label>Sarlavha</label><input name="title" placeholder="Sovuq qo'ng'iroq skripti" required></div>
         <div><label>Muddat</label><input type="date" name="due_date"></div>
         <div><label>Maks ball</label><input type="number" name="max_score" value="100"></div>
+        <div style="flex-basis:100%"><label>Material havolasi (video/fayl — o'quvchi kabinetida ko'rinadi)</label>
+          <input name="material_url" placeholder="https://youtu.be/... yoki Drive havolasi"></div>
         <div style="flex-basis:100%"><label>Shart/tavsif (AI baholashda rubrika sifatida ishlatiladi)</label>
           <textarea name="description" rows="2" style="width:100%"></textarea></div>
         <div><button>Berish</button></div>
@@ -117,4 +224,58 @@
     </details>
   </div>
 </div>
+
+{# ── Reyting ───────────────────────────────────────────────── #}
+  <div class="card" style="margin-top:14px">
+    <h2 style="margin-top:0">Reyting</h2>
+    {% if board %}
+    <div class="tablewrap">
+    <table>
+      <tr><th style="width:44px">O'rin</th><th>O'quvchi</th>
+          <th class="r">O'rt. ball</th><th class="r">Davomat</th>
+          <th class="r">Vazifa</th><th class="r">Umumiy</th></tr>
+      {% for r in board %}
+      <tr>
+        <td><span class="badge {{ 'b-gold' if r.place <= 3 else 'b-gray' }}">{{ r.place }}</span></td>
+        <td><a href="/contracts/{{ r.c.id }}">{{ r.name }}</a></td>
+        <td class="r">{{ r.avg|round|int if r.avg is not none else '—' }}</td>
+        <td class="r">{{ (r.att|round|int ~ '%') if r.att is not none else '—' }}</td>
+        <td class="r">{{ r.done }}/{{ r.total }}</td>
+        <td class="r"><b class="gold">{{ r.score }}</b></td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    <p class="hint" style="margin-top:10px">Umumiy ball = o'rtacha baho × 0,7 +
+      davomat × 0,3. To'lov holati reytingga umuman ta'sir qilmaydi.</p>
+    {% else %}
+    <div class="empty">Reyting uchun hali baho va davomat yo'q</div>
+    {% endif %}
+  </div>
+
+<script>
+/* Kabinet havolasini nusxalash */
+function copyLink(btn, token){
+  var url = location.origin + "/app/" + token;
+  var done = function(){ var t = btn.textContent; btn.textContent = "✓ Nusxalandi";
+    setTimeout(function(){ btn.textContent = t; }, 1600); };
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, function(){ prompt("Havola:", url); });
+  else prompt("Havola:", url);
+}
+/* Davomat: bir teginish — holat tanlanadi (tanlash ro'yxati o'rniga) */
+function attPick(btn, val){
+  var row = btn.closest(".att-row");
+  row.querySelector("input[type=hidden]").value = val;
+  row.querySelectorAll(".att-b").forEach(function(b){ b.classList.remove("on"); });
+  btn.classList.add("on");
+}
+function attAll(btn, val){
+  btn.closest("form").querySelectorAll(".att-row").forEach(function(row){
+    row.querySelector("input[type=hidden]").value = val;
+    row.querySelectorAll(".att-b").forEach(function(b){
+      b.classList.toggle("on", b.classList.contains("a-" + val));
+    });
+  });
+}
+</script>
 {% endblock %}

@@ -10,6 +10,8 @@ jadvali qo'lda tuziladi) — interfeysda "taxminiy" deb belgilangan.
 import math
 from datetime import date, datetime, timedelta
 
+import localtime
+
 # Toshkent (standart); keyin sozlamalardan o'zgartirsa bo'ladi
 LAT, LON, TZ = 41.2995, 69.2401, 5.0
 FAJR_ANGLE, ISHA_ANGLE = 18.0, 17.0
@@ -56,7 +58,7 @@ def _asr_angle(decl):
 
 def times_for(day=None):
     """Kun uchun vaqtlar: [{'key','name','time','minutes'}] (mahalliy vaqt)."""
-    day = day or date.today()
+    day = day or localtime.today()
     jd = _julian(day.year, day.month, day.day)
     decl, eqt = _sun_position(jd + 0.5 - LON / (15 * 24))
     noon = (12 - eqt) % 24 - LON / 15 + TZ   # quyosh eng balandda

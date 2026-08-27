@@ -14,6 +14,8 @@ Unit-ekonomika uchun: MarketingSpend (kanal bo'yicha) → CAC, LTV, ARPU.
 import unicodedata
 from datetime import date, datetime
 
+import localtime
+
 from database import db
 
 # ── Lug'atlar — Mfaktor ДДС jadvali bilan 1:1 mos ────────────────
@@ -55,6 +57,15 @@ EXPENSE_CATS = [
 # Texnik operatsiya (hamyonlar orasi perevod) — hisobotlarda chiqmaydi,
 # faqat hamyon qoldig'iga ta'sir qiladi
 TRANSFER_CAT = "Перевод между счетами"
+
+class LaunchScenario(db.Model):
+    """Launch-hisob stsenariysi — tarkibi JSON (launch.py ga qarang)."""
+    __tablename__ = "launch_scenarios"
+    id   = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), default="")
+    sort = db.Column(db.Integer, default=0)
+    data = db.Column(db.Text, default="{}")
+
 
 # Kurs yo'nalishi → kirim statyasi (kurs nomidan aniqlanadi)
 DIRECTION_INCOME = {
@@ -127,7 +138,7 @@ class Transaction(db.Model):
     """Pul harakati — kassa qatlami (Impulse Moliya andozasi)."""
     __tablename__ = "transactions"
     id          = db.Column(db.Integer, primary_key=True)
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at  = db.Column(db.DateTime, default=localtime.now)
     tdate       = db.Column(db.Date, nullable=False, index=True)
     wallet_code = db.Column(db.String(20), nullable=False, index=True)
     operation   = db.Column(db.String(10), nullable=False, index=True)  # kirim/chiqim
@@ -181,8 +192,11 @@ class Student(db.Model):
     name    = db.Column(db.String(200), nullable=False)
     phone   = db.Column(db.String(50), default="")
     source  = db.Column(db.String(50), default="")   # qaysi kanaldan keldi (CAC/LTV)
+    # Ilova kaliti o'quvchida turadi — u bir nechta kursga yozilsa ham
+    # bitta havola bilan hammasini ko'radi.
+    portal_token = db.Column(db.String(48), unique=True, index=True)
     note    = db.Column(db.Text, default="")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=localtime.now)
 
 
 class Contract(db.Model):
@@ -198,6 +212,10 @@ class Contract(db.Model):
     refund_amount = db.Column(db.Float, default=0.0)         # 1 haftalik kafolat bo'yicha
     note        = db.Column(db.Text, default="")
     # O'quv bo'limi: dropout risk (education.py hisoblaydi)
+    # O'quvchi kabineti uchun shaxsiy havola kaliti (parolsiz kirish).
+    # Faqat kerak bo'lganda yaratiladi — har shartnomada bo'lishi shart emas.
+    portal_token = db.Column(db.String(48), unique=True, index=True)
+    tg_chat_id   = db.Column(db.String(32), default="")   # Telegram bog'lanishi
     risk_score   = db.Column(db.Integer, default=0)          # 0–100
     risk_reasons = db.Column(db.String(300), default="")
     student = db.relationship("Student", backref="contracts")
@@ -227,7 +245,7 @@ class InstallmentLine(db.Model):
     paid        = db.Column(db.Float, default=0.0)
 
     def overdue_days(self, today=None):
-        today = today or date.today()
+        today = today or localtime.today()
         if self.paid >= self.amount - 0.01:
             return 0
         return max((today - self.due_date).days, 0)
@@ -241,7 +259,7 @@ class AutoEvent(db.Model):
     """
     __tablename__ = "auto_events"
     id         = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=localtime.now, index=True)
     kind       = db.Column(db.String(30), default="info")   # payment/contract/reminder/day/refund
     title      = db.Column(db.String(200), nullable=False)
     detail     = db.Column(db.Text, default="")
@@ -324,6 +342,7 @@ DDS_SPRAVOCHNIK = [
     ("Поступление от клиента СМК", "Поступление", "Операционная"),
     (" Поступление Б2Б", "Поступление", "Операционная"),
     ("Поступление от клиента TBB", "Поступление", "Операционная"),
+    ("Поступление от клиента ТББ", "Поступление", "Операционная"),
     ("Мфактор поступления", "Поступление", "Операционная"),
     ("возврат поступления/клиент", "Выбытие", "Операционная"),
     ("зарплата ", "Выбытие", "Операционная"),
@@ -409,6 +428,13 @@ class DdsRow(db.Model):
     # shu yozilgan qism qaytarilishi kerak, aks holda boshqa to'lovning puli
     # ham yechilib ketardi.
     applied_amount = db.Column(db.Float, default=0.0)
+    # chetlatish sababi — «nega bu to'lov navbatda emas» degan savolga
+    # keyin ham javob topilsin (masalan: «avvalgi guruhlar, reyestr yo'q»)
+    skip_note = db.Column(db.String(200), default="")
+    # qator qayerdan: "excel" (import) yoki "app" (dasturda qo'lda kiritilgan).
+    # Excel qayta-import faqat "excel" qatorlarni almashtiradi — dasturda
+    # kiritilganlar (o'tkazma tuzatishi, kofe-break va h.k.) saqlanadi.
+    origin = db.Column(db.String(8), default="excel", index=True)
 
     tx = db.relationship("Transaction", backref="dds_row", uselist=False,
                          foreign_keys="Transaction.dds_row_id")
@@ -486,7 +512,9 @@ class Assignment(db.Model):
     description = db.Column(db.Text, default="")   # AI baholashda rubrika
     due_date    = db.Column(db.Date)
     max_score   = db.Column(db.Integer, default=100)
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    # dars materiali: video yoki fayl havolasi (o'quvchi kabinetida ko'rinadi)
+    material_url = db.Column(db.String(500), default="")
+    created_at  = db.Column(db.DateTime, default=localtime.now)
     cohort      = db.relationship("Cohort", backref="assignments")
 
 
@@ -503,7 +531,7 @@ class Submission(db.Model):
     contract_id   = db.Column(db.Integer, db.ForeignKey("contracts.id"),
                               nullable=False, index=True)
     content       = db.Column(db.Text, default="")
-    submitted_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    submitted_at  = db.Column(db.DateTime, default=localtime.now)
     status        = db.Column(db.String(12), default="pending")  # pending/graded
     score         = db.Column(db.Integer)          # yakuniy ball
     feedback      = db.Column(db.Text, default="")
@@ -523,7 +551,7 @@ class EduCertificate(db.Model):
     token       = db.Column(db.String(48), unique=True, index=True,
                             nullable=False)
     serial      = db.Column(db.String(40), unique=True, nullable=False)
-    issued_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    issued_at   = db.Column(db.DateTime, default=localtime.now)
     contract    = db.relationship("Contract",
                                   backref=db.backref("certificate",
                                                      uselist=False))
@@ -539,6 +567,244 @@ class EduCertificate(db.Model):
         cert = EduCertificate(
             contract_id=contract.id,
             token=_secrets.token_urlsafe(24),
-            serial=f"MF-{datetime.utcnow().year}-{n:05d}")
+            serial=f"MF-{localtime.now().year}-{n:05d}")
         db.session.add(cert)
         return cert
+
+# ══════════════════════════════════════════════════════════════════
+#  TO'LOV TAQVIMI (платежный календарь) — kunlik xarajat rejasi
+# ══════════════════════════════════════════════════════════════════
+# Guruhlar Sheets'dagi «Ежедневный календарь расходов» tartibida, lekin
+# qatorlar kassa ishlatadigan statyalarning o'zi — shunda FAKT ustuni
+# hech qanday qo'lda ko'chirishsiz, to'g'ridan-to'g'ri kassadan olinadi.
+CAL_GROUPS = [
+    ("Xodimlar mehnati", ["Зарплата МБМ", "Зарплата СМК", "Зарплата РОП",
+                          "Зарплата ТББ", "Премия", "Налог/дивиденд Зп"]),
+    ("Korporativ xarajatlar", ["Обед сотрудников", "Корпоративный расход",
+                               "Хайрия"]),
+    ("O'quv jarayoni", ["Кофе-брейк", "Закуп хоз. товаров",
+                        "Выпускные расходы"]),
+    ("Mijoz jalb qilish", ["Таргет (реклама)", "CRM OnlinePBX"]),
+    ("Ma'muriy xarajatlar", ["Аренда", "Коммунальные услуги", "Ремонт",
+                             "Интернет/IP-телефония", "Абонентские подписки",
+                             "Такси", "Комиссия банка"]),
+    ("Moliyaviy", ["Дивиденды", "Расход — долг"]),
+    ("Qaytarish va boshqalar", ["Возврат клиенту", "Прочие расходы"]),
+]
+
+
+class PlanCell(db.Model):
+    """Taqvimning bitta katagi: shu kunga shu statya bo'yicha reja summasi."""
+    __tablename__ = "plan_cells"
+    id       = db.Column(db.Integer, primary_key=True)
+    year     = db.Column(db.Integer, nullable=False, index=True)
+    month    = db.Column(db.Integer, nullable=False, index=True)
+    day      = db.Column(db.Integer, nullable=False)
+    category = db.Column(db.String(100), nullable=False)
+    amount   = db.Column(db.Float, default=0.0)
+    __table_args__ = (db.UniqueConstraint("year", "month", "day", "category",
+                                          name="uq_plan_cell"),)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  VIDEO DARSLIKLAR — o'quvchi ilovasi uchun kontent qatlami
+# ══════════════════════════════════════════════════════════════════
+# Muhim qaror: videoni O'ZIMIZ saqlamaymiz. Fayl hosting va trafik qimmat
+# turadi, buning o'rniga havola (YouTube unlisted / Vimeo / Drive) qo'yiladi
+# va ilova ichida o'rnatilgan pleyerda ochiladi. Shunda kontent egasi biz
+# bo'lamiz, xarajat esa nolga yaqin.
+
+class VideoModule(db.Model):
+    """Kurs moduli — video darslar shu ichida guruhlanadi."""
+    __tablename__ = "video_modules"
+    id        = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey("courses.id"),
+                          nullable=False, index=True)
+    title     = db.Column(db.String(200), nullable=False)
+    subtitle  = db.Column(db.String(300), default="")
+    sort      = db.Column(db.Integer, default=0)
+    course    = db.relationship("Course", backref="modules")
+    lessons   = db.relationship("VideoLesson", backref="module",
+                                order_by="VideoLesson.sort",
+                                cascade="all, delete-orphan")
+
+
+class VideoLesson(db.Model):
+    """Bitta video dars: havola + tavsif + davomiyligi."""
+    __tablename__ = "video_lessons"
+    id        = db.Column(db.Integer, primary_key=True)
+    module_id = db.Column(db.Integer, db.ForeignKey("video_modules.id"),
+                          nullable=False, index=True)
+    title     = db.Column(db.String(200), nullable=False)
+    video_url = db.Column(db.String(500), default="")
+    body      = db.Column(db.Text, default="")        # matnli konspekt
+    file_url  = db.Column(db.String(500), default="")  # qo'shimcha material
+    minutes   = db.Column(db.Integer, default=0)
+    sort      = db.Column(db.Integer, default=0)
+    is_free   = db.Column(db.Boolean, default=False)   # tanishuv darsi
+    # Bosqichma-bosqich ochilish: oqim boshlanganidan necha kun keyin
+    # ochiladi. 0 — birinchi kundanoq ochiq.
+    open_day  = db.Column(db.Integer, default=0)
+
+
+class LessonView(db.Model):
+    """O'quvchi qaysi darsni ko'rib bo'lgani (progress uchun)."""
+    __tablename__ = "lesson_views"
+    __table_args__ = (db.UniqueConstraint("lesson_id", "contract_id",
+                                          name="uq_lesson_view"),)
+    id          = db.Column(db.Integer, primary_key=True)
+    lesson_id   = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
+                            nullable=False, index=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            nullable=False, index=True)
+    done        = db.Column(db.Boolean, default=True)
+    viewed_at   = db.Column(db.DateTime, default=localtime.now)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  VIDEO KO'RISH ANALITIKASI
+# ══════════════════════════════════════════════════════════════════
+# Video boshqa saytda tursa ham, u bizning sahifamiz ichida ochiladi —
+# demak pleyerning JS API'si «hozir nechinchi soniyada» deb ayta oladi.
+# Ilova har 15 soniyada ko'rilgan ORALIQLARNI yuboradi, biz ularni
+# birlashtirib saqlaymiz. Oxirgi nuqtani emas, aynan oraliqlarni:
+# aks holda o'quvchi tugmani oxiriga sudrasa 100% bo'lib qolardi.
+
+class LessonWatch(db.Model):
+    __tablename__ = "lesson_watch"
+    # Noyoblik ELEMENT bo'yicha: bitta darsda bir nechta video bo'lishi mumkin
+    __table_args__ = (db.UniqueConstraint("item_id", "contract_id",
+                                          name="uq_lesson_watch_item"),)
+    id          = db.Column(db.Integer, primary_key=True)
+    lesson_id   = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
+                            nullable=False, index=True)
+    item_id     = db.Column(db.Integer, db.ForeignKey("lesson_items.id"),
+                            index=True)          # qaysi video elementi
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            nullable=False, index=True)
+    duration    = db.Column(db.Float, default=0.0)   # video uzunligi, soniya
+    covered     = db.Column(db.Text, default="[]")   # JSON: [[a,b], ...]
+    seconds     = db.Column(db.Float, default=0.0)   # oraliqlar yig'indisi
+    pct         = db.Column(db.Float, default=0.0)   # foiz
+    max_pos     = db.Column(db.Float, default=0.0)   # eng uzoq borgan nuqta
+    opens       = db.Column(db.Integer, default=0)   # necha marta ochgan
+    first_at    = db.Column(db.DateTime, default=localtime.now)
+    last_at     = db.Column(db.DateTime, default=localtime.now)
+    lesson      = db.relationship("VideoLesson")
+    contract    = db.relationship("Contract")
+
+
+# ══════════════════════════════════════════════════════════════════
+#  TESTLAR (avtomatik tekshiriladigan)
+# ══════════════════════════════════════════════════════════════════
+class Quiz(db.Model):
+    """Darsga biriktirilgan test."""
+    __tablename__ = "quizzes"
+    id         = db.Column(db.Integer, primary_key=True)
+    lesson_id  = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
+                           nullable=False, index=True)
+    item_id    = db.Column(db.Integer, db.ForeignKey("lesson_items.id"),
+                           index=True)          # qaysi element sifatida turadi
+    title      = db.Column(db.String(200), default="Nazorat testi")
+    pass_score = db.Column(db.Integer, default=70)   # o'tish uchun kerak, %
+    lesson     = db.relationship("VideoLesson", backref=db.backref(
+        "quiz", uselist=False, cascade="all, delete-orphan"))
+    item       = db.relationship("LessonItem", backref=db.backref(
+        "quiz", uselist=False))
+    questions  = db.relationship("QuizQuestion", backref="quiz",
+                                 order_by="QuizQuestion.sort",
+                                 cascade="all, delete-orphan")
+
+
+class QuizQuestion(db.Model):
+    __tablename__ = "quiz_questions"
+    id      = db.Column(db.Integer, primary_key=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey("quizzes.id"),
+                        nullable=False, index=True)
+    text    = db.Column(db.String(500), nullable=False)
+    sort    = db.Column(db.Integer, default=0)
+    options = db.relationship("QuizOption", backref="question",
+                              order_by="QuizOption.id",
+                              cascade="all, delete-orphan")
+
+
+class QuizOption(db.Model):
+    __tablename__ = "quiz_options"
+    id          = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey("quiz_questions.id"),
+                            nullable=False, index=True)
+    text        = db.Column(db.String(300), nullable=False)
+    is_correct  = db.Column(db.Boolean, default=False)
+
+
+class QuizAttempt(db.Model):
+    """Har urinish alohida saqlanadi — kurator dinamikani ko'ra oladi."""
+    __tablename__ = "quiz_attempts"
+    id          = db.Column(db.Integer, primary_key=True)
+    quiz_id     = db.Column(db.Integer, db.ForeignKey("quizzes.id"),
+                            nullable=False, index=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            nullable=False, index=True)
+    score       = db.Column(db.Integer, default=0)     # foiz
+    passed      = db.Column(db.Boolean, default=False)
+    answers     = db.Column(db.Text, default="{}")     # JSON: {savol: variant}
+    created_at  = db.Column(db.DateTime, default=localtime.now)
+    contract    = db.relationship("Contract")
+    quiz        = db.relationship("Quiz")
+
+
+# ══════════════════════════════════════════════════════════════════
+#  TELEGRAM XABARNOMA
+# ══════════════════════════════════════════════════════════════════
+class TgMessage(db.Model):
+    """Yuborilgan xabar tarixi — bir xil eslatma ikki marta ketmasin."""
+    __tablename__ = "tg_messages"
+    id          = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contracts.id"),
+                            index=True)
+    kind        = db.Column(db.String(20), default="")   # qarz/dars/vazifa
+    dedup_key   = db.Column(db.String(120), index=True)  # kun bo'yicha kalit
+    text        = db.Column(db.Text, default="")
+    ok          = db.Column(db.Boolean, default=False)
+    error       = db.Column(db.String(300), default="")
+    sent_at     = db.Column(db.DateTime, default=localtime.now)
+    contract    = db.relationship("Contract")
+
+
+# ══════════════════════════════════════════════════════════════════
+#  DARS ELEMENTLARI
+# ══════════════════════════════════════════════════════════════════
+# Ilgari dars qat'iy edi: bitta video + bitta matn + bitta fayl + bitta
+# test, tartibi ham o'zgarmasdi. Jiddiy platformalarda (Coursera, Udemy,
+# Stepik) dars — ELEMENTLAR KETMA-KETLIGI: kurator xohlagan tartibda
+# video, matn, fayl va testni terib chiqadi.
+#
+# VideoLesson endi idish rolini o'ynaydi (nom, modul, tartib, ochilish
+# kuni). Ichidagi mazmun — shu jadvalda.
+
+ITEM_KINDS = {
+    "video": "Video",
+    "matn":  "Matn",
+    "fayl":  "Material",
+    "test":  "Test",
+}
+
+
+class LessonItem(db.Model):
+    __tablename__ = "lesson_items"
+    id        = db.Column(db.Integer, primary_key=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("video_lessons.id"),
+                          nullable=False, index=True)
+    kind      = db.Column(db.String(10), nullable=False, default="video")
+    sort      = db.Column(db.Integer, default=0)
+    title     = db.Column(db.String(200), default="")
+    url       = db.Column(db.String(500), default="")   # video yoki fayl
+    body      = db.Column(db.Text, default="")          # matn
+    minutes   = db.Column(db.Integer, default=0)        # video davomiyligi
+    lesson    = db.relationship("VideoLesson", backref=db.backref(
+        "items", order_by="LessonItem.sort, LessonItem.id",
+        cascade="all, delete-orphan"))
+
+    @property
+    def label(self):
+        return self.title or ITEM_KINDS.get(self.kind, self.kind)

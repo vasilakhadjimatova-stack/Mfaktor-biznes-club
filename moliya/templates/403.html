@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card" style="max-width:520px;margin:40px auto;text-align:center;padding:34px 26px">
+  <div style="font-size:34px;line-height:1">🔒</div>
+  <h1 style="margin-top:10px">Bu bo'lim sizga ochiq emas</h1>
+  <p class="sub" style="margin-top:8px">
+    Siz <b>{{ role_label or role }}</b> sifatida kirgansiz. Bu sahifa boshqa
+    rol uchun. Kerak bo'lsa direktordan so'rang — u sozlamalardan ruxsatni
+    o'zgartira oladi.</p>
+  <a class="btn" style="margin-top:18px" href="{{ home }}">← O'z bo'limimga qaytish</a>
+</div>
+{% endblock %}

@@ -13,6 +13,8 @@ Jahon ta'lim-moliya standartlari shu yerda:
 from collections import defaultdict
 from datetime import date, timedelta
 
+import localtime
+
 from sqlalchemy import func
 
 import charts
@@ -76,6 +78,28 @@ def wallet_cards(limit_tx=8):
     return {"cards": cards, "total": total}
 
 
+# KPI/bonus uchun «sotuv» — faqat o'quvchi to'lovlari. Qarz, kredit, Б2Б,
+# egа qo'ygan pul va «Мфактор поступления» bunga kirmaydi; aks holda ROP
+# sotuv rejasi ham, foizli bonus bazasi ham shishib ketardi (masalan egа
+# 200 mln qarz qo'ysa — reja bajarilgan ko'rinib, nohaq bonus chiqardi).
+SALES_CATS = {
+    "Поступление от клиента РОП",
+    "Поступление от клиента СМК",
+    "Поступление от клиента ТББ",
+}
+
+
+def sales_income(year, month):
+    """Oylik sof sotuv tushumi — faqat o'quvchi (mijoz) to'lovlari."""
+    q = (Transaction.query
+         .filter(Transaction.operation == "kirim",
+                 Transaction.is_transfer.is_(False),
+                 Transaction.activity != "tech")
+         .filter(func.extract("year", Transaction.tdate) == year)
+         .filter(func.extract("month", Transaction.tdate) == month))
+    return sum(t.amount for t in q if t.category in SALES_CATS)
+
+
 def month_cashflow(year, month):
     """Oylik DDS: statya kesimida kirim/chiqim (transferlar hisobga olinmaydi)."""
     q = (Transaction.query
@@ -104,7 +128,7 @@ def contract_recognized(contract, as_of=None):
     Chiziqli usul: net narx × (o'tgan kunlar / kurs davomiyligi).
     Qaytarilgan shartnomada faqat qaytarilmagan qismi tan olinadi.
     """
-    as_of = as_of or date.today()
+    as_of = as_of or localtime.today()
     c = contract.cohort
     if contract.status == "cancelled":
         return 0.0
@@ -121,7 +145,7 @@ def contract_recognized(contract, as_of=None):
 
 def accrual_summary(as_of=None):
     """Butun portfel: tan olingan daromad, deferred revenue, debitorka."""
-    as_of = as_of or date.today()
+    as_of = as_of or localtime.today()
     recognized = deferred = receivable = booked = 0.0
     for c in Contract.query.filter(Contract.status != "cancelled").all():
         rec = contract_recognized(c, as_of)
@@ -145,7 +169,7 @@ def accrual_summary(as_of=None):
 # ══════════════════════════════════════════════════════════════════
 def overdue_lines(today=None):
     """Muddati o'tgan grafik qatorlari, aging bilan."""
-    today = today or date.today()
+    today = today or localtime.today()
     rows = []
     q = (InstallmentLine.query.join(Contract)
          .filter(Contract.status == "active")
@@ -165,7 +189,7 @@ def overdue_lines(today=None):
 
 def upcoming_lines(days=7, today=None):
     """Yaqin N kunda to'lanishi kerak bo'lgan grafik qatorlari."""
-    today = today or date.today()
+    today = today or localtime.today()
     till = today + timedelta(days=days)
     q = (InstallmentLine.query.join(Contract)
          .filter(Contract.status == "active")
@@ -513,7 +537,7 @@ def budget_planfact(year, month):
 #  DASHBOARD jamlamasi
 # ══════════════════════════════════════════════════════════════════
 def dashboard_data(today=None):
-    today = today or date.today()
+    today = today or localtime.today()
     y, m = today.year, today.month
     balances, total_balance = wallet_balances()
     cf = month_cashflow(y, m)
@@ -543,11 +567,16 @@ def dashboard_data(today=None):
         [{"key": "inc", "name": "Tushum", "values": dm["inc_tot"][:m]},
          {"key": "exp", "name": "Xarajat", "values": dm["exp_tot"][:m]}],
         MN[:m])
+    # moliyaviy oqim belgili: musbat — kirim (qarz/kredit olindi), manfiy —
+    # chiqim (dividend/qarz to'landi). abs bilan doim minus qilib bo'lmaydi,
+    # aks holda musbat yilda sharshara «Hozir» bilan to'g'ri kelmasdi.
+    fin_y = dm["fin_year"]
     wf = charts.waterfall([
         {"name": "Yil boshi", "value": dm["opens"][0], "kind": "start"},
         {"name": "Tushum", "value": sum(dm["inc_tot"]), "kind": "plus"},
         {"name": "Xarajat", "value": sum(dm["exp_tot"]), "kind": "minus"},
-        {"name": "Dividend", "value": abs(dm["fin_year"]), "kind": "minus"},
+        {"name": "Moliya", "value": abs(fin_y),
+         "kind": "plus" if fin_y >= 0 else "minus"},
         {"name": "Hozir", "value": dm["closes"][m - 1], "kind": "end"},
     ])
     rank = charts.rank_bars([{"cat": r["cat"], "val": r["total"]}
@@ -580,7 +609,8 @@ def dashboard_data(today=None):
                 {"name": "Yil boshi", "value": round(dm["opens"][0]), "kind": "start"},
                 {"name": "Tushum", "value": round(sum(dm["inc_tot"])), "kind": "plus"},
                 {"name": "Xarajat", "value": round(sum(dm["exp_tot"])), "kind": "minus"},
-                {"name": "Dividend", "value": round(abs(dm["fin_year"])), "kind": "minus"},
+                {"name": "Moliya", "value": round(abs(dm["fin_year"])),
+                 "kind": "plus" if dm["fin_year"] >= 0 else "minus"},
                 {"name": "Hozir", "value": round(dm["closes"][m - 1]), "kind": "end"},
             ],
         },
@@ -602,7 +632,7 @@ def contracts_board(status="active", today=None):
     puli va qarzi bir qarashda; ochilganda har o'quvchining to'lov holati,
     keyingi muddati va kechikishi ko'rinadi.
     """
-    today = today or date.today()
+    today = today or localtime.today()
     out = []
     for ch in (Cohort.query.order_by(Cohort.start_date.desc()).all()):
         q = Contract.query.filter_by(cohort_id=ch.id)
@@ -659,6 +689,7 @@ def contracts_board(status="active", today=None):
             progress = (today - ch.start_date).days / ch.duration_days() * 100
         out.append({
             "cohort": ch, "students": students, "count": n,
+            "demo": "[namuna]" in (ch.name or ""),
             "capacity": ch.capacity or 0,
             "fill": (n / ch.capacity * 100) if ch.capacity else 0,
             "price": c_price, "paid": c_paid, "due": c_due,

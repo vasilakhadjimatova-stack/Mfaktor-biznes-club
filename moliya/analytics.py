@@ -8,6 +8,8 @@ import calendar
 from collections import defaultdict
 from datetime import date, timedelta
 
+import localtime
+
 from sqlalchemy import func
 
 import core
@@ -93,7 +95,7 @@ def trend(year, month, back=12, ahead=3):
 
     # joriy tugallanmagan oy prognoz bazasini buzmasin: oy hali oxirlamagan
     # bo'lsa, uning qisman raqamlari o'rtacha hisobidan chiqariladi
-    today = date.today()
+    today = localtime.today()
     partial = (year == today.year and month == today.month and today.day < 28)
     base_hist = hist[:-1] if (partial and len(hist) > 1) else hist
 
@@ -102,7 +104,13 @@ def trend(year, month, back=12, ahead=3):
         yo'nalish = oxirgi 3 oy / avvalgi 3 oy, so'nuvchi sur'at bilan.
         Oddiy murakkab foiz 6 oyga cho'zilsa, bitta g'ayrioddiy oy butun
         prognozni buzadi — shuning uchun sur'at har oy so'nib boradi."""
-        vals = [h[key] for h in base_hist if h[key]]
+        # Nol oyni butunlay tashlab yuborsak, o'rtacha sun'iy ko'tarilib,
+        # prognoz doim optimistik chiqardi. Faqat YETAKCHI nollarni (ma'lumot
+        # boshlanishidan oldin — «hali kiritilmagan») olib tashlaymiz; oradagi
+        # va keyingi haqiqiy nol oylar o'rtachaga to'liq kiradi.
+        vals = [h[key] for h in base_hist]
+        while vals and not vals[0]:
+            vals.pop(0)
         if len(vals) < 3:
             return [round(vals[-1]) if vals else 0] * ahead
         level = sum(vals[-6:]) / len(vals[-6:])
@@ -157,7 +165,7 @@ def collection_rate(days=90, today=None):
     qancha so'ralgan bo'lsa, shuncha necha foizi haqiqatda tushgan.
     Shartnoma ma'lumoti hali yo'q bo'lsa None qaytadi.
     """
-    today = today or date.today()
+    today = today or localtime.today()
     since = today - timedelta(days=days)
     lines = (InstallmentLine.query.join(Contract)
              .filter(Contract.status == "active",
@@ -184,7 +192,7 @@ def cash_forecast(year, month, ahead=6):
     # prognoz har doim "bugundan" boshlanadi: kassa qoldig'i bugungi holat,
     # shuning uchun statistika oxirgi TO'LIQ oyga bog'lanadi va joriy oyning
     # qolgan kunlari ulush sifatida qo'shiladi
-    today = date.today()
+    today = localtime.today()
     ty, tm = today.year, today.month
     ay, am = (ty - 1, 12) if tm == 1 else (ty, tm - 1)
     tr = trend(ay, am, back=12, ahead=ahead + 1)
@@ -319,7 +327,7 @@ AGING = [(15, "1–15 kun"), (30, "16–30 kun"), (60, "31–60 kun"), (10**6, "
 
 
 def aging(today=None):
-    today = today or date.today()
+    today = today or localtime.today()
     buckets = {label: {"sum": 0.0, "n": 0} for _, label in AGING}
     rows = core.overdue_lines(today)
     for r in rows:
