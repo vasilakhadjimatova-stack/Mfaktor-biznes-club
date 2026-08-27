@@ -74,7 +74,10 @@
 {% if d.gap_day %}
 <div class="card gapwarn">⚠ <b>{{ d.gap_day }}-{{ oy[m]|lower }}</b> kuni kassa
   qoldig'i manfiyga tushadi — rejadagi chiqimlarni ko'chirish yoki kirimni
-  tezlashtirish kerak.</div>
+  tezlashtirish kerak.
+  {% if not d.exp_in_total %}<i>Diqqat: bu davrga kutilayotgan kirim
+  kiritilmagan (shartnoma to'lov grafiklari bo'sh), shuning uchun prognoz
+  faqat chiqimni hisobga oladi.</i>{% endif %}</div>
 {% endif %}
 <div class="card pcal-card">
   <div class="pcal-head">
@@ -98,7 +101,7 @@
          onkeydown="if(event.key==='Enter')openDay({{ day.d }})">
       <span class="pd">{{ day.d }}{% if d.day_in[i] %}<i class="pin">+{{ (d.day_in[i] / 1000000)|round|int }}</i>{% endif %}</span>
       <span class="pp" data-pp="{{ day.d }}">{% if p %}R {{ p|grp }}{% endif %}</span>
-      <span class="pf {{ 'ov' if p and f > p }}">{% if f %}F {{ f|grp }}{% endif %}</span>
+      <span class="pf {{ 'ov' if p and f > p }}{{ ' exp' if not f and d.exp_out[i] }}">{% if f %}F {{ f|grp }}{% elif d.exp_out[i] %}≈ {{ d.exp_out[i]|grp }}{% endif %}</span>
       <i class="pbar" data-pb="{{ day.d }}">{% if p %}<b class="{{ 'ov' if f > p }}"
         style="width:{{ [100, (f / p * 100)|round|int]|min }}%"></b>{% endif %}</i>
     </div>
@@ -164,6 +167,7 @@
   </div>
   <div class="pp-grid pp-h"><span>Statya</span><span class="r">Reja</span><span class="r">Fakt</span></div>
   <div id="pp-rows"></div>
+  <div id="pp-exp" hidden></div>
   <div class="pp-add">
     <select id="pp-cat">
       {% for g in d.groups %}<optgroup label="{{ g.name }}">
@@ -179,6 +183,8 @@
 
 <script>
 var GROUPS = {{ d.groups|tojson }};
+var EXP_OUT = {{ d.exp_out_rows|tojson }};   /* takroriy to'lovlar (prognoz) */
+var EXP_IN  = {{ d.exp_in_rows|tojson }};    /* shartnoma grafigidan kutilgan kirim */
 var Y = {{ y }}, M = {{ m }}, OYNOMI = {{ oy[m]|tojson }};
 var curD = null;
 function pfmt(v){
@@ -223,10 +229,40 @@ function openDay(dd){
         'placeholder="—" data-cat="' + c + '" onchange="savePlan(this)">' +
       '<span class="r ppf' + (r.p && r.f > r.p ? " ov" : "") + '">' + (pfmt(r.f) || "—") + '</span></div>';
   }).join("") : '<div class="hint" style="margin:6px 0">Bu kunga hali reja ham, fakt ham yo\'q</div>';
+  renderExpected(dd);
   document.querySelectorAll(".pcal-cell").forEach(function(c){
     c.classList.toggle("sel", +c.dataset.d === dd);
   });
   panel.scrollIntoView({block: "nearest", behavior: "smooth"});
+}
+/* Kutilayotganlar — bazaga yozilmagan prognoz qatori. «Rejaga o'tkazish»
+   bosilsa oddiy reja katagi bo'lib yoziladi (keyin tahrirlash mumkin). */
+function renderExpected(dd){
+  var host = document.getElementById("pp-exp");
+  var out = EXP_OUT[dd] || [], inn = EXP_IN[dd] || [];
+  if (!out.length && !inn.length) { host.innerHTML = ""; host.hidden = true; return; }
+  host.hidden = false;
+  var h = '<div class="pp-exp-t">Kutilmoqda <i>— hali kassaga tushmagan</i></div>';
+  inn.forEach(function(r){
+    h += '<div class="pp-grid pp-e"><span class="pp-cat">↓ ' + esc(r.n) +
+         '</span><span></span><span class="r ppf">' + pfmt(r.s) + '</span></div>';
+  });
+  out.forEach(function(r){
+    h += '<div class="pp-grid pp-e"><span class="pp-cat">↑ ' + esc(r.n) +
+         '<i class="ec">' + esc(r.c) + '</i></span>' +
+         '<span class="r"><button type="button" class="toplan" ' +
+           'data-cat="' + esc(r.c) + '" data-sum="' + r.s +
+           '" onclick="expToPlan(this)">rejaga</button></span>' +
+         '<span class="r ppf ov">' + pfmt(r.s) + '</span></div>';
+  });
+  host.innerHTML = h;
+}
+function expToPlan(btn){
+  var body = new URLSearchParams({y: Y, m: M, d: curD,
+    cat: btn.dataset.cat, amount: btn.dataset.sum});
+  fetch("/taqvim/set", {method: "POST", body: body})
+    .then(function(r){ return r.json(); })
+    .then(function(){ location.reload(); });
 }
 function closeDay(){
   document.getElementById("pcal-panel").hidden = true;
@@ -324,6 +360,8 @@ function addPlan(){
 .gapwarn{margin-bottom:14px;border-color:var(--red);font-size:13px;
   color:var(--txt);padding:12px 15px}
 .gapwarn b{color:var(--red)}
+.gapwarn i{display:block;margin-top:6px;font-style:normal;
+  font-size:11.5px;color:var(--dim)}
 .pin{float:right;font-style:normal;font-size:9px;color:var(--green);
   font-weight:600}
 .burn .bf{fill:none;stroke:var(--gold);stroke-width:2.5;stroke-linejoin:round;
@@ -346,6 +384,17 @@ function addPlan(){
 .pf{font-size:9.5px;color:var(--green);white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
 .pf.ov{color:var(--red)}
+.pf.exp{color:var(--dim)}
+.pp-exp-t{margin:12px 0 4px;font:600 10px var(--sans);text-transform:uppercase;
+  letter-spacing:.07em;color:var(--gold)}
+.pp-exp-t i{font-style:normal;color:var(--dim);text-transform:none;
+  letter-spacing:0;font-weight:400}
+.pp-e .pp-cat{color:var(--dim)}
+.pp-e .ec{display:block;font-style:normal;font-size:9.5px;color:var(--line2)}
+.toplan{padding:3px 9px;font-size:10.5px;background:transparent;
+  border:1px solid var(--line2);color:var(--mut);box-shadow:none;
+  border-radius:7px;cursor:pointer}
+.toplan:hover{border-color:var(--gold);color:var(--gold)}
 .pbar{position:absolute;left:7px;right:7px;bottom:5px;height:3px;
   border-radius:3px;background:var(--track);overflow:hidden}
 .pbar b{display:block;height:100%;background:var(--green);border-radius:3px}

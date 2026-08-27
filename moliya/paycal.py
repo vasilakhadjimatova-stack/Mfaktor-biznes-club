@@ -106,6 +106,47 @@ def _due_by_day(year, month, from_day):
     return out
 
 
+def _expected_out(year, month, ndays, plan_keys, from_idx):
+    """Kutilayotgan chiqim: takroriy to'lovlar (ijara, oyliklar, obunalar).
+
+    Faqat kelgusi kunlar uchun va faqat reja katagi BO'SH bo'lganda —
+    buxgalter «Takrorlanuvchilardan» tugmasini bosgan bo'lsa, o'sha
+    summa allaqachon rejada turadi, ikki marta hisoblanmasligi kerak.
+    Bazaga hech narsa yozilmaydi: bu faqat prognoz qatlami.
+    """
+    per_day = [0.0] * ndays
+    rows = defaultdict(list)
+    for r in RecurringPayment.query.filter_by(is_active=True).all():
+        day = min(max(int(r.pay_day or 1), 1), ndays)
+        i = day - 1
+        if i < from_idx:
+            continue
+        cat = (r.category or "").strip() or "Прочие расходы"
+        if (cat, day) in plan_keys:          # rejaga allaqachon tushgan
+            continue
+        amt = r.amount or 0.0
+        per_day[i] += amt
+        rows[day].append({"n": r.name, "s": amt, "c": cat})
+    return per_day, rows
+
+
+def _expected_in_rows(year, month, from_day):
+    """Kutilayotgan kirim qatorlari — kun paneli uchun (o'quvchi ismi bilan)."""
+    out = defaultdict(list)
+    for r in (InstallmentLine.query
+              .filter(func.extract("year", InstallmentLine.due_date) == year,
+                      func.extract("month", InstallmentLine.due_date) == month,
+                      InstallmentLine.due_date >= from_day).all()):
+        rest = (r.amount or 0.0) - (r.paid or 0.0)
+        if rest <= 0.01:
+            continue
+        c = r.contract
+        out[r.due_date.day].append({
+            "n": (c.student.name if c and c.student else "O'quvchi"),
+            "s": rest})
+    return out
+
+
 def month_data(year, month):
     """Oylik taqvim: guruh → statya → kunlik reja/fakt + jami/og'ish."""
     ndays = monthrange(year, month)[1]
@@ -175,13 +216,16 @@ def month_data(year, month):
     due = _due_by_day(year, month, from_day)
     plan_in = [due.get(d, 0.0) if (d - 1) > real_to else 0.0
                for d in range(1, ndays + 1)]
+    exp_out, exp_out_rows = _expected_out(year, month, ndays, set(plan.keys()),
+                                          real_to + 1)
+    exp_in_rows = _expected_in_rows(year, month, from_day)
 
     bal, run = [], start_cash
     for i in range(ndays):
         if i <= real_to:                       # o'tgan kun — haqiqiy harakat
             run += day_in[i] - day_f[i]
         else:                                  # kelgusi kun — kutilgani
-            run += plan_in[i] - day_p[i]
+            run += plan_in[i] - day_p[i] - exp_out[i]
         bal.append(run)
 
     lo, hi = min(0.0, min(bal)), max(0.0, max(bal))
@@ -203,6 +247,10 @@ def month_data(year, month):
         "days": days, "groups": groups,
         "day_p": day_p, "day_f": day_f, "heat": heat, "weeks": weeks,
         "day_in": day_in, "plan_in": plan_in, "total_in": total_in,
+        "exp_out": exp_out, "exp_out_rows": dict(exp_out_rows),
+        "exp_in_rows": dict(exp_in_rows),
+        "exp_out_total": sum(exp_out),
+        "exp_in_total": sum(plan_in),
         "total_p": total_p, "total_f": total_f,
         "total_diff": total_f - total_p,
         "total_pct": (total_f / total_p * 100) if total_p > 0 else None,
